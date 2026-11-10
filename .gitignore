@@ -1,0 +1,33 @@
+# dependencies / build
+node_modules/
+.bun/
+dist/
+.astro/
+.vercel/
+.wrangler/
+.dev.vars
+.dev.vars.*
+!.dev.vars.example
+*.tsbuildinfo
+coverage/
+*.log
+.DS_Store
+Thumbs.db
+
+# local config and credentials
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+credentials.json
+secrets.json
+
+# local generated images / working data
+local-data/
+outputs/
+uploads/
+.tmp/
+tmp/
