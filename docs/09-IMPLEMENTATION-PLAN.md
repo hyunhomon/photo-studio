@@ -1,6 +1,6 @@
 # Implementation Plan — Codex 실행용
 
-> 현재 상태(2026-11-12): Phase 0–5 및 ADR-019/020/021 이후 ADR-022에 따라 프로젝트 없는 상품 작업 공간, 다중 사진 미리보기, 참조 기반 기획과 중앙 비교/오른쪽 inspector를 구현하고 통합 검증 중이다. 사용자 요청의 서비스 데이터 전체 초기화와 production 재배포는 아래 완료 기록으로 구분한다. 이전 실제 생성 7건은 당시 실행 이력이며 초기화 이후 보존을 주장하지 않는다. photo-v3-reference의 실제 참조 기반 품질 효과는 아직 미검증이다. 아래 날짜별 기록은 해당 시점의 이력이다.
+> 현재 상태(2026-11-12): Phase 0–5 및 ADR-019/020/021 이후 ADR-022의 프로젝트 없는 상품 작업 공간, 다중 사진 미리보기, 참조 기반 기획과 중앙 비교/오른쪽 inspector를 구현·배포했다. 전체 check와 local/production Mock E2E 각 6개를 통과했고 사용자 승인 서비스 초기화 후 앱 행·R2 객체·활성 작업 0을 확인했다. 이전 실제 생성 7건은 당시 실행 이력이며 초기화 이후 보존을 주장하지 않는다. 새 구조에서 사용자 재연결과 photo-v3-reference의 실제 참조 기반 품질 효과는 아직 미검증이다. 아래 날짜별 기록은 해당 시점의 이력이다.
 
 **원칙:** 각 Phase는 작동하는 결과, 테스트, 문서 업데이트까지 완료한다. 외부 유료 AI 실제 호출은 사용자가 명시적으로 승인하기 전에는 실행하지 않는다.
 
@@ -235,5 +235,5 @@ production desktop/mobile 전체 Mock E2E **4/4 통과**: 저장된 분석 재�
 - [x] format/lint/typecheck/unit/build 통과: 53/53, Astro 진단 0. native workerd OAuth/provider HTTP 계약, 로컬 D1/R2/Workflow, 오프라인 합성 촬영 지시 6종 통과. 최신 목록 DTO 보완 후 자원/초기화 경계 8개와 API typecheck도 재검증했다.
 - [x] 최종 local desktop/mobile **6/6**. 3장 추가/삭제 미리보기·참조 기획·사용 선택·동의·분석 재사용·생성·수정·원본/이전 비교·다운로드·내보내기·삭제·타 계정 404·인증 pending/503 회복을 검증했다. 1440/1024px에서 inspector 스크롤 중 원본 좌표 변화 1px 미만, 모바일 패널 fallback과 가로 넘침 없음을 확인했다. 합성 사진 캡처도 시각 점검했다.
 - [x] 사용자 승인 전체 운영 초기화 실행 완료: 기존 계정·연결·세션·과거 비용/품질 이력·private R2 사진 10개 삭제. 사전 dry-run의 active 1건은 실행 시점에 종료되어 실제 실행 시 active job/Workflow는 0이었다. 전체 앱 행/객체 0, FK 오류 0, 스키마·migration 원장 동일을 확인했다. CF 리소스/master secret/OpenRouter 측 계정·크레딧은 유지하며 재연결이 필요하다. `docs/15-DATA-RESET.md` 절차를 사용했다.
-- [ ] commit/push, migration 0009 및 web/API/Workflow production 배포, 실제 URL의 public/Mock 전체 회귀와 합성 자료 정리 검증.
+- [x] 앱 `86a2c30` commit/push 및 migration 0009와 web/API/Workflow production 배포 완료. 공개 HTTPS/CORS/직접 S256 OAuth/오류 복구/폰트/반응형 smoke와 과거 프로젝트 URL 308 복귀 통과. production desktop/mobile **6/6**, wrapper exit 0: 업로드→참조 기획→승인→생성→개선→비교→내보내기/다운로드→삭제, 타 계정 접근 차단과 인증 pending 회귀를 검증했다. 운영 캡처도 시각 점검했다. 마지막 초기화에서 테스트 OAuth/진단/정리 큐까지 지운 뒤 전체 앱 행·R2 객체·활성 job/Workflow 0, FK 오류 0과 schema/migration 원장 보존을 확인했다. 추가 유료 AI 호출은 없다.
 - [ ] 실제 사용자 재연결 및 권한 있는 참조로 동의한 유료 생성의 실사·상품 보존 효과. 자동 Mock 검증과 구별한다.
