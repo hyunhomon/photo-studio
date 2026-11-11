@@ -505,6 +505,14 @@ export async function runPlanStage(
         .where(
           and(eq(products.id, job.productId), eq(products.userId, job.userId)),
         );
+      const title =
+        analysis.suggestedTitle ||
+        [analysis.colors[0], analysis.garmentType].filter(Boolean).join(" ");
+      await env.DB.prepare(
+        "UPDATE products SET name=? WHERE id=? AND user_id=? AND name_source='auto' AND status='ready'",
+      )
+        .bind(title.slice(0, 120), job.productId, job.userId)
+        .run();
     } else {
       const p = await ownedProduct(env, job.userId, job.productId);
       if (!snapshot.analysisSnapshot && !p.analysisJson)

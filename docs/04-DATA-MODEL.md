@@ -36,3 +36,6 @@ actual_cost_usd는 제공자가 반환한 값만 기록하고 없으면 NULL이�
 ## 사용자 승인 초기화
 
 0009 migration은 기존 studio 데이터/프리셋을 비우고 프로젝트 계층을 제거한다. migration 자체는 인증 자료를 보존한다. 별도 운영 초기화는 이번 사용자 요청에 따라 계정/연결/세션을 포함한 앱 DB와 private R2 데이터까지 제거하는 범위다. 실행 중 작업 취소·미디어 정리·잔여 검증 후 적용하며 Cloudflare 바인딩/도메인/master secret은 유지한다. 완료 여부는 09-IMPLEMENTATION-PLAN.md의 실행 기록으로 판단한다. 일반 배포마다 데이터를 초기화하는 정책은 아니다.
+
+
+ADR-023: products.name_source는 manual(default)/auto를 구별한다. 0010은 열 추가만 수행하며 기존 자료를 삭제하지 않는다. 자동 제목은 동의된 분석 후에만 저장하고 수동 이름은 조건부 UPDATE로 보호한다.

@@ -114,3 +114,6 @@ ADR-019로 종료했다. 인증·owner 검사 후 HTTP 410 `FEATURE_RETIRED`, �
 - GET image는 권한 검사/`Cache-Control: private, no-store`와 적절한 다운로드 헤더 적용.
 - 세션 쿠키 기반 write route는 Origin/CSRF 검증.
 - 앱/CORS는 credential 포함 요청 시 특정 origin만 허용.
+
+
+ADR-023: POST /products의 name은 생략/빈 문자열일 수 있다. 이때 새 상품으로 등록하고 기존 분석 실행에서 제목을 생성한다. PATCH /products/:id의 name은 1–120자이며 수동 이름으로 고정한다. 업로드나 제목 수정은 AI를 호출하지 않는다. suggestedTitle은 분석 응답의 선택적 짧은 제목이다.

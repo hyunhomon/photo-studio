@@ -96,7 +96,7 @@ ADR-021의 `studio-v5-reference` / `photo-v3-reference`는 사용자가 등록·
 
 ## 참조 기반 기획 — ADR-022
 
-현재 prompt_version은 `studio-v6-planning-reference`이며 generation의 capture_version `photo-v3-reference`는 유지한다. 등록 폼의 인물/촬영감 참조도 단순 저장이다. 촬영감 사진을 기획 요청에서 선택하고 외부 처리에 동의해야 planning에 포함한다. 인물 참조는 분석/기획에 넣지 않는다.
+현재 prompt_version은 `studio-v7-product-title`이며 generation의 capture_version `photo-v3-reference`는 유지한다. 등록 폼의 인물/촬영감 참조도 단순 저장이다. 촬영감 사진을 기획 요청에서 선택하고 외부 처리에 동의해야 planning에 포함한다. 인물 참조는 분석/기획에 넣지 않는다.
 
 서버는 선택 ID의 owner/상품/용도와 동의를 검사하고 의류+기획 참조 총 12MB를 job 생성 전 확인한다. sourceSnapshot에는 순서가 보존된 의류만 담고 별도 lookReferenceId/referenceConsent를 고정한다. 분석은 의류만 사용한다. 기존 structured planning 호출에 look image를 추가하고 조명 방향·부드러움·톤·구도·초점·포즈 리듬·표면 반응의 관찰을 referenceNotes와 편집 가능한 기획에 담는다. 정확한 카메라/EXIF를 추측하거나 참조의 얼굴·의류·로고를 복제하지 않는다. 별도 AI 추출·유료 repair·자동 재생성은 없다.
 

@@ -36,6 +36,7 @@ export function providerJsonSchema(schema: z.ZodType) {
   return portable(z.toJSONSchema(schema));
 }
 const safePaths = new Set([
+  "suggestedTitle",
   "garmentType",
   "colors",
   "colors[]",

@@ -168,12 +168,7 @@ export default function ProductUploadForm({
           "한 번에 등록하는 사진은 합계 30MB 이하로 선택해 주세요.",
         );
       const body = new FormData();
-      body.set(
-        "name",
-        name.trim() ||
-          files[0]?.name.replace(/\.[^.]+$/, "").slice(0, 120) ||
-          "새 상품",
-      );
+      body.set("name", name.trim());
       for (const f of files) body.append("images", f);
       if (look[0]) body.set("lookImage", look[0]);
       if (person[0]) body.set("personImage", person[0]);
@@ -205,7 +200,9 @@ export default function ProductUploadForm({
           htmlFor={nameId}
         >
           상품 이름{" "}
-          <span className="font-normal">· 비워두면 사진 이름으로 저장해요</span>
+          <span className="font-normal">
+            · 비워두면 AI 분석 후 이름을 붙여요
+          </span>
           <input
             id={nameId}
             className="studio-input mt-2"

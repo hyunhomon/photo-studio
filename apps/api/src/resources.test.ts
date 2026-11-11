@@ -99,6 +99,27 @@ describe("private standalone products and uploads", () => {
       );
     return form;
   }
+  test("blank upload titles start as unnamed auto products without using filenames or starting AI", async () => {
+    const { env, sqlite } = memoryEnv(),
+      app = createApp(),
+      headers = await user(app, env);
+    const response = await app.request(
+      "/api/v1/products",
+      { method: "POST", headers, body: uploadForm("") },
+      env,
+    );
+    expect(response.status).toBe(201);
+    const { data } = (await response.json()) as {
+      data: { name: string; id: string };
+    };
+    expect(data.name).toBe("새 상품");
+    expect(
+      sqlite.query("SELECT name_source FROM products WHERE id=?").get(data.id),
+    ).toEqual({ name_source: "auto" });
+    expect(
+      sqlite.query("SELECT count(*) n FROM generation_attempts").get(),
+    ).toEqual({ n: 0 });
+  });
   test("standalone uploads/list/delete enforce owner and CSRF; upload never invokes AI", async () => {
     const { env, objects } = memoryEnv(),
       app = createApp(),

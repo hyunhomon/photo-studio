@@ -440,3 +440,55 @@ test("uncertain paid response, unsupported capability and pre-existing claim nev
     status: "outcome_unknown",
   });
 });
+
+test("automatic titles use the consented analysis only and never overwrite a concurrent manual rename", async () => {
+  const s = await studioFixture();
+  s.sqlite.run("UPDATE products SET name='새 상품',name_source='auto'");
+  const job = (
+    await s.call<{ id: string }>(
+      `/products/${s.product.id}/plan`,
+      "POST",
+      s.planInput,
+    )
+  ).data;
+  const adapter = mockAdapter();
+  const analyze = adapter.analyze;
+  adapter.analyze = async (...args) => {
+    const result = await analyze(...args);
+    return {
+      ...result,
+      value: { ...result.value, suggestedTitle: "차콜 코튼 셔츠" },
+    };
+  };
+  await runPlanStage(s.env, job.id, "analysis", {
+    adapter: async () => adapter,
+  });
+  expect(
+    (await s.call<ProductDto>(`/products/${s.product.id}`)).data.name,
+  ).toBe("차콜 코튼 셔츠");
+  expect(
+    s.sqlite.query("SELECT count(*) n FROM generation_attempts").get(),
+  ).toEqual({ n: 1 });
+  await runPlanStage(s.env, job.id, "planning", {
+    adapter: async () => adapter,
+  });
+  adapter.analyze = async (...args) => {
+    await s.call(`/products/${s.product.id}`, "PATCH", {
+      name: "내가 정한 제목",
+    });
+    return analyze(...args);
+  };
+  const next = (
+    await s.call<{ id: string }>(`/products/${s.product.id}/plan`, "POST", {
+      ...s.planInput,
+      idempotencyKey: crypto.randomUUID(),
+    })
+  ).data;
+  expect(next.id).toBeTruthy();
+  await runPlanStage(s.env, next.id, "analysis", {
+    adapter: async () => adapter,
+  });
+  expect(
+    (await s.call<ProductDto>(`/products/${s.product.id}`)).data.name,
+  ).toBe("내가 정한 제목");
+});

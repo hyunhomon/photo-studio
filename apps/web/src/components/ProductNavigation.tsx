@@ -11,13 +11,14 @@ import {
   DialogPanel,
   DialogTitle,
 } from "@headlessui/react";
-import { BrandLockup, BrandMark } from "@photo-studio/ui";
+import { BrandLockup, BrandMark, Button, Modal } from "@photo-studio/ui";
 import {
   SquarePen,
   Search,
   PanelLeftClose,
   PanelLeftOpen,
-  Shirt,
+  Pencil,
+  Trash2,
   ArrowUpRight,
   SlidersHorizontal,
   ChartNoAxesColumn,
@@ -25,7 +26,7 @@ import {
   X,
 } from "lucide-react";
 import type { ProductSummaryDto } from "@photo-studio/schemas";
-import type { Me } from "../lib/api";
+import { request, errorMessage, type Me } from "../lib/api";
 
 export function ProductSearch({
   open,
@@ -64,7 +65,7 @@ export function ProductSearch({
                 aria-hidden="true"
               />
               <ComboboxInput
-                autoFocus
+                data-autofocus
                 aria-label="상품 검색어"
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="상품 이름으로 검색"
@@ -89,11 +90,6 @@ export function ProductSearch({
                   value={product}
                   className="flex cursor-pointer items-center gap-3 rounded-xl px-3 py-3 text-sm data-focus:bg-elevated"
                 >
-                  <Shirt
-                    size={17}
-                    className="shrink-0 text-muted"
-                    aria-hidden="true"
-                  />
                   <span className="min-w-0 flex-1 truncate">
                     {product.name}
                   </span>
@@ -137,6 +133,7 @@ export function ProductNavigation({
   section,
   mobile = false,
   onClose,
+  onChanged,
 }: {
   me: Me | null;
   products: ProductSummaryDto[];
@@ -151,7 +148,39 @@ export function ProductNavigation({
   section: string;
   mobile?: boolean;
   onClose?: () => void;
+  onChanged: () => void;
 }) {
+  const [action, setAction] = useState<{
+    product: ProductSummaryDto;
+    kind: "rename" | "delete";
+  } | null>(null);
+  const [name, setName] = useState(""),
+    [busy, setBusy] = useState(false),
+    [error, setError] = useState("");
+  async function submit() {
+    if (!action || !me) return;
+    setBusy(true);
+    setError("");
+    try {
+      await request(
+        `/api/v1/products/${action.product.id}`,
+        action.kind === "delete"
+          ? { method: "DELETE" }
+          : { method: "PATCH", body: JSON.stringify({ name: name.trim() }) },
+        me.csrf,
+      );
+      onChanged();
+      if (action.kind === "rename")
+        window.dispatchEvent(new CustomEvent("studio:product-changed"));
+      setAction(null);
+      if (action.kind === "delete" && activeProductId === action.product.id)
+        await navigate("/studio");
+    } catch (e) {
+      setError(errorMessage(e));
+    } finally {
+      setBusy(false);
+    }
+  }
   const cutoff = Date.now() - 7 * 86400000;
   function follow(event: MouseEvent<HTMLAnchorElement>, path: string) {
     if (
@@ -289,30 +318,63 @@ export function ProductNavigation({
                   </p>
                 )}
                 {group.items.map((product) => (
-                  <a
+                  <div
                     key={product.id}
-                    href={`/studio/products/${product.id}`}
-                    title={product.name}
-                    aria-current={
-                      activeProductId === product.id ? "page" : undefined
-                    }
-                    onClick={(event) =>
-                      follow(event, `/studio/products/${product.id}`)
-                    }
-                    className={`sidebar-item mb-0.5 ${collapsed ? "justify-center px-0" : ""} ${activeProductId === product.id ? "bg-elevated text-ink" : "text-muted hover:text-ink"}`}
+                    data-product-id={product.id}
+                    className={`group relative mb-0.5 flex min-h-11 items-center rounded-lg ${activeProductId === product.id ? "bg-elevated text-ink" : "text-muted hover:bg-studio hover:text-ink"}`}
                   >
-                    <Shirt size={16} className="shrink-0" aria-hidden="true" />
-                    <span
-                      className={
-                        collapsed ? "sr-only" : "min-w-0 flex-1 truncate"
+                    <a
+                      href={`/studio/products/${product.id}`}
+                      title={product.name}
+                      aria-current={
+                        activeProductId === product.id ? "page" : undefined
                       }
+                      onClick={(event) =>
+                        follow(event, `/studio/products/${product.id}`)
+                      }
+                      className={`min-w-0 flex-1 truncate py-3 text-xs ${collapsed ? "px-1 text-center" : "px-3 pr-16"}`}
                     >
-                      {product.name}
-                    </span>
-                    {!collapsed && product.status === "deleting" && (
-                      <span className="text-[9px] text-warning">삭제 중</span>
+                      {collapsed ? (
+                        <>
+                          <span aria-hidden="true">
+                            {product.name.slice(0, 1)}
+                          </span>
+                          <span className="sr-only">{product.name}</span>
+                        </>
+                      ) : (
+                        product.name
+                      )}
+                    </a>
+                    {!collapsed && (
+                      <div className="product-row-actions absolute right-1 flex items-center opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
+                        <button
+                          type="button"
+                          aria-label="상품 제목 수정"
+                          title="제목 수정"
+                          className="grid size-8 place-items-center rounded-md bg-sidebar hover:bg-elevated"
+                          onClick={() => {
+                            setName(product.name);
+                            setError("");
+                            setAction({ product, kind: "rename" });
+                          }}
+                        >
+                          <Pencil size={13} />
+                        </button>
+                        <button
+                          type="button"
+                          aria-label="상품 삭제"
+                          title="상품 삭제"
+                          className="grid size-8 place-items-center rounded-md bg-sidebar hover:bg-elevated hover:text-danger"
+                          onClick={() => {
+                            setError("");
+                            setAction({ product, kind: "delete" });
+                          }}
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
                     )}
-                  </a>
+                  </div>
                 ))}
               </div>
             ))
@@ -387,6 +449,61 @@ export function ProductNavigation({
           />
         )}
       </a>
+      <Modal
+        open={Boolean(action)}
+        onClose={() => {
+          if (!busy) setAction(null);
+        }}
+        title={
+          action?.kind === "rename" ? "상품 제목 수정" : "상품을 삭제할까요?"
+        }
+        description={
+          action?.kind === "delete"
+            ? "의류와 참조 사진, 생성 결과와 작업 기록을 모두 삭제합니다."
+            : "사이드바에 표시할 이름을 정해 주세요."
+        }
+      >
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            void submit();
+          }}
+        >
+          {action?.kind === "rename" && (
+            <label className="mt-5 block text-xs text-muted">
+              상품 제목
+              <input
+                data-autofocus
+                className="studio-input mt-2"
+                value={name}
+                maxLength={120}
+                onChange={(e) => setName(e.target.value)}
+              />
+            </label>
+          )}
+          {error && (
+            <p role="alert" className="mt-4 text-sm text-danger">
+              {error}
+            </p>
+          )}
+          <div className="mt-5 flex justify-end gap-3">
+            <Button
+              variant="secondary"
+              disabled={busy}
+              onClick={() => setAction(null)}
+            >
+              취소
+            </Button>
+            <Button
+              type="submit"
+              variant={action?.kind === "delete" ? "danger" : "primary"}
+              disabled={busy || (action?.kind === "rename" && !name.trim())}
+            >
+              {action?.kind === "delete" ? "상품 영구 삭제" : "제목 저장"}
+            </Button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }

@@ -32,8 +32,8 @@ export default function WorkPending({
       }
       aria-busy="true"
     >
-      <div className="relative mx-auto flex max-w-xs flex-col items-center px-5 text-center">
-        <div className="mb-6 grid size-20 place-items-center rounded-3xl border border-primary/20 bg-primary/10 text-primary">
+      <div className="relative mx-auto flex max-w-xs flex-col items-center px-2 py-3 text-center">
+        <div className="mb-4 grid size-14 place-items-center rounded-3xl border border-primary/20 bg-primary/10 text-primary">
           <LoaderCircle
             size={33}
             strokeWidth={1.5}
@@ -41,7 +41,7 @@ export default function WorkPending({
             aria-hidden="true"
           />
         </div>
-        <h3 className="text-xl font-semibold">
+        <h3 className="text-lg font-semibold">
           {job.kind === "generate"
             ? "다음 컷을 촬영하고 있어요"
             : "옷에 맞는 장면을 찾고 있어요"}
@@ -51,7 +51,7 @@ export default function WorkPending({
             ? "선택한 사진과 승인한 콘셉트를 반영하고 있어요."
             : "사진을 살펴보고 빛과 구도, 분위기를 기획해요."}
         </p>
-        <ol className="mt-6 flex flex-wrap justify-center gap-2">
+        <ol className="mt-4 flex flex-wrap justify-center gap-2">
           {stages.map(([key, label]) => (
             <li
               key={key}

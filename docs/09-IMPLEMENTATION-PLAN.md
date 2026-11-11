@@ -237,3 +237,11 @@ production desktop/mobile 전체 Mock E2E **4/4 통과**: 저장된 분석 재�
 - [x] 사용자 승인 전체 운영 초기화 실행 완료: 기존 계정·연결·세션·과거 비용/품질 이력·private R2 사진 10개 삭제. 사전 dry-run의 active 1건은 실행 시점에 종료되어 실제 실행 시 active job/Workflow는 0이었다. 전체 앱 행/객체 0, FK 오류 0, 스키마·migration 원장 동일을 확인했다. CF 리소스/master secret/OpenRouter 측 계정·크레딧은 유지하며 재연결이 필요하다. `docs/15-DATA-RESET.md` 절차를 사용했다.
 - [x] 앱 `86a2c30` commit/push 및 migration 0009와 web/API/Workflow production 배포 완료. 공개 HTTPS/CORS/직접 S256 OAuth/오류 복구/폰트/반응형 smoke와 과거 프로젝트 URL 308 복귀 통과. production desktop/mobile **6/6**, wrapper exit 0: 업로드→참조 기획→승인→생성→개선→비교→내보내기/다운로드→삭제, 타 계정 접근 차단과 인증 pending 회귀를 검증했다. 운영 캡처도 시각 점검했다. 마지막 초기화에서 테스트 OAuth/진단/정리 큐까지 지운 뒤 전체 앱 행·R2 객체·활성 job/Workflow 0, FK 오류 0과 schema/migration 원장 보존을 확인했다. 추가 유료 AI 호출은 없다.
 - [ ] 실제 사용자 재연결 및 권한 있는 참조로 동의한 유료 생성의 실사·상품 보존 효과. 자동 Mock 검증과 구별한다.
+
+### 상세 화면 정리와 자동 제목 — 2026-11-12 (ADR-023)
+
+- [x] 결과 프레임 내부 pending과 부모 경계 제한, 상세 화면 중복 라벨/데스크톱 헤더 제거.
+- [x] 의류 아이콘 없는 상품 행, hover/focus/터치 제목 수정·삭제 및 확인/실패 복구 Dialog.
+- [x] 빈 이름은 ‘새 상품’, 동의된 기존 분석에서 AI 제목 생성. 수동 제목/동시 수정 보호, 추가 AI 호출 없음. additive migration 0010, studio-v7-product-title.
+- [ ] 최종 검사, 로컬/운영 브라우저 회귀·시각 점검, commit/push 및 production 배포.
+- [ ] 실제 새 AI 제목 응답의 사용자 승인 유료 검증. 합성 adapter 검사와 구분한다.

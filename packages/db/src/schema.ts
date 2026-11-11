@@ -104,6 +104,7 @@ export const products = sqliteTable(
       .references(() => users.id, { onDelete: "cascade" }),
     name: text("name").notNull(),
     status: text("status").notNull().default("ready"),
+    nameSource: text("name_source").notNull().default("manual"),
     analysisJson: text("analysis_json"),
     analysisVersion: text("analysis_version"),
     createdAt: integer("created_at").notNull(),

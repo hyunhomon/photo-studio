@@ -94,6 +94,7 @@ export default function WorkspaceShell({
   const nav = {
     me,
     products,
+    onChanged: () => setListAttempt((n) => n + 1),
     loading: loading && !["unauthenticated", "error"].includes(accountState),
     listError,
     onRetry: () => setListAttempt((n) => n + 1),
@@ -124,7 +125,9 @@ export default function WorkspaceShell({
         <ProductNavigation {...nav} />
       </aside>
       <div className="min-w-0">
-        <header className="sticky top-0 z-20 flex h-14 items-center gap-3 border-b border-line/40 bg-paper/95 px-4 backdrop-blur-md sm:px-7 lg:border-line/40 lg:px-7">
+        <header
+          className={`${workbench ? "lg:hidden" : ""} sticky top-0 z-20 flex h-14 items-center gap-3 border-b border-line/40 bg-paper/95 px-4 backdrop-blur-md sm:px-7 lg:border-line/40 lg:px-7`}
+        >
           <button
             type="button"
             aria-label="상품 목록 열기"
@@ -134,7 +137,7 @@ export default function WorkspaceShell({
             <Menu size={20} aria-hidden="true" />
           </button>
           <p className="min-w-0 flex-1 truncate text-sm font-medium text-muted">
-            {heading}
+            {workbench ? <span className="sr-only">{heading}</span> : heading}
           </p>
           {me?.mode === "mock" && (
             <span className="rounded-md border border-accent-line bg-accent-soft px-2 py-1 text-[9px] text-primary">
@@ -160,8 +163,13 @@ export default function WorkspaceShell({
             <SquarePen size={18} aria-hidden="true" />
           </button>
           <a
+            hidden={workbench}
             href="/privacy"
-            className="hidden items-center gap-1 text-[10px] text-muted hover:text-ink sm:flex"
+            className={
+              workbench
+                ? "hidden"
+                : "hidden items-center gap-1 text-[10px] text-muted hover:text-ink sm:flex"
+            }
           >
             사진과 데이터
             <ArrowUpRight size={12} aria-hidden="true" />

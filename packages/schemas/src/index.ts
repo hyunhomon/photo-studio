@@ -10,6 +10,7 @@ export const healthSchema = z.object({
 });
 
 export const productAnalysisSchema = z.object({
+  suggestedTitle: z.string().trim().max(80).optional(),
   garmentType: z.string().min(1).max(120),
   colors: z.array(z.string().min(1).max(80)).min(1).max(10),
   pattern: z.string().max(500),

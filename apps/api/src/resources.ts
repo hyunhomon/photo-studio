@@ -279,7 +279,12 @@ export function resourceRoutes(deps: ResourceDeps = {}) {
     await rateLimit(c, `upload:${owner}`, 15);
     const form = await c.req.formData(),
       garmentFiles = filesFrom(form);
-    const name = z.string().trim().min(1).max(120).parse(form.get("name"));
+    const suppliedName = z
+      .string()
+      .trim()
+      .max(120)
+      .parse(form.get("name") ?? "");
+    const name = suppliedName || "새 상품";
     const files: {
       file: File;
       kind: "input" | "person_reference" | "look_reference";
@@ -310,15 +315,16 @@ export function resourceRoutes(deps: ResourceDeps = {}) {
       id: crypto.randomUUID(),
       userId: owner,
       name,
+      nameSource: suppliedName ? "manual" : "auto",
       status: "uploading",
       analysisJson: null,
       analysisVersion: null,
       createdAt: Date.now(),
     };
     const inserted = await c.env.DB.prepare(
-      "INSERT INTO products(id,user_id,name,status,created_at) SELECT ?,id,?,'uploading',? FROM users WHERE id=? AND status='active' AND (SELECT count(*) FROM products WHERE user_id=?)<200",
+      "INSERT INTO products(id,user_id,name,name_source,status,created_at) SELECT ?,id,?,?,'uploading',? FROM users WHERE id=? AND status='active' AND (SELECT count(*) FROM products WHERE user_id=?)<200",
     )
-      .bind(row.id, name, row.createdAt, owner, owner)
+      .bind(row.id, name, row.nameSource, row.createdAt, owner, owner)
       .run();
     if (!inserted.meta.changes)
       throw new AppError(
@@ -369,7 +375,7 @@ export function resourceRoutes(deps: ResourceDeps = {}) {
       .parse(await c.req.json());
     await createDb(c.env.DB)
       .update(products)
-      .set({ name })
+      .set({ name, nameSource: "manual" })
       .where(and(eq(products.id, product.id), eq(products.userId, owner)));
     return c.json({ data: await productDto(c.env, { ...product, name }) });
   });

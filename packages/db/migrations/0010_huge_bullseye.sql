@@ -1,0 +1,1 @@
+ALTER TABLE `products` ADD `name_source` text DEFAULT 'manual' NOT NULL;

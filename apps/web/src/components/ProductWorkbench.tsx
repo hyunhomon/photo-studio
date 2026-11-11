@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
-import { navigate } from "astro:transitions/client";
-import { Plus, Trash2 } from "lucide-react";
-import { Button, Modal } from "@photo-studio/ui";
+import { Plus } from "lucide-react";
+import { Button } from "@photo-studio/ui";
 import type { ProductDto, PipelineDto } from "@photo-studio/schemas";
 import { useAccount } from "../lib/account";
 import { errorMessage, request } from "../lib/api";
@@ -16,9 +15,7 @@ export default function ProductWorkbench({ id }: { id: string }) {
   const { me, error, setError, state, retry } = useAccount();
   const [product, setProduct] = useState<ProductDto | null>(null),
     [pipeline, setPipeline] = useState<PipelineDto>({ plans: [], jobs: [] }),
-    [upload, setUpload] = useState(false),
-    [remove, setRemove] = useState(false),
-    [busy, setBusy] = useState(false);
+    [upload, setUpload] = useState(false);
   const refresh = useCallback(() => {
     if (me)
       void request<ProductDto>(`/api/v1/products/${id}`)
@@ -30,17 +27,10 @@ export default function ProductWorkbench({ id }: { id: string }) {
     ["queued", "running"].includes(j.status),
   );
   const inputs = product?.assets.filter((a) => a.kind === "input") ?? [];
-  async function drop() {
-    if (!me) return;
-    setBusy(true);
-    try {
-      await request(`/api/v1/products/${id}`, { method: "DELETE" }, me.csrf);
-      await navigate("/studio");
-    } catch (e) {
-      setError(errorMessage(e));
-      setBusy(false);
-    }
-  }
+  useEffect(() => {
+    window.addEventListener("studio:product-changed", refresh);
+    return () => window.removeEventListener("studio:product-changed", refresh);
+  }, [refresh]);
   return (
     <WorkspaceShell
       me={me}
@@ -55,10 +45,7 @@ export default function ProductWorkbench({ id }: { id: string }) {
         <div className="studio-workbench">
           <div className="workbench-canvas">
             <h1 className="sr-only">{product.name}</h1>
-            <div className="mb-4 flex shrink-0 items-center gap-3">
-              <span className="text-xs text-muted">
-                의류 원본 {inputs.length}장
-              </span>
+            <div className="flex shrink-0 items-center gap-3 empty:hidden">
               {!product.analysis &&
                 pipeline.jobs.length === 0 &&
                 inputs.length < 3 && (
@@ -67,14 +54,6 @@ export default function ProductWorkbench({ id }: { id: string }) {
                     원본 추가
                   </Button>
                 )}
-              <Button
-                className="ml-auto"
-                variant="secondary"
-                aria-label="상품 삭제"
-                onClick={() => setRemove(true)}
-              >
-                <Trash2 size={15} />
-              </Button>
             </div>
             <GenerationPanel
               product={product}
@@ -110,25 +89,6 @@ export default function ProductWorkbench({ id }: { id: string }) {
               setUpload(false);
             }}
           />
-          <Modal
-            open={remove}
-            onClose={() => setRemove(false)}
-            title="상품을 삭제할까요?"
-            description="의류와 참조 사진, 생성 결과와 작업 기록을 모두 삭제합니다."
-          >
-            <div className="mt-5 flex gap-3">
-              <Button variant="secondary" onClick={() => setRemove(false)}>
-                취소
-              </Button>
-              <Button
-                variant="danger"
-                disabled={busy}
-                onClick={() => void drop()}
-              >
-                상품 영구 삭제
-              </Button>
-            </div>
-          </Modal>
         </div>
       ) : (
         <WorkspaceSkeleton label="상품을 불러오고 있습니다" />

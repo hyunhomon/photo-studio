@@ -108,7 +108,8 @@ export default function GenerationPanel({
         </p>
       )}
       <div className="comparison-toolbar">
-        <h2 className="mr-auto text-lg">원본과 결과</h2>
+        <h2 className="sr-only">원본과 결과</h2>
+        <span className="mr-auto" />
         {result && (
           <>
             <a
@@ -229,7 +230,7 @@ export default function GenerationPanel({
                 </button>
               )}
             </figure>
-            <figure className="comparison-figure">
+            <figure className="comparison-figure result-frame">
               <figcaption>새로운 컷</figcaption>
               <div className="flex min-h-64 flex-1 flex-col items-center justify-center p-8 text-center">
                 <ImagePlus
@@ -243,6 +244,20 @@ export default function GenerationPanel({
                   촬영을 시작해 주세요.
                 </p>
               </div>
+              {activeJob && (
+                <WorkPending
+                  job={activeJob}
+                  onDispatch={() =>
+                    void action(() =>
+                      request(
+                        `/api/v1/jobs/${activeJob.id}/dispatch`,
+                        { method: "POST" },
+                        me.csrf,
+                      ),
+                    )
+                  }
+                />
+              )}
             </figure>
           </div>
         </div>
@@ -314,7 +329,7 @@ export default function GenerationPanel({
                   </button>
                 </figure>
               )}
-              <figure className="overflow-hidden rounded-panel border border-line bg-surface">
+              <figure className="result-frame overflow-hidden rounded-panel border border-line bg-surface">
                 <figcaption className="flex items-center justify-between border-b border-line px-5 py-3 text-xs">
                   <span>
                     {result.mock ? "Mock 결과 · 원본 복사" : "AI 생성 결과"}
@@ -338,24 +353,24 @@ export default function GenerationPanel({
                     aria-hidden="true"
                   />
                 </button>
+                {activeJob && (
+                  <WorkPending
+                    job={activeJob}
+                    onDispatch={() =>
+                      void action(() =>
+                        request(
+                          `/api/v1/jobs/${activeJob.id}/dispatch`,
+                          { method: "POST" },
+                          me.csrf,
+                        ),
+                      )
+                    }
+                  />
+                )}
               </figure>
             </div>
           </div>
         </>
-      )}
-      {activeJob && (
-        <WorkPending
-          job={activeJob}
-          onDispatch={() =>
-            void action(() =>
-              request(
-                `/api/v1/jobs/${activeJob.id}/dispatch`,
-                { method: "POST" },
-                me.csrf,
-              ),
-            )
-          }
-        />
       )}
       <Modal
         open={open}

@@ -217,7 +217,12 @@ test("Mock: direct multi-photo upload, reference planning, compare, revise, expo
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(
     "Synthetic shirt",
   );
-  await expect(page.getByText("의류 원본 3장", { exact: true })).toBeVisible();
+  await expect(page.getByText("의류 원본 3장", { exact: true })).toHaveCount(0);
+  await expect(
+    page
+      .getByRole("group", { name: "원본 사진 선택", exact: true })
+      .getByRole("button"),
+  ).toHaveCount(3);
   const original = page.getByRole("img", {
     name: "Synthetic shirt 원본 비교",
     exact: true,
@@ -493,8 +498,15 @@ test("Mock: direct multi-photo upload, reference planning, compare, revise, expo
       page.getByRole("button", { name: "승인된 콘셉트로 생성", exact: true }),
     ).toBeDisabled();
     const size = await pending.boundingBox();
-    expect(size?.width).toBeGreaterThan(280);
-    expect(size?.height).toBeGreaterThanOrEqual(300);
+    const frame = await page.locator(".result-frame").boundingBox();
+    if (!size || !frame) throw new Error("Missing result frame");
+    expect(size.width).toBeGreaterThan(120);
+    expect(size.x).toBeGreaterThanOrEqual(frame.x - 1);
+    expect(size.y).toBeGreaterThanOrEqual(frame.y - 1);
+    expect(size.x + size.width).toBeLessThanOrEqual(frame.x + frame.width + 1);
+    expect(size.y + size.height).toBeLessThanOrEqual(
+      frame.y + frame.height + 1,
+    );
     await page.locator("#results").screenshot({
       path: `.tmp/product-pending-${test.info().project.name}.png`,
     });
@@ -641,7 +653,33 @@ test("Mock: direct multi-photo upload, reference planning, compare, revise, expo
     page.getByRole("heading", { name: "Synthetic brand" }),
   ).toBeVisible();
   await page.goto(productUrl);
-  await page.getByRole("button", { name: "상품 삭제", exact: true }).click();
+  await openNavigation(page);
+  const row = page.locator("[data-product-id]").filter({
+    has: page.getByRole("link", { name: "Synthetic shirt", exact: true }),
+  });
+  await row.hover();
+  await row
+    .getByRole("button", { name: "상품 제목 수정", exact: true })
+    .click();
+  await page
+    .getByRole("dialog")
+    .last()
+    .getByLabel("상품 제목", { exact: true })
+    .fill("Renamed shirt");
+  await page.getByRole("button", { name: "제목 저장", exact: true }).click();
+  await expect(
+    page
+      .getByRole("navigation", { name: "상품 목록" })
+      .getByRole("link", { name: "Renamed shirt", exact: true }),
+  ).toBeVisible();
+  const renamedRow = page.locator("[data-product-id]").filter({
+    has: page.getByRole("link", { name: "Renamed shirt", exact: true }),
+  });
+  await renamedRow.hover();
+  await renamedRow
+    .getByRole("button", { name: "상품 삭제", exact: true })
+    .click();
+
   await page
     .getByRole("button", { name: "상품 영구 삭제", exact: true })
     .click();
