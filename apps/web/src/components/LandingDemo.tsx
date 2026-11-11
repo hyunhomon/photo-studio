@@ -178,8 +178,8 @@ export default function LandingDemo() {
                 <span>부드러운 측면광 · 차분한 배경</span>
               </div>
               <div className="demo-direction" role="status">
-                {frame} 프레임, {angle}.<br />이 방향을 다음 촬영 기획에
-                담습니다.
+                {frame} 프레임, {angle}.<br />
+                선택한 촬영 방향의 예시예요.
               </div>
               <button
                 type="button"
