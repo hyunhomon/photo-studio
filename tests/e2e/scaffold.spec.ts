@@ -370,7 +370,9 @@ test("Mock: direct multi-photo upload, reference planning, compare, revise, expo
   );
   await inspector.getByRole("tab", { name: "상품 이해", exact: true }).click();
   await page.getByLabel("의류 종류", { exact: true }).fill("수정한 셔츠");
-  await page.getByRole("button", { name: "분석 수정 저장" }).click();
+  await expect(
+    page.getByRole("button", { name: "분석 수정 저장" }),
+  ).toHaveCount(0);
   await expect(page.getByLabel("의류 종류", { exact: true })).toHaveValue(
     "수정한 셔츠",
   );
@@ -395,7 +397,7 @@ test("Mock: direct multi-photo upload, reference planning, compare, revise, expo
   const planningOnly = (
     (await (await planningOnlyResponse).json()) as { data: { id: string } }
   ).data;
-  await waitForWorkflow(page, page.getByText(/V2 ·/));
+  await waitForWorkflow(page, page.getByText("V2", { exact: true }));
   const planningJob = await data<JobDto>(page, `/jobs/${planningOnly.id}`);
   expect(planningJob.attempts.map((attempt) => attempt.stage)).toEqual([
     "planning",
@@ -403,13 +405,14 @@ test("Mock: direct multi-photo upload, reference planning, compare, revise, expo
   expect(
     (await data<ProductDto>(page, `/products/${productId}`)).analysis
       ?.garmentType,
-  ).toBe("수정한 셔츠");
+  ).not.toBe("수정한 셔츠");
   await page.getByRole("button", { name: "배경 분리", exact: true }).click();
   await page
     .getByRole("option", { name: "분리감 있게 · 멀리 있는 배경", exact: true })
     .click();
-  await page.getByRole("button", { name: "콘셉트 승인", exact: true }).click();
-  await expect(page.getByText("V2 · 승인됨", { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "콘셉트 승인", exact: true }),
+  ).toHaveCount(0);
 
   await inspector.getByRole("tab", { name: "기획", exact: true }).click();
   await expect(
@@ -459,9 +462,7 @@ test("Mock: direct multi-photo upload, reference planning, compare, revise, expo
     }
     await route.fulfill({ response, json: body });
   });
-  await page
-    .getByRole("button", { name: "승인된 콘셉트로 생성", exact: true })
-    .click();
+  await page.getByRole("button", { name: "이미지 생성", exact: true }).click();
   await expect(
     page.getByRole("button", { name: "동의하고 1장 생성" }),
   ).toBeDisabled();
@@ -473,7 +474,7 @@ test("Mock: direct multi-photo upload, reference planning, compare, revise, expo
   ).toBeChecked();
   await page.getByLabel("인물 참조 사진 사용", { exact: true }).uncheck();
   await page
-    .getByLabel("이미지 생성 비용과 승인된 촬영 지시를 확인했습니다.")
+    .getByLabel("현재 편집 내용의 저장과 이미지 생성 비용을 확인했습니다.")
     .check();
   const generationRequest = page.waitForRequest(
     (request) =>
@@ -486,7 +487,16 @@ test("Mock: direct multi-photo upload, reference planning, compare, revise, expo
     personReferenceId: null,
     referenceConsent: true,
     count: 1,
+    editedAnalysis: { garmentType: "수정한 셔츠" },
+    editedPlan: { camera: { backgroundSeparation: "separated" } },
   });
+  await expect
+    .poll(
+      async () =>
+        (await data<ProductDto>(page, `/products/${productId}`)).analysis
+          ?.garmentType,
+    )
+    .toBe("수정한 셔츠");
   const pending = page.getByRole("status", {
     name: "이미지를 생성하고 있습니다",
     exact: true,
@@ -495,7 +505,7 @@ test("Mock: direct multi-photo upload, reference planning, compare, revise, expo
     await expect(pending).toBeVisible();
     await expect(pending).toHaveAttribute("aria-busy", "true");
     await expect(
-      page.getByRole("button", { name: "승인된 콘셉트로 생성", exact: true }),
+      page.getByRole("button", { name: "이미지 생성", exact: true }),
     ).toBeDisabled();
     const size = await pending.boundingBox();
     const frame = await page.locator(".result-frame").boundingBox();
@@ -553,7 +563,7 @@ test("Mock: direct multi-photo upload, reference planning, compare, revise, expo
     page.getByLabel("촬영감 참조 사진 사용", { exact: true }),
   ).toBeChecked();
   await page
-    .getByLabel("이미지 생성 비용과 승인된 촬영 지시를 확인했습니다.")
+    .getByLabel("현재 편집 내용의 저장과 이미지 생성 비용을 확인했습니다.")
     .check();
   await page.getByRole("button", { name: "동의하고 1장 생성" }).click();
   await waitForWorkflow(

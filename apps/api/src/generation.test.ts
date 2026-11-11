@@ -33,10 +33,8 @@ async function ready() {
       s.call<JobDto>(`/products/${s.product.id}/generate`, "POST", input),
   };
 }
-test("approved generation, nullable costs, retired feedback and directed regeneration lineage", async () => {
+test("generation consent, nullable costs, retired feedback and directed regeneration lineage", async () => {
   const s = await ready();
-  expect((await s.generate()).status).toBe(409);
-  await s.approve();
   expect(
     (
       await s.call(`/products/${s.product.id}/generate`, "POST", {
@@ -382,4 +380,117 @@ test("deletion during a generation response prevents late image resurrection", a
   expect(s.sqlite.query("SELECT count(*) n FROM assets").get()).toEqual({
     n: 0,
   });
+});
+
+test("generate atomically accepts draft edits and snapshots them without a separate approval; rejection and replay never overwrite edits", async () => {
+  const s = await ready();
+  expect(s.plan.status).toBe("draft");
+  const original = (await s.call<ProductDto>(`/products/${s.product.id}`)).data
+    .analysis;
+  if (!original) throw new Error("Missing analysis");
+  const editedAnalysis = {
+    ...original,
+    garmentType: "편집한 셔츠",
+    preservationPoints: ["고유한 포켓 경계"],
+  };
+  const editedPlan = {
+    ...s.plan.spec,
+    camera: { ...s.plan.spec.camera, framing: "소매와 밑단을 포함한 프레임" },
+  };
+  const input = { ...s.input, editedAnalysis, editedPlan };
+  expect(
+    (
+      await s.call(`/products/${s.product.id}/generate`, "POST", {
+        ...input,
+        consent: false,
+      })
+    ).status,
+  ).toBe(400);
+  expect(
+    (
+      await s.call(`/products/${s.product.id}/generate`, "POST", {
+        ...input,
+        editedPlan: { ...editedPlan, mustPreserve: [] },
+      })
+    ).status,
+  ).toBe(400);
+  const stranger = await s.login();
+  expect(
+    (
+      await s.call(
+        `/products/${s.product.id}/generate`,
+        "POST",
+        input,
+        stranger,
+      )
+    ).status,
+  ).toBe(404);
+  expect(
+    (await s.call<ProductDto>(`/products/${s.product.id}`)).data.analysis,
+  ).toEqual(original);
+  const job = await s.call<JobDto>(
+    `/products/${s.product.id}/generate`,
+    "POST",
+    input,
+  );
+  expect(job.status).toBe(202);
+  expect(
+    (await s.call<ProductDto>(`/products/${s.product.id}`)).data.analysis,
+  ).toEqual(editedAnalysis);
+  const saved = (
+    await s.call<PipelineDto>(`/products/${s.product.id}/pipeline`)
+  ).data.plans[0];
+  expect(saved?.spec.camera.framing).toBe(editedPlan.camera.framing);
+  expect(saved?.spec.mustPreserve).toContain("고유한 포켓 경계");
+  s.sqlite
+    .query("UPDATE products SET analysis_json=? WHERE id=?")
+    .run(
+      JSON.stringify({ ...editedAnalysis, garmentType: "후속 편집" }),
+      s.product.id,
+    );
+  expect(
+    (await s.call<JobDto>(`/products/${s.product.id}/generate`, "POST", input))
+      .data.id,
+  ).toBe(job.data.id);
+  expect(
+    (await s.call<ProductDto>(`/products/${s.product.id}`)).data.analysis
+      ?.garmentType,
+  ).toBe("후속 편집");
+  const adapter = mockAdapter(),
+    generate = adapter.generate;
+  adapter.generate = async (...args) => {
+    expect(args[2].camera.framing).toBe(editedPlan.camera.framing);
+    return generate(...args);
+  };
+  await runGenerationStage(s.env, job.data.id, "generation", {
+    adapter: async () => adapter,
+  });
+  expect(
+    (await s.call<JobDto>(`/jobs/${job.data.id}`)).data.attempts,
+  ).toHaveLength(1);
+});
+
+test("failure while saving generation settings rolls back the job and analysis together", async () => {
+  const s = await ready();
+  const original = (await s.call<ProductDto>(`/products/${s.product.id}`)).data
+    .analysis;
+  if (!original) throw new Error("Missing analysis");
+  s.sqlite.run(
+    "CREATE TRIGGER synthetic_save_failure BEFORE UPDATE ON shoot_plans BEGIN SELECT RAISE(ABORT, 'synthetic save failure'); END",
+  );
+  const response = await s.call(`/products/${s.product.id}/generate`, "POST", {
+    ...s.input,
+    editedAnalysis: { ...original, garmentType: "저장 실패할 수정" },
+    editedPlan: s.plan.spec,
+  });
+  expect(response.status).toBe(500);
+  expect(
+    (await s.call<ProductDto>(`/products/${s.product.id}`)).data.analysis,
+  ).toEqual(original);
+  expect(
+    s.sqlite
+      .query("SELECT count(*) n FROM generation_jobs WHERE kind='generate'")
+      .get(),
+  ).toEqual({ n: 0 });
+  expect(s.workflows).toHaveLength(1);
 });

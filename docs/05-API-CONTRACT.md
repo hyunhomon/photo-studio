@@ -117,3 +117,5 @@ ADR-019로 종료했다. 인증·owner 검사 후 HTTP 410 `FEATURE_RETIRED`, �
 
 
 ADR-023: POST /products의 name은 생략/빈 문자열일 수 있다. 이때 새 상품으로 등록하고 기존 분석 실행에서 제목을 생성한다. PATCH /products/:id의 name은 1–120자이며 수동 이름으로 고정한다. 업로드나 제목 수정은 AI를 호출하지 않는다. suggestedTitle은 분석 응답의 선택적 짧은 제목이다.
+
+ADR-024: 현재 생성 요청은 editedAnalysis/editedPlan(선택)을 포함할 수 있다. 별도 승인 없이 기획 완료 후 생성 비용 동의를 받으며, 요청 검증 후 설정과 job을 함께 저장한다. 기존 PATCH 승인 API는 구버전 호환이며 현재 UI에 별도 저장/승인 버튼은 없다. 편집만으로 서버 저장이나 AI 호출은 발생하지 않는다.

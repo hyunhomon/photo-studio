@@ -48,7 +48,7 @@ export default function WorkPending({
         </h3>
         <p className="mt-3 text-sm leading-7 text-muted">
           {job.kind === "generate"
-            ? "선택한 사진과 승인한 콘셉트를 반영하고 있어요."
+            ? "선택한 사진과 현재 콘셉트를 반영하고 있어요."
             : "사진을 살펴보고 빛과 구도, 분위기를 기획해요."}
         </p>
         <ol className="mt-4 flex flex-wrap justify-center gap-2">

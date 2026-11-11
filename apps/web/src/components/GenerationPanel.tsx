@@ -1,7 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowDownToLine, ImagePlus, RotateCcw, ZoomIn } from "lucide-react";
 import { Button, Modal, Select } from "@photo-studio/ui";
-import type { PipelineDto, ProductDto, ResultDto } from "@photo-studio/schemas";
+import type {
+  PipelineDto,
+  ProductDto,
+  ResultDto,
+  StudioDraft,
+} from "@photo-studio/schemas";
 import { apiBase, errorMessage, type Me, request } from "../lib/api";
 import WorkPending from "./WorkPending";
 import { Field, JobStatus } from "./PlanningPanel";
@@ -22,11 +27,13 @@ export default function GenerationPanel({
   product,
   me,
   pipeline,
+  draft,
   onRefresh,
 }: {
   product: ProductDto;
   me: Me;
   pipeline: PipelineDto;
+  draft: StudioDraft;
   onRefresh: () => void;
 }) {
   const [results, setResults] = useState<ResultDto[]>([]),
@@ -41,6 +48,7 @@ export default function GenerationPanel({
     [busy, setBusy] = useState(false),
     [error, setError] = useState("");
   const requestId = useRef(crypto.randomUUID());
+  const [submission, setSubmission] = useState<StudioDraft>({});
   const [comparePrevious, setComparePrevious] = useState(false);
   const [usePerson, setUsePerson] = useState(false),
     [useLook, setUseLook] = useState(false);
@@ -85,6 +93,11 @@ export default function GenerationPanel({
     }
   }
   function begin(id: string | null) {
+    setError("");
+    setSubmission({
+      analysis: draft.analysis ?? product.analysis ?? undefined,
+      spec: draft.planId === plan?.id ? (draft.spec ?? plan?.spec) : plan?.spec,
+    });
     setRegenerate(id);
     setReason("lighting_focus");
     setNote("");
@@ -123,19 +136,16 @@ export default function GenerationPanel({
             </a>
             <Button
               variant="secondary"
-              disabled={busy || active || plan?.status !== "approved"}
+              disabled={busy || active || !plan}
               onClick={() => begin(result.asset.id)}
             >
               <RotateCcw size={14} />이 컷 개선
             </Button>
           </>
         )}
-        <Button
-          disabled={busy || active || plan?.status !== "approved"}
-          onClick={() => begin(null)}
-        >
+        <Button disabled={busy || active || !plan} onClick={() => begin(null)}>
           <ImagePlus size={17} aria-hidden="true" />
-          승인된 콘셉트로 생성
+          이미지 생성
         </Button>
       </div>
       {generationJob?.errorCode && !activeJob && (
@@ -154,9 +164,9 @@ export default function GenerationPanel({
           />
         </div>
       )}
-      {plan?.status !== "approved" && (
+      {!plan && (
         <p className="mt-4 text-xs text-muted">
-          분석·기획 후 촬영 콘셉트를 승인하면 생성할 수 있습니다.
+          분석·기획 후 이미지를 생성할 수 있습니다.
         </p>
       )}
       <div className="comparison-selectors">
@@ -381,16 +391,21 @@ export default function GenerationPanel({
         description={
           me.mode === "mock"
             ? "외부 AI 호출 없이 원본을 복사한 Mock 결과를 만듭니다. 실제 화보 생성이 아닙니다."
-            : "원본 참조와 승인한 촬영 지시로 이미지 1장을 요청합니다. 이미지 생성 1회 비용이 내 OpenRouter 크레딧에서 차감됩니다. 자동 평가 호출은 없습니다."
+            : "원본 참조와 현재 촬영 설정으로 이미지 1장을 요청합니다. 이미지 생성 1회 비용이 내 OpenRouter 크레딧에서 차감됩니다. 자동 평가 호출은 없습니다."
         }
       >
+        {error && (
+          <p role="alert" className="mt-4 text-sm text-danger">
+            {error}
+          </p>
+        )}
         <div className="mt-5 rounded-xl bg-studio p-4 text-xs leading-6">
-          <p className="font-semibold">승인된 촬영 지시 · 3:4 · PNG</p>
+          <p className="font-semibold">현재 촬영 설정 · 3:4 · PNG</p>
           <p>
-            {plan?.spec.mood} / {plan?.spec.model.style}
+            {submission.spec?.mood} / {submission.spec?.model.style}
           </p>
           <p>
-            {plan?.spec.location.type} · {plan?.spec.lighting}
+            {submission.spec?.location.type} · {submission.spec?.lighting}
           </p>
         </div>
         <div className="mt-4">
@@ -480,6 +495,9 @@ export default function GenerationPanel({
           </p>
         )}
         <p className="mt-4 text-xs leading-6 text-muted">
+          현재 상품 이해와 촬영 콘셉트를 함께 저장하고 이 설정으로 생성합니다.
+        </p>
+        <p className="mt-4 text-xs leading-6 text-muted">
           이미지 모델: {me.models.image}. 예상 호출: 이미지 1회. 정확한 비용은
           사전 확정할 수 없으며 참조 사진의 수·크기에 따라 달라질 수 있습니다.
           응답이 불확실하면 자동 재생성을 멈춥니다.{" "}
@@ -499,7 +517,7 @@ export default function GenerationPanel({
             checked={consent}
             onChange={(e) => setConsent(e.target.checked)}
           />
-          이미지 생성 비용과 승인된 촬영 지시를 확인했습니다.
+          현재 편집 내용의 저장과 이미지 생성 비용을 확인했습니다.
         </label>
         <Button
           className="mt-5 w-full"
@@ -514,6 +532,8 @@ export default function GenerationPanel({
                     consent: true,
                     idempotencyKey: requestId.current,
                     planId: plan?.id,
+                    editedAnalysis: submission.analysis,
+                    editedPlan: submission.spec,
                     quality,
                     adjustments: note,
                     count: 1,

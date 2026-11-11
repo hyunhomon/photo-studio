@@ -214,12 +214,6 @@ export function generationRoutes() {
       )
       .get();
     if (!plan) throw notFound();
-    if (plan.status !== "approved")
-      throw new AppError(
-        "PLAN_APPROVAL_REQUIRED",
-        "촬영 콘셉트를 먼저 승인해 주세요.",
-        409,
-      );
     if (input.regenerationOf) {
       const asset = await ownedGenerated(c.env, userId, input.regenerationOf);
       if (asset.productId !== p.id) throw notFound();
@@ -250,10 +244,20 @@ export function generationRoutes() {
         "원본이 변경됐습니다. 다시 기획해 주세요.",
         409,
       );
-    const spec = shootPlanSchema.parse(JSON.parse(plan.specJson));
-    const analysis = p.analysisJson
-      ? productAnalysisSchema.parse(JSON.parse(p.analysisJson))
-      : null;
+    const spec = shootPlanSchema.parse(
+      input.editedPlan ?? JSON.parse(plan.specJson),
+    );
+    const analysis =
+      input.editedAnalysis ??
+      (p.analysisJson
+        ? productAnalysisSchema.parse(JSON.parse(p.analysisJson))
+        : null);
+    if (!analysis)
+      throw new AppError(
+        "ANALYSIS_MISSING",
+        "상품 분석 후 생성해 주세요.",
+        409,
+      );
     spec.mustPreserve = [
       ...new Set([
         ...spec.mustPreserve,
@@ -289,6 +293,21 @@ export function generationRoutes() {
       "generate",
       input.idempotencyKey,
       snapshot,
+      (id) => [
+        c.env.DB.prepare(
+          "UPDATE products SET analysis_json=?,analysis_version=? WHERE id=? AND user_id=? AND EXISTS(SELECT 1 FROM generation_jobs WHERE id=? AND user_id=?)",
+        ).bind(
+          JSON.stringify(analysis),
+          input.editedAnalysis ? "human-v1" : p.analysisVersion,
+          p.id,
+          userId,
+          id,
+          userId,
+        ),
+        c.env.DB.prepare(
+          "UPDATE shoot_plans SET spec_json=?,status='approved' WHERE id=? AND product_id=? AND user_id=? AND EXISTS(SELECT 1 FROM generation_jobs WHERE id=? AND user_id=?)",
+        ).bind(JSON.stringify(spec), plan.id, p.id, userId, id, userId),
+      ],
     );
     return c.json({ data: await jobDto(c.env, job) }, 202);
   });

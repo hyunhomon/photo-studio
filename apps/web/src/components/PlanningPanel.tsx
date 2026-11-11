@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState, useId, useRef } from "react";
 import {
-  Check,
   CheckCircle2,
   Clock3,
   ScanSearch,
@@ -17,6 +16,7 @@ import type {
   ProductAnalysis,
   ProductDto,
   ShootPlan,
+  StudioDraft,
 } from "@photo-studio/schemas";
 import { apiBase, errorMessage, type Me, request } from "../lib/api";
 
@@ -151,240 +151,230 @@ export function Field({
 }
 export function AnalysisEditor({
   analysis,
-  onSave,
+  onChange,
   busy,
 }: {
   analysis: ProductAnalysis;
-  onSave: (a: ProductAnalysis) => void;
+  onChange: (a: ProductAnalysis) => void;
   busy: boolean;
 }) {
-  const [value, setValue] = useState(analysis);
+  const value = analysis,
+    setValue = onChange;
   return (
     <section className="rounded-panel border border-line bg-surface p-6">
-      <div className="mb-5 flex items-center justify-between">
-        <h2 className="text-lg">상품 이해</h2>
-        <span className="text-[10px] tracking-wider text-muted">
-          EDITABLE / AI + YOU
-        </span>
-      </div>
-      <div className="grid gap-4">
-        <Field
-          label="의류 종류"
-          value={value.garmentType}
-          onChange={(v) => setValue({ ...value, garmentType: v })}
-        />
-        <Field
-          label="색상 (쉼표 구분)"
-          value={value.colors.join(", ")}
-          onChange={(v) =>
-            setValue({ ...value, colors: v.split(",").map((s) => s.trim()) })
-          }
-        />
-        <Field
-          label="패턴"
-          value={value.pattern}
-          onChange={(v) => setValue({ ...value, pattern: v })}
-        />
-        <Field
-          label="실루엣"
-          value={value.silhouette}
-          onChange={(v) => setValue({ ...value, silhouette: v })}
-        />
-        <Field
-          label="소재 추정 · 확인 필요"
-          value={value.materialGuess.value}
-          onChange={(v) =>
-            setValue({
-              ...value,
-              materialGuess: { ...value.materialGuess, value: v },
-            })
-          }
-        />
-        <Field
-          label="시즌 (쉼표 구분)"
-          value={value.seasonGuess.join(", ")}
-          onChange={(v) =>
-            setValue({
-              ...value,
-              seasonGuess: v.split(",").map((s) => s.trim()),
-            })
-          }
-        />
-      </div>
-      <div className="mt-4 grid gap-4">
-        <Field
-          label="반드시 보존할 디테일 (한 줄에 하나)"
-          value={value.preservationPoints.join("\n")}
-          multiline
-          onChange={(v) =>
-            setValue({ ...value, preservationPoints: v.split("\n") })
-          }
-        />
-        <Field
-          label="불확실한 부분 (한 줄에 하나)"
-          value={value.uncertainties.join("\n")}
-          multiline
-          onChange={(v) => setValue({ ...value, uncertainties: v.split("\n") })}
-        />
-      </div>
-      <p className="mt-4 text-xs leading-6 text-muted">
-        소재 추정 신뢰도 {Math.round(value.materialGuess.confidence * 100)}%.
-        사진 분석은 실제 소재·치수를 보증하지 않습니다. 수정 시 촬영 콘셉트를
-        다시 승인해야 합니다.
-      </p>
-      <Button
-        className="mt-5"
-        variant="secondary"
-        disabled={busy}
-        onClick={() => onSave(value)}
-      >
-        분석 수정 저장
-      </Button>
+      <fieldset disabled={busy} className="min-w-0">
+        <div className="mb-5 flex items-center justify-between">
+          <h2 className="text-lg">상품 이해</h2>
+          <span className="text-[10px] tracking-wider text-muted">
+            EDITABLE / AI + YOU
+          </span>
+        </div>
+        <fieldset disabled={busy} className="grid gap-4">
+          <Field
+            label="의류 종류"
+            value={value.garmentType}
+            onChange={(v) => setValue({ ...value, garmentType: v })}
+          />
+          <Field
+            label="색상 (쉼표 구분)"
+            value={value.colors.join(", ")}
+            onChange={(v) =>
+              setValue({ ...value, colors: v.split(",").map((s) => s.trim()) })
+            }
+          />
+          <Field
+            label="패턴"
+            value={value.pattern}
+            onChange={(v) => setValue({ ...value, pattern: v })}
+          />
+          <Field
+            label="실루엣"
+            value={value.silhouette}
+            onChange={(v) => setValue({ ...value, silhouette: v })}
+          />
+          <Field
+            label="소재 추정 · 확인 필요"
+            value={value.materialGuess.value}
+            onChange={(v) =>
+              setValue({
+                ...value,
+                materialGuess: { ...value.materialGuess, value: v },
+              })
+            }
+          />
+          <Field
+            label="시즌 (쉼표 구분)"
+            value={value.seasonGuess.join(", ")}
+            onChange={(v) =>
+              setValue({
+                ...value,
+                seasonGuess: v.split(",").map((s) => s.trim()),
+              })
+            }
+          />
+        </fieldset>
+        <div className="mt-4 grid gap-4">
+          <Field
+            label="반드시 보존할 디테일 (한 줄에 하나)"
+            value={value.preservationPoints.join("\n")}
+            multiline
+            onChange={(v) =>
+              setValue({ ...value, preservationPoints: v.split("\n") })
+            }
+          />
+          <Field
+            label="불확실한 부분 (한 줄에 하나)"
+            value={value.uncertainties.join("\n")}
+            multiline
+            onChange={(v) =>
+              setValue({ ...value, uncertainties: v.split("\n") })
+            }
+          />
+        </div>
+        <p className="mt-4 text-xs leading-6 text-muted">
+          소재 추정 신뢰도 {Math.round(value.materialGuess.confidence * 100)}%.
+          사진 분석은 실제 소재·치수를 보증하지 않습니다. 수정 내용은 이미지
+          생성 시 저장됩니다.
+        </p>
+      </fieldset>
     </section>
   );
 }
 export function PlanEditor({
   plan,
-  onSave,
+  onChange,
   busy,
 }: {
   plan: PlanDto;
-  onSave: (spec: ShootPlan, approved: boolean) => void;
+  onChange: (spec: ShootPlan) => void;
   busy: boolean;
 }) {
-  const [v, set] = useState(plan.spec);
+  const v = plan.spec,
+    set = onChange;
   return (
     <section className="rounded-panel border border-line bg-surface p-6">
-      <div className="flex items-center justify-between gap-3">
-        <h2 className="text-xl">촬영 콘셉트</h2>
-        <span className="rounded-full border border-line px-3 py-1.5 text-[10px]">
-          V{plan.version} ·{" "}
-          {plan.status === "approved" ? "승인됨" : "확인 필요"}
-        </span>
-      </div>
-      {plan.spec.referenceNotes && (
-        <div className="my-4 rounded-xl bg-accent-soft p-3 text-xs leading-6 text-muted">
-          <strong className="block text-primary">레퍼런스 관찰</strong>
-          {plan.spec.referenceNotes}
+      <fieldset disabled={busy} className="min-w-0">
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="text-xl">촬영 콘셉트</h2>
+          <span className="rounded-full border border-line px-3 py-1.5 text-[10px]">
+            V{plan.version}
+          </span>
         </div>
-      )}
-      <p className="my-4 text-xs leading-6 text-muted">
-        원본의 보존 포인트를 확인하고 무드·모델·장소를 조정해 주세요. 상품
-        사진은 얼굴보다 의류 전체와 밑단·소매가 보이는 구도를 권장합니다.
-      </p>
-      <div className="grid gap-4">
-        <Field
-          label="시즌"
-          value={v.season}
-          onChange={(s) => set({ ...v, season: s })}
-        />
-        <Field
-          label="무드"
-          value={v.mood}
-          onChange={(s) => set({ ...v, mood: s })}
-        />
-        <Field
-          label="모델 스타일 (성인)"
-          value={v.model.style}
-          onChange={(s) => set({ ...v, model: { ...v.model, style: s } })}
-        />
-        <Field
-          label="포즈"
-          value={v.model.pose}
-          onChange={(s) => set({ ...v, model: { ...v.model, pose: s } })}
-        />
-        <Field
-          label="프레이밍"
-          value={v.camera.framing}
-          onChange={(s) => set({ ...v, camera: { ...v.camera, framing: s } })}
-        />
-        <Field
-          label="카메라 각도"
-          value={v.camera.angle}
-          onChange={(s) => set({ ...v, camera: { ...v.camera, angle: s } })}
-        />
-        <Field
-          label="장소"
-          value={v.location.type}
-          onChange={(s) => set({ ...v, location: { ...v.location, type: s } })}
-        />
-        <Field
-          label="시간대"
-          value={v.location.time}
-          onChange={(s) => set({ ...v, location: { ...v.location, time: s } })}
-        />
-        <Field
-          label="조명"
-          value={v.lighting}
-          onChange={(s) => set({ ...v, lighting: s })}
-        />
-      </div>
-      <div className="mt-5 grid gap-4">
-        <div>
-          <p className="mb-2 text-xs text-muted">배경 분리</p>
-          <Select
-            label="배경 분리"
-            value={v.camera.backgroundSeparation}
-            onChange={(value) =>
-              set({
-                ...v,
-                camera: {
-                  ...v.camera,
-                  backgroundSeparation:
-                    value as ShootPlan["camera"]["backgroundSeparation"],
-                },
-              })
+        {plan.spec.referenceNotes && (
+          <div className="my-4 rounded-xl bg-accent-soft p-3 text-xs leading-6 text-muted">
+            <strong className="block text-primary">레퍼런스 관찰</strong>
+            {plan.spec.referenceNotes}
+          </div>
+        )}
+        <p className="my-4 text-xs leading-6 text-muted">
+          원본의 보존 포인트를 확인하고 무드·모델·장소를 조정해 주세요. 상품
+          사진은 얼굴보다 의류 전체와 밑단·소매가 보이는 구도를 권장합니다.
+        </p>
+        <fieldset disabled={busy} className="grid gap-4">
+          <Field
+            label="시즌"
+            value={v.season}
+            onChange={(s) => set({ ...v, season: s })}
+          />
+          <Field
+            label="무드"
+            value={v.mood}
+            onChange={(s) => set({ ...v, mood: s })}
+          />
+          <Field
+            label="모델 스타일 (성인)"
+            value={v.model.style}
+            onChange={(s) => set({ ...v, model: { ...v.model, style: s } })}
+          />
+          <Field
+            label="포즈"
+            value={v.model.pose}
+            onChange={(s) => set({ ...v, model: { ...v.model, pose: s } })}
+          />
+          <Field
+            label="프레이밍"
+            value={v.camera.framing}
+            onChange={(s) => set({ ...v, camera: { ...v.camera, framing: s } })}
+          />
+          <Field
+            label="카메라 각도"
+            value={v.camera.angle}
+            onChange={(s) => set({ ...v, camera: { ...v.camera, angle: s } })}
+          />
+          <Field
+            label="장소"
+            value={v.location.type}
+            onChange={(s) =>
+              set({ ...v, location: { ...v.location, type: s } })
             }
-            options={[
-              { value: "gentle", label: "은은하게 · 주변도 자연스럽게" },
-              { value: "balanced", label: "자연스럽게 · 상품 중심" },
-              { value: "separated", label: "분리감 있게 · 멀리 있는 배경" },
-            ]}
+          />
+          <Field
+            label="시간대"
+            value={v.location.time}
+            onChange={(s) =>
+              set({ ...v, location: { ...v.location, time: s } })
+            }
+          />
+          <Field
+            label="조명"
+            value={v.lighting}
+            onChange={(s) => set({ ...v, lighting: s })}
+          />
+        </fieldset>
+        <div className="mt-5 grid gap-4">
+          <div>
+            <p className="mb-2 text-xs text-muted">배경 분리</p>
+            <Select
+              label="배경 분리"
+              value={v.camera.backgroundSeparation}
+              onChange={(value) =>
+                set({
+                  ...v,
+                  camera: {
+                    ...v.camera,
+                    backgroundSeparation:
+                      value as ShootPlan["camera"]["backgroundSeparation"],
+                  },
+                })
+              }
+              options={[
+                { value: "gentle", label: "은은하게 · 주변도 자연스럽게" },
+                { value: "balanced", label: "자연스럽게 · 상품 중심" },
+                { value: "separated", label: "분리감 있게 · 멀리 있는 배경" },
+              ]}
+            />
+          </div>
+          <Field
+            label="인물 인상 (성인 · 선택)"
+            value={v.model.appearance}
+            onChange={(appearance) =>
+              set({ ...v, model: { ...v.model, appearance } })
+            }
+            multiline
+          />
+          <p className="text-[11px] leading-6 text-muted">
+            나이대, 머리 모양, 표정과 개성을 적어 주세요. 묘사는 가상 성인
+            인물의 방향을 정하며, 특정 인물의 동일성을 보장하지 않습니다.
+          </p>
+          <Field
+            label="소재 표현 지시 (선택)"
+            value={v.materialDirection}
+            onChange={(materialDirection) => set({ ...v, materialDirection })}
+            multiline
           />
         </div>
-        <Field
-          label="인물 인상 (성인 · 선택)"
-          value={v.model.appearance}
-          onChange={(appearance) =>
-            set({ ...v, model: { ...v.model, appearance } })
-          }
-          multiline
-        />
-        <p className="text-[11px] leading-6 text-muted">
-          나이대, 머리 모양, 표정과 개성을 적어 주세요. 묘사는 가상 성인 인물의
-          방향을 정하며, 특정 인물의 동일성을 보장하지 않습니다.
+        <div className="mt-4">
+          <Field
+            label="촬영 시 보존할 요소 (한 줄에 하나)"
+            value={v.mustPreserve.join("\n")}
+            multiline
+            onChange={(s) => set({ ...v, mustPreserve: s.split("\n") })}
+          />
+        </div>
+        <p className="mt-4 text-xs text-muted">
+          수정 내용은 이미지 생성 시 함께 저장됩니다.
         </p>
-        <Field
-          label="소재 표현 지시 (선택)"
-          value={v.materialDirection}
-          onChange={(materialDirection) => set({ ...v, materialDirection })}
-          multiline
-        />
-      </div>
-      <div className="mt-4">
-        <Field
-          label="촬영 시 보존할 요소 (한 줄에 하나)"
-          value={v.mustPreserve.join("\n")}
-          multiline
-          onChange={(s) => set({ ...v, mustPreserve: s.split("\n") })}
-        />
-      </div>
-      <div className="mt-5 flex flex-wrap gap-3">
-        <Button
-          variant="secondary"
-          disabled={busy}
-          onClick={() => onSave(v, false)}
-        >
-          수정 저장
-        </Button>
-        <Button disabled={busy} onClick={() => onSave(v, true)}>
-          <Check size={15} aria-hidden="true" />
-          콘셉트 승인
-        </Button>
-      </div>
-      <p className="mt-3 text-[11px] text-muted">
-        승인만으로 이미지를 생성하거나 비용을 청구하지 않습니다.
-      </p>
+      </fieldset>
     </section>
   );
 }
@@ -394,12 +384,16 @@ export default function PlanningPanel({
   onRefresh,
   onPipeline,
   referencesPanel,
+  draft,
+  onDraft,
 }: {
   product: ProductDto;
   me: Me;
   onRefresh: () => void;
   onPipeline?: (data: PipelineDto) => void;
   referencesPanel?: ReactNode;
+  draft: StudioDraft;
+  onDraft: (value: StudioDraft) => void;
 }) {
   const requestId = useRef(crypto.randomUUID());
   const [tab, setTab] = useState(0),
@@ -565,16 +559,14 @@ export default function PlanningPanel({
             {product.analysis && (
               <AnalysisEditor
                 key={JSON.stringify(product.analysis)}
-                analysis={product.analysis}
+                analysis={draft.analysis ?? product.analysis}
                 busy={busy || active}
-                onSave={(a) =>
-                  void action(() =>
-                    request(
-                      `/api/v1/products/${product.id}/analysis`,
-                      { method: "PATCH", body: JSON.stringify(a) },
-                      me.csrf,
-                    ),
-                  )
+                onChange={(analysis) =>
+                  onDraft({
+                    ...draft,
+                    analysis,
+                    analysisBase: JSON.stringify(product.analysis),
+                  })
                 }
               />
             )}
@@ -583,19 +575,16 @@ export default function PlanningPanel({
             {plan && (
               <PlanEditor
                 key={`${plan.id}-${plan.status}`}
-                plan={plan}
+                plan={{
+                  ...plan,
+                  spec:
+                    draft.planId === plan.id
+                      ? (draft.spec ?? plan.spec)
+                      : plan.spec,
+                }}
                 busy={busy || active}
-                onSave={(spec, approved) =>
-                  void action(() =>
-                    request(
-                      `/api/v1/plans/${plan.id}`,
-                      {
-                        method: "PATCH",
-                        body: JSON.stringify({ spec, approved }),
-                      },
-                      me.csrf,
-                    ),
-                  )
+                onChange={(spec) =>
+                  onDraft({ ...draft, planId: plan.id, spec })
                 }
               />
             )}

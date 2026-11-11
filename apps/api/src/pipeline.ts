@@ -207,6 +207,7 @@ export async function insertJob(
   kind: string,
   idempotencyKey: string,
   snapshot: unknown,
+  persist?: (id: string) => D1PreparedStatement[],
 ) {
   const requestJson = JSON.stringify(snapshot),
     requestHash = await hash(`${productId}:${kind}:${requestJson}`);
@@ -228,24 +229,23 @@ export async function insertJob(
     return prior;
   }
   const id = crypto.randomUUID();
-  await env.DB.prepare(
+  const insertion = env.DB.prepare(
     `INSERT OR IGNORE INTO generation_jobs (id,user_id,product_id,kind,status,stage,idempotency_key,request_hash,request_json,created_at) SELECT ?,?,?,?,'queued','queued',?,?,?,? WHERE EXISTS (SELECT 1 FROM products p JOIN users u ON u.id=p.user_id WHERE p.id=? AND p.user_id=? AND p.status='ready' AND u.status='active') AND NOT EXISTS (SELECT 1 FROM generation_jobs WHERE user_id=? AND product_id=? AND ${activeSql})`,
-  )
-    .bind(
-      id,
-      userId,
-      productId,
-      kind,
-      idempotencyKey,
-      requestHash,
-      requestJson,
-      Date.now(),
-      productId,
-      userId,
-      userId,
-      productId,
-    )
-    .run();
+  ).bind(
+    id,
+    userId,
+    productId,
+    kind,
+    idempotencyKey,
+    requestHash,
+    requestJson,
+    Date.now(),
+    productId,
+    userId,
+    userId,
+    productId,
+  );
+  await env.DB.batch([insertion, ...(persist?.(id) ?? [])]);
   const row = await db
     .select()
     .from(jobs)

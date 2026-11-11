@@ -1,7 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
 import { Plus } from "lucide-react";
 import { Button } from "@photo-studio/ui";
-import type { ProductDto, PipelineDto } from "@photo-studio/schemas";
+import type {
+  ProductDto,
+  PipelineDto,
+  StudioDraft,
+} from "@photo-studio/schemas";
 import { useAccount } from "../lib/account";
 import { errorMessage, request } from "../lib/api";
 import WorkspaceShell from "./WorkspaceShell";
@@ -16,6 +20,7 @@ export default function ProductWorkbench({ id }: { id: string }) {
   const [product, setProduct] = useState<ProductDto | null>(null),
     [pipeline, setPipeline] = useState<PipelineDto>({ plans: [], jobs: [] }),
     [upload, setUpload] = useState(false);
+  const [draft, setDraft] = useState<StudioDraft>({});
   const refresh = useCallback(() => {
     if (me)
       void request<ProductDto>(`/api/v1/products/${id}`)
@@ -26,6 +31,13 @@ export default function ProductWorkbench({ id }: { id: string }) {
   const active = pipeline.jobs.some((j) =>
     ["queued", "running"].includes(j.status),
   );
+  const effectiveDraft = {
+    ...draft,
+    analysis:
+      draft.analysisBase === JSON.stringify(product?.analysis)
+        ? draft.analysis
+        : undefined,
+  };
   const inputs = product?.assets.filter((a) => a.kind === "input") ?? [];
   useEffect(() => {
     window.addEventListener("studio:product-changed", refresh);
@@ -59,6 +71,7 @@ export default function ProductWorkbench({ id }: { id: string }) {
               product={product}
               me={me}
               pipeline={pipeline}
+              draft={effectiveDraft}
               onRefresh={refresh}
             />
           </div>
@@ -68,6 +81,8 @@ export default function ProductWorkbench({ id }: { id: string }) {
               me={me}
               onRefresh={refresh}
               onPipeline={setPipeline}
+              draft={effectiveDraft}
+              onDraft={setDraft}
               referencesPanel={
                 <PhotoReferences
                   product={product}

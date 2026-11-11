@@ -182,3 +182,11 @@
 - 이름 미입력 상품은 파일명을 쓰지 않고 ‘새 상품’으로 등록한다. 업로드로 AI를 호출하지 않는다. 비용 동의한 기존 analysis 호출에서 suggestedTitle을 함께 요청하고, 없는 경우 AI가 분석한 색상/의류 종류로 짧은 제목을 만든다. 별도 제목 생성 호출/과금은 없다. 최초 등록 안내에 분석 후 자동 명명을 명시한다.
 - additive migration 0010은 name_source(default manual)를 추가한다. 새 빈 제목만 auto로 저장하고 수동 등록/제목 변경은 manual이다. 분석 결과 저장 후 owner/ready/auto 조건부 UPDATE로 동시 수동 수정과 기존 제목을 보호한다. 기존 상품 제목/파일/연결·비용 기록은 초기화하거나 소급 변경하지 않는다. prompt_version은 studio-v7-product-title이다.
 - trade-off: 사용자가 분석을 승인하기 전에는 임시 제목이 보인다. 분석 실패 시에도 임시 제목을 유지하며 자동 재시도나 업로드 즉시 유료 제목 호출을 하지 않는다.
+
+## ADR-024: 생성 실행에 편집 저장과 승인을 통합 — Accepted (사용자 지정, 2026-11-12)
+
+- 상품 이해/촬영 콘셉트의 별도 수정 저장 및 콘셉트 승인 버튼을 제거한다. 기획이 있으면 생성할 수 있고, 생성 확인/비용 동의가 촬영 지시의 승인이다. 업로드/편집/기획 완료가 자동으로 이미지를 생성하지는 않는다.
+- 편집값은 상품 화면의 공유 메모리에 유지한다. 탭 전환/동일 자료의 상태 polling으로 덮지 않으며 새 분석/새 기획은 해당 서버 결과로 갱신한다. 생성 확인 창을 열 때 현재 편집값을 고정해 요약하고, 비용 동의 요청에 editedAnalysis/editedPlan을 함께 보낸다. 생성 전 페이지 이탈 시 저장되지 않은 편집은 보존하지 않는다. 별도 기획 재요청의 ‘저장된 분석 재사용’은 마지막 저장값을 의미한다.
+- generate는 draft/approved 계획 모두 허용하되 consent=true, 전체 Zod 검증, owner/원본/참조 검사를 통과해야 한다. 생성 job INSERT와 상품 분석/계획 저장은 D1 batch 트랜잭션에서 처리하고 성공 후 Workflow를 dispatch한다. 새 job이 실제 INSERT된 ID 조건으로만 업데이트해 active-job 충돌이나 idempotent replay가 저장값을 덮지 않는다. job에는 편집된 분석/계획 snapshot을 고정한다.
+- 내부 approved 상태 및 이전 PATCH 엔드포인트는 이력/구버전 호환으로 남기며 현재 UI의 선행 단계가 아니다. 과거 비용/원장은 보존하고 실패·불명확한 유료 호출은 자동 반복하지 않는다. 저장 실패 시 job/분석/계획을 함께 rollback하고 생성 요청/비용 동의 없이 쓰지 않는다. DB 스키마 변경은 없다.
+- 근거: https://developers.cloudflare.com/d1/worker-api/d1-database/#batch

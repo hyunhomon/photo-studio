@@ -209,11 +209,19 @@ export const rejectionReasonSchema = z.enum([
   "composition",
   "other",
 ]);
+export interface StudioDraft {
+  analysisBase?: string;
+  planId?: string;
+  analysis?: ProductAnalysis;
+  spec?: ShootPlan;
+}
 export const generateRequestSchema = z
   .object({
     consent: z.literal(true),
     idempotencyKey: z.uuid(),
     planId: z.uuid(),
+    editedAnalysis: productAnalysisSchema.optional(),
+    editedPlan: shootPlanSchema.optional(),
     quality: z.enum(["medium", "high"]),
     count: z.literal(1),
     regenerationOf: z.uuid().nullable().default(null),

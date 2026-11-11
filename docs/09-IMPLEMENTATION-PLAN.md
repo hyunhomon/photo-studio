@@ -245,3 +245,10 @@ production desktop/mobile 전체 Mock E2E **4/4 통과**: 저장된 분석 재�
 - [x] 빈 이름은 ‘새 상품’, 동의된 기존 분석에서 AI 제목 생성. 수동 제목/동시 수정 보호, 추가 AI 호출 없음. additive migration 0010, studio-v7-product-title.
 - [x] format/lint/typecheck/build 통과, 단위 55/55. 빈 제목 등록·추가 호출 없음·분석 제목 반영·분석 중 수동 제목 변경 보존을 검증했다. local/production desktop/mobile 각 6/6, wrapper exit 0. 실제 부모 프레임의 x/y/width/height 경계 안에 pending이 포함됨을 검사하고 사이드바 hover/터치 제목 수정·삭제를 실행했다. 운영 캡처와 공개 HTTPS/CORS/OAuth/글꼴/반응형 smoke 통과. 앱 4821554 commit/push 및 additive migration0010/web/API/Workflow 배포 완료. 실제 사용자 자료/연결을 초기화하지 않았으며 자동 유료 AI 호출은 없다.
 - [ ] 실제 새 AI 제목 응답의 사용자 승인 유료 검증. 합성 adapter 검사와 구분한다.
+
+### 생성 시 저장으로 통합 — 2026-11-12 (ADR-024)
+
+- [x] 상품 이해/촬영 콘셉트의 저장·승인 액션 제거. 공유 draft와 생성 확인 시 snapshot, 별도 비용 동의 유지.
+- [x] generate에서 editedAnalysis/editedPlan 검증, job+설정 D1 atomic batch 저장 후 dispatch, 조건부 신규 job ID로 replay/충돌 보호.
+- [ ] 최종 check/브라우저 검증, commit/push, 운영 배포 및 회귀 확인.
+- [ ] 새 흐름의 실제 사용자 승인 유료 생성 검증. Mock 검사와 구분한다.
