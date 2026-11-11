@@ -65,3 +65,5 @@ Images API는 n=1, 3:4, PNG와 medium/high만 요청하며 모델의 현재 참�
 ADR-014를 추가했다. 사용자 상태를 deleting으로 고정해 계정 삭제 도중 새 작업을 차단한다. 원본/생성 파일 삭제와 시간별 만료/정리 cron을 구현했고 prefix tombstone으로 늦은 쓰기를 정리한다. 내보내기는 인증 키/세션/external identity/object key를 제외한다. 실제 최대 파일/동시 부하와 실제 OpenRouter 인증/유료 의류 품질, secret 회전·백업 복구 리허설은 자동 Mock 검사와 구별해 미검증으로 기록한다. 로컬 이미지의 Cross-Origin-Resource-Policy 차단은 실제 이미지 디코딩 E2E로 발견/수정했으며 production same-origin 정책은 유지한다.
 
 D1 공식 limits의 Free 50 queries/invocation 및 query당 100 bound parameters를 고려해 상품/작업/결과 목록과 다건 삭제·GC를 batch로 묶었다. 61개 상품의 조회/비공개 사진 삭제를 단위 통합 검사에 추가했다. 결과 갤러리는 최근 100컷, 작업 기록은 최근 50개를 표시하며 전체 기록은 내보내기로 제공한다.
+
+원격 Mock E2E 4개 통과 후 삭제 복구를 추가 점검했다. R2 장애 뒤 세션이 만료돼도 시간별 cleanup이 deleting 계정과 암호화 키/관계 데이터를 마무리하도록 보완하고 회귀 테스트를 추가했다.

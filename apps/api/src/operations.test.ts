@@ -134,3 +134,23 @@ test("a project with 61 products reads and deletes all private media through bat
   );
   expect(s.objects.size).toBe(0);
 });
+test("scheduled cleanup finishes a failed account deletion after its session has expired", async () => {
+  const s = await studioFixture(),
+    failure = spyOn(s.env.ASSETS, "delete").mockRejectedValue(
+      new Error("Synthetic R2 outage"),
+    );
+  expect(
+    (await s.call("/account", "DELETE", { confirm: "DELETE" })).status,
+  ).toBe(503);
+  failure.mockRestore();
+  s.sqlite.exec("UPDATE sessions SET expires_at=0");
+  expect((await s.call("/me")).status).toBe(401);
+  await cleanupStorage(s.env);
+  expect(s.objects.size).toBe(0);
+  expect(s.sqlite.query("SELECT count(*) n FROM users").get()).toEqual({
+    n: 0,
+  });
+  expect(
+    s.sqlite.query("SELECT count(*) n FROM provider_connections").get(),
+  ).toEqual({ n: 0 });
+});

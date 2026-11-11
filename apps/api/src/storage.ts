@@ -38,6 +38,11 @@ export async function cleanupStorage(env: Env) {
   for (const purge of purges.results) {
     try {
       await purgeUserMedia(env, purge.user_id, 2);
+      checked.push(
+        env.DB.prepare(
+          "DELETE FROM users WHERE id=? AND status='deleting'",
+        ).bind(purge.user_id),
+      );
       if (Date.now() - purge.created_at > 86400000)
         checked.push(
           env.DB.prepare("DELETE FROM media_purges WHERE user_id=?").bind(
