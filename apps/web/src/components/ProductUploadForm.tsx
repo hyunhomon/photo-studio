@@ -1,13 +1,10 @@
-import { useEffect, useId, useState } from "react";
-import {
-  Disclosure,
-  DisclosureButton,
-  DisclosurePanel,
-} from "@headlessui/react";
+import { useEffect, useId, useRef, useState } from "react";
 import {
   ImagePlus,
   X,
-  ChevronDown,
+  Plus,
+  ChevronLeft,
+  ChevronRight,
   ArrowUpRight,
   LoaderCircle,
 } from "lucide-react";
@@ -28,21 +25,33 @@ export function PhotoPicker({
   max?: number;
   disabled?: boolean;
 }) {
-  const [previews, setPreviews] = useState<{ url: string; name: string }[]>([]),
-    [error, setError] = useState("");
+  const inputId = useId();
+  const input = useRef<HTMLInputElement>(null);
+  const touchStart = useRef<number | null>(null);
+  const [previews, setPreviews] = useState<{ url: string; name: string }[]>([]);
+  const [error, setError] = useState("");
+  const [index, setIndex] = useState(0);
+  const selected = Math.min(index, Math.max(0, previews.length - 1));
+  const preview = previews[selected];
+  const title = label.startsWith("촬영")
+    ? "레퍼런스"
+    : label.startsWith("인물")
+      ? "인물"
+      : "상품";
   useEffect(() => {
-    const list = files.map((f) => ({
-      url: URL.createObjectURL(f),
-      name: f.name,
+    const list = files.map((file) => ({
+      url: URL.createObjectURL(file),
+      name: file.name,
     }));
     setPreviews(list);
     return () => {
-      for (const p of list) URL.revokeObjectURL(p.url);
+      for (const item of list) URL.revokeObjectURL(item.url);
     };
   }, [files]);
   function add(incoming: File[]) {
+    if (!incoming.length || disabled) return;
     setError("");
-    const next = [...files];
+    const next = max === 1 ? [] : [...files];
     for (const file of incoming) {
       if (
         file.size > 10 * 1024 * 1024 ||
@@ -65,69 +74,138 @@ export function PhotoPicker({
       setError(`사진은 최대 ${max}장까지 선택해 주세요.`);
       return;
     }
+    setIndex(next.length - 1);
     onChange(next);
   }
+  function move(delta: number) {
+    setIndex((selected + delta + previews.length) % previews.length);
+  }
   return (
-    <div>
-      <label
-        onDragOver={(e) => e.preventDefault()}
-        onDrop={(e) => {
-          e.preventDefault();
-          if (!disabled) add(Array.from(e.dataTransfer.files));
+    <div className="min-w-0 text-left">
+      <div className="mb-3 flex items-center gap-1.5 text-xs sm:text-sm">
+        <span className="font-medium">{title}</span>
+        {max === 1 && (
+          <span className="text-[10px] font-normal text-muted">선택</span>
+        )}
+      </div>
+      <fieldset
+        aria-label={`${label} 업로드`}
+        className={`photo-picker relative overflow-hidden rounded-2xl border border-line bg-surface ${disabled ? "opacity-50" : ""}`}
+        onDragOver={(event) => event.preventDefault()}
+        onDrop={(event) => {
+          event.preventDefault();
+          add(Array.from(event.dataTransfer.files));
         }}
-        className={`relative flex min-h-32 cursor-pointer flex-col items-center justify-center rounded-2xl border border-dashed border-control bg-paper/50 p-5 text-center transition-colors hover:border-primary ${disabled ? "opacity-50" : ""}`}
       >
-        <ImagePlus size={25} className="text-primary" aria-hidden="true" />
-        <span className="mt-3 text-sm font-semibold">{label}</span>
-        <span className="mt-1.5 text-xs text-muted">
-          끌어 놓거나 클릭 · 최대 {max}장
-        </span>
         <input
+          ref={input}
+          id={inputId}
           aria-label={label}
           type="file"
           multiple={max > 1}
           accept="image/jpeg,image/png,image/webp"
           disabled={disabled}
-          className="absolute inset-0 size-full cursor-pointer opacity-0"
-          onChange={(e) => {
-            add(Array.from(e.target.files ?? []));
-            e.target.value = "";
+          className="sr-only"
+          tabIndex={-1}
+          onChange={(event) => {
+            add(Array.from(event.target.files ?? []));
+            event.target.value = "";
           }}
         />
-      </label>
-      {previews.length > 0 && (
-        <div
-          className={`mt-3 grid gap-3 ${max > 1 ? "grid-cols-3" : "grid-cols-1"}`}
-        >
-          {previews.map((p, i) => (
-            <figure
-              key={p.url}
-              className="relative min-w-0 overflow-hidden rounded-xl border border-line bg-paper"
+        {preview ? (
+          <>
+            <fieldset
+              aria-label={`${label} 미리보기`}
+              aria-roledescription="캐러셀"
+              className="photo-picker-preview relative"
+              onTouchStart={(event) => {
+                touchStart.current = event.touches[0]?.clientX ?? null;
+              }}
+              onTouchEnd={(event) => {
+                const end = event.changedTouches[0]?.clientX;
+                if (
+                  touchStart.current !== null &&
+                  end !== undefined &&
+                  Math.abs(end - touchStart.current) > 35 &&
+                  previews.length > 1
+                )
+                  move(end < touchStart.current ? 1 : -1);
+                touchStart.current = null;
+              }}
             >
               <img
-                src={p.url}
-                alt={`${label} 미리보기 ${i + 1}`}
-                className="aspect-square max-h-44 w-full object-contain"
+                src={preview.url}
+                alt={`${label} 미리보기 ${selected + 1}`}
+                className="absolute inset-0 size-full object-contain p-2"
               />
               <button
                 type="button"
-                aria-label={`${label} ${i + 1}번 삭제`}
+                aria-label={`${label} ${selected + 1}번 삭제`}
                 disabled={disabled}
-                onClick={() =>
-                  onChange(files.filter((_, index) => index !== i))
-                }
-                className="absolute top-2 right-2 grid size-7 place-items-center rounded-full border border-line bg-paper/90"
+                onClick={() => {
+                  onChange(files.filter((_, i) => i !== selected));
+                  setIndex(Math.max(0, selected - 1));
+                }}
+                className="absolute top-2 right-2 grid size-7 place-items-center rounded-full bg-paper text-ink hover:bg-control"
               >
                 <X size={14} />
               </button>
-              <figcaption className="truncate px-2.5 py-2 text-[10px] text-muted">
-                {max > 1 && i === 0 ? "대표 · " : ""}
-                {p.name}
-              </figcaption>
-            </figure>
-          ))}
-        </div>
-      )}
+              {previews.length > 1 && (
+                <div className="absolute inset-x-2 bottom-2 flex items-center justify-between">
+                  <button
+                    type="button"
+                    disabled={disabled}
+                    aria-label={`${label} 이전 사진`}
+                    onClick={() => move(-1)}
+                    className="grid size-7 place-items-center rounded-full bg-paper hover:bg-control"
+                  >
+                    <ChevronLeft size={16} />
+                  </button>
+                  <span
+                    role="status"
+                    className="rounded-full bg-paper px-2 py-1 text-[10px] tabular-nums"
+                  >
+                    {selected + 1} / {previews.length}
+                  </span>
+                  <button
+                    type="button"
+                    disabled={disabled}
+                    aria-label={`${label} 다음 사진`}
+                    onClick={() => move(1)}
+                    className="grid size-7 place-items-center rounded-full bg-paper hover:bg-control"
+                  >
+                    <ChevronRight size={16} />
+                  </button>
+                </div>
+              )}
+            </fieldset>
+            <button
+              type="button"
+              disabled={disabled || (max > 1 && files.length >= max)}
+              onClick={() => input.current?.click()}
+              className="flex min-h-10 w-full items-center justify-center gap-1.5 border-t border-line text-xs text-muted hover:bg-studio hover:text-ink disabled:cursor-default disabled:opacity-50"
+            >
+              <Plus size={13} />
+              {max === 1
+                ? "사진 바꾸기"
+                : files.length >= max
+                  ? `${max}장 선택됨`
+                  : "사진 추가"}
+            </button>
+          </>
+        ) : (
+          <button
+            type="button"
+            aria-label={`${label} 추가`}
+            disabled={disabled}
+            onClick={() => input.current?.click()}
+            className="flex min-h-[200px] w-full flex-col items-center justify-center gap-3 px-2 text-muted transition-colors hover:bg-studio hover:text-ink sm:min-h-[264px]"
+          >
+            <ImagePlus size={25} strokeWidth={1.5} aria-hidden="true" />
+            <span className="text-xs">사진 추가</span>
+          </button>
+        )}
+      </fieldset>
       {error && (
         <p role="alert" className="mt-2 text-xs text-danger">
           {error}
@@ -147,9 +225,7 @@ export default function ProductUploadForm({
   productId?: string;
   remaining?: number;
 }) {
-  const nameId = useId();
-  const [name, setName] = useState(""),
-    [files, setFiles] = useState<File[]>([]),
+  const [files, setFiles] = useState<File[]>([]),
     [look, setLook] = useState<File[]>([]),
     [person, setPerson] = useState<File[]>([]),
     [busy, setBusy] = useState(false),
@@ -167,7 +243,6 @@ export default function ProductUploadForm({
           "한 번에 등록하는 사진은 합계 30MB 이하로 선택해 주세요.",
         );
       const body = new FormData();
-      body.set("name", name.trim());
       for (const f of files) body.append("images", f);
       if (look[0]) body.set("lookImage", look[0]);
       if (person[0]) body.set("personImage", person[0]);
@@ -193,47 +268,20 @@ export default function ProductUploadForm({
       className="space-y-5"
       aria-label="상품 등록 폼"
     >
-      {!productId && (
-        <label
-          className="block text-xs font-medium text-muted"
-          htmlFor={nameId}
-        >
-          상품 이름{" "}
-          <span className="font-normal">
-            · 비워두면 AI 분석 후 이름을 붙여요
-          </span>
-          <input
-            id={nameId}
-            className="studio-input mt-2"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            maxLength={120}
-            placeholder="예: 워시드 코튼 집업"
-            disabled={busy}
-          />
-        </label>
-      )}
       <div
         className={
-          !productId ? "grid items-start gap-5 sm:grid-cols-[1.4fr_1fr]" : ""
+          !productId ? "grid grid-cols-3 items-start gap-3 sm:gap-5" : ""
         }
       >
-        <div>
-          <PhotoPicker
-            label="상품 사진"
-            files={files}
-            onChange={setFiles}
-            max={remaining}
-            disabled={busy}
-          />
-          <p className="mt-2 text-[11px] leading-5 text-muted">
-            정면·후면·디테일을 함께 넣어 주세요.
-            <br />
-            JPEG/PNG/WebP · 사진당 10MB · 4MP · 긴 변 4096px
-          </p>
-        </div>
+        <PhotoPicker
+          label="상품 사진"
+          files={files}
+          onChange={setFiles}
+          max={remaining}
+          disabled={busy}
+        />
         {!productId && (
-          <div>
+          <>
             <PhotoPicker
               label="촬영 레퍼런스 (선택)"
               files={look}
@@ -241,20 +289,6 @@ export default function ProductUploadForm({
               max={1}
               disabled={busy}
             />
-            <p className="mt-2 text-[11px] leading-5 text-muted">
-              원하는 구도·빛·분위기를 기획에 반영하고, 생성할 때도 함께 사용할
-              수 있어요.
-            </p>
-          </div>
-        )}
-      </div>
-      {!productId && (
-        <Disclosure>
-          <DisclosureButton className="flex w-full items-center justify-between rounded-xl bg-paper/60 px-4 py-3 text-xs text-muted">
-            특정 모델의 인상을 참고하고 싶다면
-            <ChevronDown size={14} />
-          </DisclosureButton>
-          <DisclosurePanel className="pt-3">
             <PhotoPicker
               label="인물 참조 (선택)"
               files={person}
@@ -262,11 +296,14 @@ export default function ProductUploadForm({
               max={1}
               disabled={busy}
             />
-          </DisclosurePanel>
-        </Disclosure>
-      )}
+          </>
+        )}
+      </div>
+      <p className="text-center text-[11px] leading-5 text-muted">
+        JPEG·PNG·WebP · 사진당 10MB · 상품 사진 최대 {remaining}장
+      </p>
       {hasReference && (
-        <p className="text-xs text-muted">
+        <p className="text-center text-xs text-muted">
           사용 권한이 있는 사진과 동의받은 성인 인물만 등록해 주세요.
         </p>
       )}
@@ -280,7 +317,8 @@ export default function ProductUploadForm({
       )}
       <Button
         type="submit"
-        className="w-full"
+        aria-label={productId ? "사진 추가" : "상품 추가"}
+        className={productId ? "w-full" : "mx-auto min-w-36"}
         disabled={busy || files.length === 0}
       >
         {busy ? (
@@ -292,7 +330,7 @@ export default function ProductUploadForm({
           ? "사진을 안전하게 저장하고 있어요"
           : productId
             ? "사진 추가"
-            : "상품 등록"}
+            : "추가"}
       </Button>
       <p className="text-center text-[11px] leading-5 text-muted">
         비공개로 저장해요. 등록만으로 AI를 호출하거나 비용을 청구하지 않아요.

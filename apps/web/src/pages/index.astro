@@ -1,6 +1,6 @@
 ---
 import Layout from "../layouts/Layout.astro";
-import LandingWorkspace from "../components/LandingWorkspace.astro";
+import GarmentStudy from "../components/GarmentStudy.astro";
 import { BrandLockup } from "@photo-studio/ui";
 const steps = [
   {
@@ -16,7 +16,7 @@ const steps = [
   {
     number: "03",
     title: "한 컷씩 만들고 비교하세요",
-    body: "생성을 승인한 뒤 원본과 비교하고, 필요한 부분만 다시 다듬어요.",
+    body: "원본과 비교하고, 필요한 부분만 다시 다듬어요.",
   },
 ];
 ---
@@ -25,89 +25,169 @@ const steps = [
   title="상품 사진으로, 다음 컷을 시작하세요"
   description="상품 사진을 올리고 원하는 촬영을 기획하세요. 원본과 생성 결과를 한 작업대에서 비교하며 만드는 AI 패션 스튜디오."
 >
-  <header class="page-width flex min-h-24 items-center justify-between gap-6">
-    <a href="/" aria-label="Photo Studio 홈" class="py-3">
-      <BrandLockup />
-    </a>
-    <a
-      href="/studio"
-      class="inline-flex min-h-11 shrink-0 items-center gap-3 rounded-lg px-3 text-sm font-medium whitespace-nowrap text-muted hover:bg-surface hover:text-ink"
-    >
-      스튜디오 열기 <span aria-hidden="true">↗</span>
-    </a>
-  </header>
-  <main id="main">
-    <section class="page-width grid items-center gap-12 pt-12 pb-16 sm:pt-20 sm:pb-24 lg:min-h-[710px] lg:grid-cols-[0.95fr_1.05fr] lg:gap-14 lg:pt-14">
-      <div class="max-w-xl">
-        <h1 class="text-[clamp(2.8rem,5vw,4.75rem)] leading-[1.2] font-semibold tracking-[-0.065em]">
-          한 벌의 사진으로,
-          <br />
-          다음 <span class="text-primary">컷의 시작.</span>
-        </h1>
-        <p class="mt-7 max-w-md text-base leading-8 text-muted sm:text-lg">
-          <span class="block">상품 사진을 올리고, 원하는 장면을 정하세요.</span>
-          <span class="block">기획부터 원본 비교까지 하나의 작업대에서.</span>
-        </p>
-        <a
-          href="/studio"
-          class="pill-link mt-9 min-h-14 w-full max-w-80 justify-between px-6 text-base sm:w-auto sm:max-w-none sm:gap-9"
-        >
-          사진으로 촬영 시작하기 <span aria-hidden="true">↗</span>
+  <div class="landing-stage">
+    <div class="landing-board">
+      <header class="flex min-h-24 items-center justify-between gap-3 px-5 sm:px-10 lg:px-12">
+        <a href="/" aria-label="Photo Studio 홈" class="py-3">
+          <BrandLockup />
         </a>
-        <p class="mt-4 text-xs leading-6 text-muted">
-          OpenRouter 계정으로 연결해요.
-          <br />
-          사진 등록만으로 AI 비용이 발생하지 않아요.
-        </p>
-      </div>
-      <LandingWorkspace />
-    </section>
-    <section
-      aria-labelledby="process-heading"
-      class="border-t border-line py-16 sm:py-20"
-    >
-      <div class="page-width">
-        <h2
-          id="process-heading"
-          class="text-2xl leading-relaxed font-semibold tracking-tight sm:text-3xl"
-        >
-          촬영에 필요한 것만, 차례대로.
-        </h2>
-        <ol class="mt-10 grid gap-9 sm:grid-cols-3 sm:gap-8">
-          {steps.map((step) => (
-            <li class="border-t border-line pt-5">
-              <span class="text-xs font-semibold text-primary">
-                {step.number}
+        <nav class="flex items-center gap-2" aria-label="주요 메뉴">
+          <a
+            href="#process-heading"
+            class="hidden rounded-xl px-4 py-3 text-xs text-muted hover:bg-elevated hover:text-ink sm:block"
+          >
+            이용 방법
+          </a>
+          <a
+            href="/studio"
+            class="inline-flex min-h-11 shrink-0 items-center gap-3 rounded-xl bg-elevated px-3 text-xs font-semibold whitespace-nowrap sm:px-4 hover:bg-control"
+          >
+            스튜디오 열기 <span aria-hidden="true">↗</span>
+          </a>
+        </nav>
+      </header>
+      <main id="main">
+        <section class="landing-hero" aria-labelledby="hero-heading">
+          <div class="landing-orbit-card orbit-garment" aria-hidden="true">
+            <div class="h-full overflow-hidden rounded-xl bg-[#e4e0d6]">
+              <GarmentStudy />
+            </div>
+            <p>한 벌에서 시작해요.</p>
+          </div>
+          <div class="landing-orbit-card orbit-scene" aria-hidden="true">
+            <svg
+              viewBox="0 0 200 240"
+              class="h-full w-full rounded-xl bg-studio"
+              fill="none"
+            >
+              <path
+                d="M30 0v225M150 0v225M0 200h200M30 200l100 40"
+                stroke="var(--color-control)"
+              />
+              <path d="M31 20h56v145H31z" fill="var(--color-accent-soft)" />
+              <ellipse
+                cx="112"
+                cy="211"
+                rx="34"
+                ry="6"
+                fill="var(--color-paper)"
+              />
+              <path
+                d="m92 137-5 68 15 1 11-52 6 52 14-1-6-68"
+                fill="var(--color-control)"
+              />
+              <path d="M99 60v15l12 9 12-9V60" fill="#b4ad9e" />
+              <ellipse cx="111" cy="49" rx="15" ry="20" fill="#cbc2b0" />
+              <path
+                d="M95 48q-3-26 17-23 18 2 15 25l-8-13-20 5"
+                fill="var(--color-paper)"
+              />
+              <path
+                d="m99 74-21 8-12 59 11 3 12-40-3 40q24 8 46-1l-3-40 13 38 12-4-19-55-13-8-11 10Z"
+                fill="#dbd5c5"
+              />
+              <path
+                d="m99 74 12 10-8 9-9-16m28-3-11 10 8 9 9-15m-17 6v61"
+                stroke="#9f998d"
+              />
+              <path
+                d="M14 26V14h12m148 0h12v12M14 170v12h12m148 0h12v-12"
+                stroke="var(--color-primary)"
+              />
+            </svg>
+            <p>원하는 장면으로.</p>
+          </div>
+          <div class="landing-orbit-card orbit-light" aria-hidden="true">
+            <div class="light-study">
+              <span></span>
+            </div>
+            <p>빛과 소재까지.</p>
+          </div>
+          <div class="landing-hero-copy">
+            <h1
+              id="hero-heading"
+              class="text-[clamp(2.5rem,5vw,4.75rem)] leading-[1.2] font-semibold tracking-[-0.065em]"
+            >
+              한 벌의 사진으로,
+              <br />
+              다음 <span class="text-primary">컷의 시작.</span>
+            </h1>
+            <p class="mx-auto mt-7 max-w-sm text-sm leading-7 text-muted sm:text-base sm:leading-8">
+              상품 사진을 올리고, 원하는 장면을 정하세요.
+              <br />
+              기획부터 원본 비교까지 하나의 작업대에서.
+            </p>
+            <a
+              href="/studio"
+              class="pill-link mt-8 min-h-14 gap-6 px-6 text-sm"
+            >
+              사진으로 촬영 시작하기{" "}
+              <span
+                class="grid size-6 place-items-center rounded-full bg-paper text-primary"
+                aria-hidden="true"
+              >
+                ↗
               </span>
-              <h3 class="mt-5 text-base font-semibold sm:text-lg">
-                {step.title}
-              </h3>
-              <p class="mt-3 max-w-sm text-sm leading-7 text-muted">
-                {step.body}
-              </p>
-            </li>
-          ))}
-        </ol>
-      </div>
-    </section>
-    <aside
-      aria-label="AI 비용 안내"
-      class="page-width flex flex-col gap-4 border-t border-line py-9 text-sm sm:flex-row sm:items-start sm:justify-between sm:gap-12"
-    >
-      <p class="shrink-0 font-semibold">내 계정으로, 필요한 한 컷만.</p>
-      <p class="max-w-2xl text-xs leading-7 text-muted">
-        비용은 본인의 OpenRouter 크레딧에서 청구돼요. 분석·기획과 이미지 생성은
-        각각 비용 안내에 동의한 뒤 실행하며, 서비스 자체 결제나 구독은 없어요.
-      </p>
-    </aside>
-  </main>
-  <footer class="page-width flex flex-wrap items-center justify-between gap-4 border-t border-line py-7 text-xs text-muted">
-    <span>PHOTO STUDIO © 2026</span>
-    <a
-      href="/privacy"
-      class="min-h-11 py-3 underline-offset-4 hover:text-ink hover:underline"
-    >
-      사진과 데이터 보관 안내
-    </a>
-  </footer>
+            </a>
+            <p class="mt-4 text-[11px] leading-6 text-muted">
+              OpenRouter 계정으로 연결해요.
+              <br />
+              사진 등록만으로 AI 비용이 발생하지 않아요.
+            </p>
+          </div>
+          <p class="landing-illustration-note">
+            카드는 촬영 과정을 표현한 일러스트예요.
+          </p>
+        </section>
+        <section
+          aria-labelledby="process-heading"
+          class="border-t border-line px-5 py-14 sm:px-10 sm:py-20 lg:px-12"
+        >
+          <div>
+            <h2
+              id="process-heading"
+              class="text-2xl leading-relaxed font-semibold tracking-tight sm:text-3xl"
+            >
+              촬영에 필요한 것만, 차례대로.
+            </h2>
+            <ol class="mt-10 grid gap-9 sm:grid-cols-3 sm:gap-8">
+              {steps.map((step) => (
+                <li class="border-t border-line pt-5">
+                  <span class="text-xs font-semibold text-primary">
+                    {step.number}
+                  </span>
+                  <h3 class="mt-5 text-base font-semibold sm:text-lg">
+                    {step.title}
+                  </h3>
+                  <p class="mt-3 max-w-sm text-sm leading-7 text-muted">
+                    {step.body}
+                  </p>
+                </li>
+              ))}
+            </ol>
+          </div>
+        </section>
+        <aside
+          aria-label="AI 비용 안내"
+          class="mx-5 flex flex-col gap-4 border-t border-line py-9 text-sm sm:mx-10 sm:flex-row sm:items-start sm:justify-between sm:gap-12 lg:mx-12"
+        >
+          <p class="shrink-0 font-semibold">내 계정으로, 필요한 한 컷만.</p>
+          <p class="max-w-2xl text-xs leading-7 text-muted">
+            비용은 본인의 OpenRouter 크레딧에서 청구돼요. 분석·기획과 이미지
+            생성은 각각 실행할 때 비용이 발생하며, 서비스 자체 결제나 구독은
+            없어요.
+          </p>
+        </aside>
+      </main>
+      <footer class="mx-5 flex flex-wrap items-center justify-between gap-4 border-t border-line py-7 text-xs text-muted sm:mx-10 lg:mx-12">
+        <span>PHOTO STUDIO © 2026</span>
+        <a
+          href="/privacy"
+          class="min-h-11 py-3 underline-offset-4 hover:text-ink hover:underline"
+        >
+          사진과 데이터 보관 안내
+        </a>
+      </footer>
+    </div>
+  </div>
 </Layout>

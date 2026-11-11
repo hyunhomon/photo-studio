@@ -167,7 +167,25 @@ test("Mock: direct multi-photo upload, reference planning, compare, revise, expo
   await expect(page.getByLabel("프로젝트 이름")).toHaveCount(0);
   const form = page.getByRole("form", { name: "상품 등록 폼" });
   const upload = form.getByLabel("상품 사진", { exact: true });
-  await form.getByLabel(/^상품 이름/).fill("Synthetic shirt");
+  await expect(form.getByRole("textbox")).toHaveCount(0);
+  await expect(page.locator("header")).toHaveCount(0);
+  const pickers = form.locator(".photo-picker");
+  await expect(pickers).toHaveCount(3);
+  const boxes = await pickers.evaluateAll((elements) =>
+    elements.map((element) => {
+      const rect = element.getBoundingClientRect();
+      return { x: rect.x, y: rect.y, width: rect.width };
+    }),
+  );
+  expect(
+    Math.max(...boxes.map((box) => box.y)) -
+      Math.min(...boxes.map((box) => box.y)),
+  ).toBeLessThan(1);
+  if (!boxes[0] || !boxes[1] || !boxes[2])
+    throw new Error("Missing upload columns");
+  expect(boxes[1].x).toBeGreaterThan(boxes[0].x + boxes[0].width);
+  expect(boxes[2].x).toBeGreaterThan(boxes[1].x + boxes[1].width);
+  await expect(page.locator("html")).toHaveCSS("scrollbar-width", "none");
   await upload.setInputFiles(fixture("synthetic-front.png"));
   await expect(
     form.getByRole("img", { name: "상품 사진 미리보기 1", exact: true }),
@@ -175,22 +193,24 @@ test("Mock: direct multi-photo upload, reference planning, compare, revise, expo
   // A second selection appends rather than replacing the existing preview.
   await upload.setInputFiles(fixture("synthetic-back.png", 72));
   await upload.setInputFiles(fixture("synthetic-detail.png", 80));
+  await expect(form.getByRole("status")).toHaveText("3 / 3");
+  await form
+    .getByRole("button", { name: "상품 사진 이전 사진", exact: true })
+    .click();
   await expect(
-    form.getByRole("img", { name: /상품 사진 미리보기 \d/ }),
-  ).toHaveCount(3);
+    form.getByRole("img", { name: "상품 사진 미리보기 2", exact: true }),
+  ).toHaveJSProperty("naturalWidth", 72);
   await form
     .getByRole("button", { name: "상품 사진 2번 삭제", exact: true })
     .click();
-  await expect(
-    form.getByRole("img", { name: /상품 사진 미리보기 \d/ }),
-  ).toHaveCount(2);
+  await form
+    .getByRole("button", { name: "상품 사진 다음 사진", exact: true })
+    .click();
   await expect(
     form.getByRole("img", { name: "상품 사진 미리보기 2", exact: true }),
   ).toHaveJSProperty("naturalWidth", 80);
   await upload.setInputFiles(fixture("synthetic-back.png", 72));
-  await expect(
-    form.getByRole("img", { name: /상품 사진 미리보기 \d/ }),
-  ).toHaveCount(3);
+  await expect(form.getByRole("status")).toHaveText("3 / 3");
   await form
     .getByLabel("촬영 레퍼런스 (선택)", { exact: true })
     .setInputFiles(fixture("synthetic-look.png", 40));
@@ -200,14 +220,55 @@ test("Mock: direct multi-photo upload, reference planning, compare, revise, expo
       exact: true,
     }),
   ).toHaveJSProperty("naturalWidth", 40);
+  const personInput = form.getByLabel("인물 참조 (선택)", { exact: true });
+  await personInput.setInputFiles(fixture("synthetic-person-preview.png", 32));
+  await expect(
+    form.getByRole("img", { name: "인물 참조 (선택) 미리보기 1", exact: true }),
+  ).toHaveJSProperty("naturalWidth", 32);
+  await form
+    .getByRole("button", { name: "인물 참조 (선택) 1번 삭제", exact: true })
+    .click();
+  for (const image of await form.getByRole("img").all()) {
+    const photo = await image.boundingBox(),
+      slot = await image
+        .locator(
+          "xpath=ancestor::fieldset[contains(concat(' ', @class, ' '), ' photo-picker ')]",
+        )
+        .boundingBox();
+    if (!photo || !slot) throw new Error("Missing preview boundary");
+    expect(photo.x).toBeGreaterThanOrEqual(slot.x);
+    expect(photo.y).toBeGreaterThanOrEqual(slot.y);
+    expect(photo.x + photo.width).toBeLessThanOrEqual(slot.x + slot.width);
+    expect(photo.y + photo.height).toBeLessThanOrEqual(slot.y + slot.height);
+  }
   await form.screenshot({
     path: `.tmp/product-upload-${test.info().project.name}.png`,
   });
-  await form.getByRole("button", { name: "상품 등록", exact: true }).click();
+  await form.getByRole("button", { name: "상품 추가", exact: true }).click();
   await expect(page).toHaveURL(/\/studio\/products\//);
   const productUrl = page.url(),
     productId = new URL(productUrl).pathname.split("/").at(-1);
   if (!productId) throw new Error("Missing created product");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("새 상품");
+  // A name is no longer part of registration. Exercise sidebar rename instead.
+  await openNavigation(page);
+  const initialRow = page
+    .locator("[data-product-id]")
+    .filter({ has: page.getByRole("link", { name: "새 상품", exact: true }) });
+  await initialRow.hover();
+  await initialRow
+    .getByRole("button", { name: "상품 제목 수정", exact: true })
+    .click();
+  await page
+    .getByRole("dialog")
+    .last()
+    .getByLabel("상품 제목", { exact: true })
+    .fill("Synthetic shirt");
+  await page.getByRole("button", { name: "제목 저장", exact: true }).click();
+  if (test.info().project.name === "mobile-chromium")
+    await page
+      .getByRole("button", { name: "상품 목록 닫기", exact: true })
+      .click();
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(
     "Synthetic shirt",
   );
@@ -754,7 +815,7 @@ test("Mock: direct multi-photo upload, reference planning, compare, revise, expo
     .fill("Renamed shirt");
   await expect(
     page.getByRole("dialog").last().getByLabel("상품 제목", { exact: true }),
-  ).toHaveCSS("outline-style", "solid");
+  ).toHaveCSS("outline-style", "none");
   await page.getByRole("button", { name: "제목 저장", exact: true }).focus();
   await expect(
     page.getByRole("button", { name: "제목 저장", exact: true }),

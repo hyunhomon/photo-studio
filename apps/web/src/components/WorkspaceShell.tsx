@@ -5,7 +5,7 @@ import {
   DialogPanel,
   DialogTitle,
 } from "@headlessui/react";
-import { Menu, Search, SquarePen, ArrowUpRight, RefreshCw } from "lucide-react";
+import { Menu, Search, SquarePen, RefreshCw } from "lucide-react";
 import { Button } from "@photo-studio/ui";
 import type { ProductSummaryDto } from "@photo-studio/schemas";
 import type { AccountState } from "../lib/account";
@@ -94,8 +94,6 @@ export default function WorkspaceShell({
     section,
   };
   const pending = accountState === "pending" || accountState === "redirecting";
-  const heading =
-    title || products.find((p) => p.id === activeProductId)?.name || section;
   return (
     <div className="min-h-dvh lg:grid lg:grid-cols-[208px_minmax(0,1fr)] xl:grid-cols-[264px_minmax(0,1fr)]">
       <aside
@@ -105,31 +103,24 @@ export default function WorkspaceShell({
         <ProductNavigation {...nav} />
       </aside>
       <div className="min-w-0">
-        <header
-          className={`${workbench ? "lg:hidden" : ""} sticky top-0 z-20 flex h-14 items-center gap-3 border-b border-line/40 bg-paper/95 px-4 backdrop-blur-md sm:px-7 lg:border-line/40 lg:px-7`}
+        <nav
+          className="fixed top-3 left-3 z-20 flex items-center gap-1 rounded-xl border border-line bg-paper p-1 shadow-lg lg:hidden"
+          aria-label="모바일 탐색"
         >
           <button
             type="button"
             aria-label="상품 목록 열기"
             onClick={() => setDrawer(true)}
-            className="grid size-10 shrink-0 place-items-center rounded-lg text-muted hover:bg-studio lg:hidden"
+            className="grid size-10 place-items-center rounded-lg text-muted hover:bg-studio"
           >
             <Menu size={20} aria-hidden="true" />
           </button>
-          <p className="min-w-0 flex-1 truncate text-sm font-medium text-muted">
-            {workbench ? <span className="sr-only">{heading}</span> : heading}
-          </p>
-          {me?.mode === "mock" && (
-            <span className="rounded-md border border-accent-line bg-accent-soft px-2 py-1 text-[9px] text-primary">
-              MOCK · 외부 AI 호출 없음
-            </span>
-          )}
           <button
             type="button"
             aria-label="상품 검색"
             onClick={() => setSearch(true)}
             disabled={!me}
-            className="grid size-10 shrink-0 place-items-center rounded-lg text-muted hover:bg-studio disabled:opacity-40 lg:hidden"
+            className="grid size-10 place-items-center rounded-lg text-muted hover:bg-studio disabled:opacity-40"
           >
             <Search size={18} aria-hidden="true" />
           </button>
@@ -138,29 +129,17 @@ export default function WorkspaceShell({
             aria-label="새 상품"
             onClick={() => void navigate("/studio")}
             disabled={!me}
-            className="grid size-10 shrink-0 place-items-center rounded-lg text-muted hover:bg-studio disabled:opacity-40 lg:hidden"
+            className="grid size-10 place-items-center rounded-lg text-ink hover:bg-studio disabled:opacity-40"
           >
             <SquarePen size={18} aria-hidden="true" />
           </button>
-          <a
-            hidden={workbench}
-            href="/privacy"
-            className={
-              workbench
-                ? "hidden"
-                : "hidden items-center gap-1 text-[10px] text-muted hover:text-ink sm:flex"
-            }
-          >
-            사진과 데이터
-            <ArrowUpRight size={12} aria-hidden="true" />
-          </a>
-        </header>
+        </nav>
         <main
           id="main"
           className={
             workbench
               ? "workbench-main"
-              : `mx-auto max-w-[1480px] px-4 sm:px-7 lg:px-10 ${welcome ? "" : "py-6 lg:py-9"}`
+              : `mx-auto max-w-[1480px] px-4 sm:px-7 lg:px-10 ${welcome ? "" : "pt-24 pb-6 lg:py-9"}`
           }
         >
           {error && (

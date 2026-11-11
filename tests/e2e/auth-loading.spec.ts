@@ -31,6 +31,7 @@ test("session pending and temporary server failures never show a disconnected ac
       });
     });
     await page.goto(path);
+    await expect(page.locator("header")).toHaveCount(0);
     try {
       await expect(
         page.getByRole("status", {

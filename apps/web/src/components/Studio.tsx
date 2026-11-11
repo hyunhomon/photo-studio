@@ -14,21 +14,19 @@ export default function Studio() {
       welcome
     >
       {me && (
-        <section className="mx-auto max-w-3xl py-10 sm:py-16">
-          <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
+        <section className="mx-auto flex min-h-dvh max-w-4xl flex-col justify-center py-24 text-center lg:py-16">
+          <h1 className="text-2xl font-semibold tracking-tight sm:text-4xl">
             어떤 옷을 촬영할까요?
           </h1>
-          <p className="mt-4 mb-8 text-sm leading-7 text-muted">
+          <p className="mt-4 mb-10 text-sm leading-7 text-muted">
             사진을 올리고, 원하는 장면을 함께 만들어 보세요.
           </p>
-          <div className="rounded-3xl border border-line bg-surface p-5 sm:p-7">
-            <ProductUploadForm
-              csrf={me.csrf}
-              onDone={(p) => {
-                void navigate(`/studio/products/${p.id}`);
-              }}
-            />
-          </div>
+          <ProductUploadForm
+            csrf={me.csrf}
+            onDone={(p) => {
+              void navigate(`/studio/products/${p.id}`);
+            }}
+          />
         </section>
       )}
     </WorkspaceShell>

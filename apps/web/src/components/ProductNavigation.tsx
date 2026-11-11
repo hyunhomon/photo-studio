@@ -232,11 +232,11 @@ export function ProductNavigation({
           className={`sidebar-item w-full disabled:opacity-40 `}
         >
           <SquarePen size={18} aria-hidden="true" />
-          <span>새 상품</span>
+          <span className="text-sm font-semibold text-ink">새 상품</span>
         </button>
       </div>
       <div className="mt-6 flex items-center justify-between px-3">
-        <h2 className="text-sm font-semibold">내 상품</h2>
+        <h2 className="font-sans text-sm font-normal text-muted">내 상품</h2>
         <button
           type="button"
           aria-label="상품 검색"

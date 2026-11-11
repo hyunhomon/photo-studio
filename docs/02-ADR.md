@@ -211,3 +211,12 @@
 - studio-v8-reference-priority / photo-v4-directed-composition. 기존 v3 snapshot은 호환되며 기존 paid claim은 재호출하지 않는다. JSON 내 default로 이전 계획을 읽으며 DB migration은 없다. 새로운 브라우저 계약에 앞서 호환 API를 먼저 배포한다.
 - 한계: OpenRouter의 input_references와 역할/우선순위 지시를 사용한다. 네이티브 face-lock/동일 픽셀 구도 강제/학습 기능이 아니며 실제 얼굴 유사도·구도 준수 개선은 같은 입력의 사용자 실행 비교 전까지 미검증이다. 자동 품질 점수나 유료 재시도는 추가하지 않는다.
 - 공식 근거: https://openrouter.ai/docs/guides/overview/multimodal/image-generation#image-to-image-reference-images
+
+## ADR-027: 중앙 사진 입력과 헤더 없는 스튜디오 — Accepted (사용자 지정, 2026-11-12)
+
+- `/studio`는 중앙 정렬 제목/짧은 안내 아래 상품·촬영 레퍼런스·인물 사진 세 입력을 같은 행에 배치한다. 이름 입력은 없고 기존 auto 제목 정책(등록 시 새 상품, 사용자가 실행한 기존 분석에서 AI 명명)을 유지한다. 등록만으로 AI를 호출하지 않는다.
+- 사진 미리보기는 입력 박스 안에 한 장씩 보인다. 의류 최대 3장, 참조 각 1장 제한/append/삭제/대표 순서/타입·용량 검증은 유지한다. 이전·다음 버튼/터치 스와이프로 확인하고 아래 추가 버튼으로 등록한다. 참조 한 장은 다시 선택해 교체할 수 있다. Blob URL은 변경/해제 시 revoke한다.
+- 새 상품/프리셋/사용 기록을 포함한 공통 상단 제목·사진과 데이터 헤더를 제거한다. desktop 사이드바는 유지하고 모바일은 작은 고정 탐색 컨트롤을 제공한다. 새 상품은 굵은 주 행동, 내 상품은 낮은 위계의 회색 일반 굵기로 표시한다.
+- 사용자 명시 요청으로 **입력을 포함한 모든 시각적 focus ring과 모든 scrollbar 표시를 숨긴다**. ADR-025의 입력 ring 예외를 대체한다. overflow/스크롤 동작, Tab/버튼/라벨/ARIA, Headless UI의 포커스 관리/ESC/닫기 복귀는 유지한다. trade-off: 키보드 초점 위치를 표시하는 outline이 없어지고 스크롤 가능한 영역의 시각적 단서가 줄어든다. 기능 자체를 막는 overflow:hidden/blur는 사용하지 않는다.
+- 랜딩은 Chainly 레퍼런스의 중앙 헤드라인/CTA·주변 비스듬한 카드·큰 외곽 보드 레이아웃을 기존 다크/네온 톤으로 구성한다. 제3자 이미지·로고를 서비스 자산으로 복사하지 않고 자체 벡터를 사용하며 설명용 일러스트임을 명시한다. 근거: https://dribbble.com/shots/27724117-Chainly-Crypto-Payments-Landing-Page
+- API/Workflow/DB/권한/비용·실행 동의 정책은 변경하지 않는다. 실사용 데이터·연결 초기화나 자동 유료 추론을 수행하지 않는다.
