@@ -243,5 +243,5 @@ production desktop/mobile 전체 Mock E2E **4/4 통과**: 저장된 분석 재�
 - [x] 결과 프레임 내부 pending과 부모 경계 제한, 상세 화면 중복 라벨/데스크톱 헤더 제거.
 - [x] 의류 아이콘 없는 상품 행, hover/focus/터치 제목 수정·삭제 및 확인/실패 복구 Dialog.
 - [x] 빈 이름은 ‘새 상품’, 동의된 기존 분석에서 AI 제목 생성. 수동 제목/동시 수정 보호, 추가 AI 호출 없음. additive migration 0010, studio-v7-product-title.
-- [ ] 최종 검사, 로컬/운영 브라우저 회귀·시각 점검, commit/push 및 production 배포.
+- [x] format/lint/typecheck/build 통과, 단위 55/55. 빈 제목 등록·추가 호출 없음·분석 제목 반영·분석 중 수동 제목 변경 보존을 검증했다. local/production desktop/mobile 각 6/6, wrapper exit 0. 실제 부모 프레임의 x/y/width/height 경계 안에 pending이 포함됨을 검사하고 사이드바 hover/터치 제목 수정·삭제를 실행했다. 운영 캡처와 공개 HTTPS/CORS/OAuth/글꼴/반응형 smoke 통과. 앱 4821554 commit/push 및 additive migration0010/web/API/Workflow 배포 완료. 실제 사용자 자료/연결을 초기화하지 않았으며 자동 유료 AI 호출은 없다.
 - [ ] 실제 새 AI 제목 응답의 사용자 승인 유료 검증. 합성 adapter 검사와 구분한다.
