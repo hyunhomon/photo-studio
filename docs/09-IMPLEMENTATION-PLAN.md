@@ -309,4 +309,5 @@ production desktop/mobile 전체 Mock E2E **4/4 통과**: 저장된 분석 재�
 - [x] 원본 썸네일 줄의 + 아이콘, 기획 이후에도 총 3장까지 추가. 작업 중 차단과 업로드 잠금, 기존 snapshot 보존 및 새 분석에 반영.
 - [x] 박스 없는 스피너와 제목 아래 텍스트 단계. 완료/진행 중 초록색, 칩/경과 시간 제거.
 - [x] format/lint/typecheck/test/build 통과(단위69/69, 타입 진단0), local desktop/mobile Mock 8/8. 분석 후 + 업로드/새 썸네일 선택·3장 제한·업로드 단독 AI 미실행·기존 기획 생성·새 분석 snapshot·타 계정/active 차단·잘못된 사진의 ready 복구·pending 경계/단계 색/경과 시간 제거 검증 및 캡처 점검.
-- [ ] production desktop/mobile Mock, 공개 smoke와 배포 후 합성 자료 정리 확인.
+- [x] 7409eaf API/Workflow→웹 배포 및 83f1a51 모바일 갤러리 보완 웹 재배포. 최종 운영 desktop/mobile Mock 8/8(wrapper exit0), 공개 HTTPS/CORS/OAuth/폰트/반응형 smoke 및 운영 캡처 통과. 확대 버튼이 프레임 밖으로 밀리던 회귀를 실제 경계 assertion으로 검출·수정했다. 반복 검사 중 OAuth 10분 제한을 확인해 다음 구간에서 같은 기준으로 재검증했으며 제한/검사를 완화하지 않았다. 합성 계정0 확인, 새 migration/자료 초기화/secret 변경/유료 AI 호출 없음.
+- [ ] 최종 조회에서 실사용 계정의 OpenRouter 연결/세션이 없는 상태다. 초기 조회 때는 존재했으나 소실 원인은 확인하지 못했다. 자동 테스트는 별도 is_test 계정만 사용·삭제하며 기존 계정 인증은 사용자 재연결이 필요하다. 이를 연결 보존 완료로 표시하지 않는다.
