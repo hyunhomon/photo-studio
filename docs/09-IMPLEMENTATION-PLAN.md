@@ -265,5 +265,5 @@ production desktop/mobile 전체 Mock E2E **4/4 통과**: 저장된 분석 재�
 - [x] 상품 행 액션 배경 수정, OpenRouter 단일 강조 상태, 반복 비용/권리 체크 제거·실행 시 간단 안내.
 - [x] 인물+촬영 참조 기획 전달, 현재 편집 분석 재기획 snapshot, 자동 참조 사용과 구도 match/inspire.
 - [x] 바스트/버드아이 등 선택/직접 입력, 강제 전체 프레이밍·톤-only·재구도·이전 컷 우선 충돌 제거, 최신 개선 지시 우선.
-- [ ] 최종 check/native/브라우저, commit/push, API 우선 배포 후 운영 검증.
+- [x] format/lint/typecheck/build 통과, 단위 59/59 및 native workerd 합성 HTTP 계약 통과. planning에 두 이미지와 편집 분석이 한 번 전달되는 것, 원본 분석의 참조 분리, owner/역할/동의/12MB, 바스트/버드아이와 최신 지시 우선·충돌 제거를 검증했다. 최신 local/production desktop/mobile 각각 6/6, 운영 wrapper exit 0: 체크 없는 실행·카메라 선택·2차 수정값 전송/저장·수동 선택 후 새 결과 자동 표시·hover 배경/상태 라벨을 검증했다. 화면/공개 smoke 통과. b9abd66 commit/push 및 API/Workflow 먼저→웹 배포 완료. 합성 계정/사진 정리, 실제 연결/자료 보존. DB migration/초기화·새 secret·유료 AI 호출 없음.
 - [ ] 동일 실제 참조/의류로 사용자 실행 결과의 얼굴·구도·수정 반영 비교. 합성 요청 검사를 실제 품질 합격으로 표시하지 않는다.
