@@ -148,3 +148,5 @@ Phase 5 구현(2026-11-11): 내 사용자별 비용 부분합/미확인 수·단
 - format/lint/typecheck/unit/build 전체 통과: **29 pass / 0 fail**, Astro 진단 0 errors/warnings/hints. local desktop/mobile Mock E2E **4 pass**.
 - `test:oauth`: 격리된 실제 workerd/D1에서 verifier 복호화→fake provider 교환→암호화 연결/세션→state 재사용 거부→연결 해제 통과. 유료/실제 provider 성공을 의미하지 않는다.
 - production 배포 및 검증 결과는 후속 기록으로 남긴다. 이전 generic 콜백 오류는 상세 진단이 없어 원인을 확정하지 않았으며 실제 계정 재연결 성공을 별도 확인해야 한다.
+
+후속 런타임 수정: production에서 합성 code를 사용해 exchange 전송 실패를 재현했고, Workers 미지원 `redirect: "error"`가 원인임을 확인했다. OAuth·키 상태·모델 catalog·AI 호출 6곳을 `manual`로 바꾸고 3xx 거부 정책을 유지한다. native workerd HTTP→로컬 합성 provider로 OAuth/상태/catalog/분석/기획/생성/평가와 redirect trap 차단 검증 통과. 최종 format/lint/typecheck/unit/build **30 pass / 0 fail**, Astro 진단 0, local desktop/mobile E2E **4 pass**. 실제 유료 AI 호출 없음.

@@ -6,11 +6,49 @@ import {
   ProviderError,
 } from "./provider";
 import { mockAnalysisFixture } from "./fixtures";
+test("provider redirects fail closed without retries or credential forwarding", async () => {
+  let calls = 0;
+  const transport = Object.assign(
+    async (_input: unknown, init?: RequestInit) => {
+      calls++;
+      expect(init?.redirect).toBe("manual");
+      return new Response(null, {
+        status: 307,
+        headers: { Location: "https://untrusted.invalid" },
+      });
+    },
+    { preconnect: fetch.preconnect },
+  ) as typeof fetch;
+  const adapter = openRouterAdapter(
+    "synthetic-key",
+    "https://synthetic.invalid/redirect-contract",
+    transport,
+  );
+  await expect(
+    adapter.preflight("synthetic/vision", "analysis"),
+  ).rejects.toBeInstanceOf(ProviderError);
+  await expect(
+    adapter.preflight("synthetic/image", "generation"),
+  ).rejects.toBeInstanceOf(ProviderError);
+  await expect(
+    adapter.analyze("synthetic/vision", [], "synthetic"),
+  ).rejects.toBeInstanceOf(ProviderError);
+  await expect(
+    adapter.generate(
+      "synthetic/image",
+      [],
+      mockPlan(mockAnalysisFixture),
+      "medium",
+    ),
+  ).rejects.toBeInstanceOf(ProviderError);
+  expect(calls).toBe(4);
+});
 test("OpenRouter structured contract uses vision references and preserves actual/null costs without retries", async () => {
   let paid = 0,
     invalid = false;
   const transport = Object.assign(
     async (input: string | URL | Request, init?: RequestInit) => {
+      expect(init?.redirect).toBe("manual");
       if (String(input).endsWith("/models"))
         return Response.json({
           data: [
@@ -81,6 +119,7 @@ test("Images API capability checks, one reference request, provider cost and unc
     fail = false;
   const transport = Object.assign(
     async (input: string | URL | Request, init?: RequestInit) => {
+      expect(init?.redirect).toBe("manual");
       if (String(input).endsWith("/images/models"))
         return Response.json({
           data: [

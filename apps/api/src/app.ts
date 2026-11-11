@@ -140,7 +140,7 @@ export function createApp(deps: AuthDeps & ResourceDeps = {}) {
       response = await fetch(`${c.env.OPENROUTER_BASE_URL}/key`, {
         headers: { Authorization: `Bearer ${key}` },
         signal: AbortSignal.timeout(10000),
-        redirect: "error",
+        redirect: "manual",
       });
     } catch {
       throw new AppError(

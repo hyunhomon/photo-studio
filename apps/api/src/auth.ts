@@ -171,7 +171,8 @@ export async function exchangeCode(
         code_challenge_method: "S256",
       }),
       signal,
-      redirect: "error",
+      // Workers supports manual/follow only. Never forward a code on redirect.
+      redirect: "manual",
     });
   } catch {
     throw new OAuthError(

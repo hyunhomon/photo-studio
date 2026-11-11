@@ -29,7 +29,7 @@ bunx playwright install chromium
 bun run test:e2e
 ```
 
-`check`는 format/lint/typecheck/unit/build를 실행합니다. `test:local`은 격리된 workerd에서 D1/R2/Workflow binding을 확인합니다. `test:oauth`는 별도 workerd/D1에서 초대 없는 OAuth 콜백·암호화·세션·재사용 거부를 fake provider로 확인합니다. `test:e2e`는 로컬 서버를 자동 실행하고 desktop/mobile에서 업로드부터 분석·생성·피드백·재생성·다운로드·내보내기·삭제까지 실제 Mock Workflow를 검증합니다. 유료 테스트는 자동 실행하지 않습니다.
+`check`는 format/lint/typecheck/unit/build를 실행합니다. `test:local`은 격리된 workerd에서 D1/R2/Workflow binding을 확인합니다. `test:oauth`는 실제 workerd native HTTP와 로컬 합성 provider로 초대 없는 OAuth 콜백·키 상태·모델 목록·AI 어댑터·암호화·세션·재사용 거부·redirect 차단을 확인합니다. `test:e2e`는 로컬 서버를 자동 실행하고 desktop/mobile에서 업로드부터 분석·생성·피드백·재생성·다운로드·내보내기·삭제까지 실제 Mock Workflow를 검증합니다. 유료 테스트는 자동 실행하지 않습니다.
 
 ## production
 

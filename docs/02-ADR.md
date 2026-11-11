@@ -107,3 +107,9 @@
 - `auth_events`에는 고정 stage/code, HTTP status 또는 null, timestamp만 저장하고 동일 분/종류 중복은 합친다. 사용자/브라우저 식별자, code/state/verifier/key/원문 응답은 저장하지 않는다. cron에서 7일 후 삭제한다. 진단 저장 실패가 연결 복구를 막지 않게 한다.
 - 공식 OAuth 가이드와 OpenAPI의 nullable user_id 계약을 확인했다. stable ID 누락은 안전하게 실패하며 키 hash로 계정을 대체하지 않는다. 기존 오류는 상세 진단이 없어 원인을 확정할 수 없으며 실제 계정 성공은 사람의 재연결로 별도 검증한다.
 - 근거: https://openrouter.ai/docs/guides/overview/auth/oauth 및 https://openrouter.ai/openapi.json
+
+### ADR-016 런타임 검증 보완
+- production의 합성 invalid-code probe로 verifier 복호화 후 외부 exchange transport 단계에서 응답 없이 실패함을 확인했다. 원인은 Workers가 `redirect: "error"`를 지원하지 않아 fetch가 전송 전에 TypeError를 던지는 런타임 호환성 오류였다.
+- OAuth, 키 상태 확인, 모델 catalog 및 유료 provider 요청 모두 `redirect: "manual"`로 변경한다. 3xx는 기존 `response.ok` 검사에서 거부하고 Location을 따라가지 않는다. 키/인증코드가 다른 호스트에 전달되지 않으며 자동 재시도도 하지 않는다.
+- native fetch를 가짜 함수로 교체하면 이 문제를 놓친다. `test:oauth`는 실제 workerd native HTTP와 로컬 합성 provider 서버로 OAuth/키 상태/catalog/분석/기획/생성/평가를 검증한다. 합성 redirect trap에 요청이 도달하지 않는 것도 검사한다. 외부 유료 호출은 없다.
+- 공식 근거: https://developers.cloudflare.com/workers/runtime-apis/request/

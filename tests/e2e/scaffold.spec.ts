@@ -261,18 +261,27 @@ test("unauthenticated studio starts OAuth directly with no invitation form", asy
     ).pathname,
   ).toBe("/studio");
   if (process.env.PHOTO_STUDIO_PRODUCTION_ORIGIN) {
-    await page.route("https://openrouter.ai/auth?**", (route) =>
-      route.fulfill({
+    let authorize: URL | undefined;
+    await page.route("**/auth/openrouter/start", async (route) => {
+      const response = await route.fetch({ maxRedirects: 0 });
+      expect(response.status()).toBe(303);
+      authorize = new URL(
+        response.headers().location ?? "https://invalid.invalid",
+      );
+      await route.fulfill({
         status: 200,
         contentType: "text/html",
         body: "<h1>OpenRouter authorization destination</h1>",
-      }),
-    );
+      });
+    });
     await page.goto("/studio");
-    await expect(page).toHaveURL(/^https:\/\/openrouter\.ai\/auth\?/);
-    expect(new URL(page.url()).searchParams.get("code_challenge_method")).toBe(
-      "S256",
-    );
+    await expect(
+      page.getByRole("heading", {
+        name: "OpenRouter authorization destination",
+      }),
+    ).toBeVisible();
+    expect(authorize?.origin).toBe("https://openrouter.ai");
+    expect(authorize?.searchParams.get("code_challenge_method")).toBe("S256");
   } else {
     await page.goto("/studio");
     await expect(

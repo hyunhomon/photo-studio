@@ -75,19 +75,25 @@ try {
       true,
     );
     assert.deepEqual(errors, []);
-    await page.route("https://openrouter.ai/auth?**", (route) =>
-      route.fulfill({
+    let authorize: URL | undefined;
+    await page.route("**/auth/openrouter/start", async (route) => {
+      const response = await route.fetch({ maxRedirects: 0 });
+      assert.equal(response.status(), 303);
+      authorize = new URL(
+        response.headers().location ?? "https://invalid.invalid",
+      );
+      await route.fulfill({
         status: 200,
         contentType: "text/html",
         body: "<h1>OpenRouter OAuth destination</h1>",
-      }),
-    );
+      });
+    });
     await page.getByRole("link", { name: "OpenRouter로 시작하기" }).click();
-    await expect(page).toHaveURL(/^https:\/\/openrouter\.ai\/auth\?/);
-    assert.equal(
-      new URL(page.url()).searchParams.get("code_challenge_method"),
-      "S256",
-    );
+    await expect(
+      page.getByRole("heading", { name: "OpenRouter OAuth destination" }),
+    ).toBeVisible();
+    assert.equal(authorize?.origin, "https://openrouter.ai");
+    assert.equal(authorize?.searchParams.get("code_challenge_method"), "S256");
     await page.goto(`${origin}/studio?auth_error=OAUTH_CODE_REJECTED`);
     await expect(page.getByRole("alert")).toContainText(
       "인증 코드를 확인하지 못했습니다",

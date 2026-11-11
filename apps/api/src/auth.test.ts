@@ -178,12 +178,13 @@ describe("OpenRouter PKCE without invites", () => {
     expect(calls).toBe(1);
   });
   test("real HTTP exchange contract and classified upstream errors never persist sensitive response text", async () => {
-    for (const status of [200, 400, 403, 429, 503]) {
+    for (const status of [200, 302, 307, 400, 403, 429, 503]) {
       const { env, sqlite } = memoryEnv();
       let sent = 0;
       const transport = Object.assign(
         async (_input: unknown, init?: RequestInit) => {
           sent++;
+          expect(init?.redirect).toBe("manual");
           const body = JSON.parse(String(init?.body));
           expect(body.code_challenge_method).toBe("S256");
           expect(body.code_verifier.length).toBeGreaterThan(43);
@@ -211,7 +212,7 @@ describe("OpenRouter PKCE without invites", () => {
         expect(response.headers.get("location")).toContain(
           status === 429
             ? "OAUTH_PROVIDER_RATE_LIMITED"
-            : status === 503
+            : status === 503 || status === 302 || status === 307
               ? "OAUTH_PROVIDER_UNAVAILABLE"
               : "OAUTH_CODE_REJECTED",
         );

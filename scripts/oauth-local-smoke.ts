@@ -2,6 +2,8 @@ import { strict as assert } from "node:assert";
 import { resolve } from "node:path";
 import { mkdir } from "node:fs/promises";
 import { parseConfigFileTextToJson } from "typescript";
+import { mockPlan } from "../packages/ai/src/provider";
+import { mockAnalysisFixture } from "../packages/ai/src/fixtures";
 const root = resolve(import.meta.dir, ".."),
   temp = resolve(root, ".tmp/oauth-local-smoke"),
   cli = resolve(root, "apps/api/node_modules/wrangler/bin/wrangler.js"),
@@ -22,6 +24,98 @@ config.d1_databases[0].migrations_dir = resolve(root, "packages/db/migrations");
 config.vars.APP_ENCRYPTION_KEY_B64 = btoa(
   String.fromCharCode(...crypto.getRandomValues(new Uint8Array(32))),
 );
+let redirectedRequests = 0,
+  exchangeRequests = 0;
+const fixture = Bun.serve({
+  hostname: "127.0.0.1",
+  port: 0,
+  async fetch(request): Promise<Response> {
+    const path = new URL(request.url).pathname;
+    if (path === "/auth/keys") {
+      exchangeRequests++;
+      const body = (await request.json()) as {
+        code: string;
+        code_verifier: string;
+        code_challenge_method: string;
+      };
+      assert.equal(body.code_challenge_method, "S256");
+      assert.ok(body.code_verifier.length >= 43);
+      if (body.code === "synthetic-redirect")
+        return new Response(null, {
+          status: 307,
+          headers: { Location: `${fixture.url}redirect-trap` },
+        });
+      return Response.json({
+        key: "synthetic-workerd-provider-key",
+        user_id: "synthetic-workerd-account",
+      });
+    }
+    if (path === "/redirect-trap") {
+      redirectedRequests++;
+      return new Response(null, { status: 500 });
+    }
+    if (path === "/key") return Response.json({ data: { limit_remaining: 1 } });
+    if (path === "/models")
+      return Response.json({
+        data: [
+          {
+            id: "synthetic/vision",
+            architecture: { input_modalities: ["image", "text"] },
+            supported_parameters: ["structured_outputs", "response_format"],
+          },
+        ],
+      });
+    if (path === "/images/models")
+      return Response.json({
+        data: [
+          {
+            id: "synthetic/image",
+            architecture: {
+              input_modalities: ["image"],
+              output_modalities: ["image"],
+            },
+            supported_parameters: {
+              aspect_ratio: { values: ["3:4"] },
+              output_format: { values: ["png"] },
+              quality: { values: ["medium"] },
+              n: { min: 1, max: 1 },
+              input_references: { max: 16 },
+            },
+          },
+        ],
+      });
+    if (path === "/images")
+      return Response.json({
+        data: [
+          { b64_json: btoa("synthetic-image-bytes"), media_type: "image/png" },
+        ],
+      });
+    if (path === "/chat/completions") {
+      const payload = (await request.json()) as {
+        response_format: { json_schema: { name: string } };
+      };
+      const name = payload.response_format.json_schema.name;
+      const value =
+        name === "product_analysis"
+          ? mockAnalysisFixture
+          : name === "shoot_plan"
+            ? mockPlan(mockAnalysisFixture)
+            : {
+                garmentFidelityScore: 0.8,
+                realismScore: 0.8,
+                compositionScore: 0.8,
+                flaggedIssues: [],
+                needsHumanReview: true,
+                evaluationVersion: "v1",
+              };
+      return Response.json({
+        choices: [{ message: { content: JSON.stringify(value) } }],
+      });
+    }
+    return new Response(null, { status: 404 });
+  },
+});
+config.vars.OPENROUTER_BASE_URL = fixture.url.toString().replace(/\/$/, "");
 await Bun.write(configPath, JSON.stringify(config));
 const migration = Bun.spawn(
   [
@@ -124,6 +218,21 @@ try {
   assert.equal(me.status, 200);
   const json = (await me.json()) as { data: { csrf: string; mode: string } };
   assert.equal(json.data.mode, "openrouter");
+  assert.equal(
+    (
+      await fetch(`${base}/api/v1/connection/status`, {
+        headers: { Cookie: session },
+      })
+    ).status,
+    200,
+  );
+  const provider = await fetch(`${base}/__test/provider`);
+  assert.equal(
+    provider.status,
+    200,
+    "Native workerd provider calls must reach the local fixture",
+  );
+  assert.equal(((await provider.json()) as { ok: boolean }).ok, true);
   const again = await fetch(path, {
     redirect: "manual",
     headers: { Cookie: cookie },
@@ -133,6 +242,35 @@ try {
       again.headers.get("location") ?? "https://invalid.invalid",
     ).searchParams.get("auth_error"),
     "OAUTH_STATE_INVALID",
+  );
+  const redirectStart = await fetch(`${base}/auth/openrouter/start`, {
+    redirect: "manual",
+  });
+  const redirectState =
+    new URL(
+      redirectStart.headers.get("location") ?? "https://invalid.invalid",
+    ).searchParams.get("state") ?? "";
+  const redirectCookie =
+    redirectStart.headers
+      .getSetCookie()
+      .find((c) => c.startsWith("ps_oauth="))
+      ?.split(";")[0] ?? "";
+  assert.ok(redirectState && redirectCookie);
+  const denied = await fetch(
+    `${base}/auth/openrouter/callback?code=synthetic-redirect&state=${encodeURIComponent(redirectState)}`,
+    { redirect: "manual", headers: { Cookie: redirectCookie } },
+  );
+  assert.equal(
+    new URL(
+      denied.headers.get("location") ?? "https://invalid.invalid",
+    ).searchParams.get("auth_error"),
+    "OAUTH_PROVIDER_UNAVAILABLE",
+  );
+  assert.equal(exchangeRequests, 2, "No OAuth exchange retries");
+  assert.equal(
+    redirectedRequests,
+    0,
+    "Never forward credentials to redirect destinations",
   );
   const disconnected = await fetch(`${base}/auth/disconnect`, {
     method: "POST",
@@ -148,9 +286,10 @@ try {
     401,
   );
   console.info(
-    "PASS: real workerd/D1 PKCE verifier decrypt, no-invite callback, encrypted connection/session, single-use state and disconnect. Only fake provider exchange; no external AI.",
+    "PASS: native workerd HTTP for OAuth, connection status, model catalogs, analysis/plan/image/evaluation; D1 PKCE/session/replay/disconnect; redirects never followed. Local synthetic provider only; no external AI.",
   );
 } finally {
   server.kill();
   await server.exited;
+  await fixture.stop(true);
 }

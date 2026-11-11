@@ -75,3 +75,5 @@ D1 공식 limits의 Free 50 queries/invocation 및 query당 100 bound parameters
 ## 2026-11-11 — 직접 OAuth 및 연결 오류 진단
 
 사용자 지시로 초대 정책을 제거하고 ADR-016을 추가했다. beta 화면은 없애고 과거 링크만 studio redirect로 보존한다. 최초 계정/키 저장은 atomic batch, 동시 최초 연결은 DB 쓰기만 복구하며 OAuth code 교환은 재시도하지 않는다. 신규 `auth_events`는 고정 오류 종류/단계/HTTP status만 최대 7일 보관하며 민감정보를 담지 않는다. 기존 generic 오류 당시 실사용자/연결/세션은 저장되지 않았지만 이전 상세 진단이 없어 정확한 실패 단계는 확정할 수 없다. 실제 OAuth 재연결 성공은 Mock 테스트와 구분해 검증한다. user_id 누락 시 계정 혼동 방지 정책은 유지한다.
+
+후속 production 진단에서 실제 실패를 재현했다. OAuth의 `redirect: "error"`는 Workers에서 지원하지 않아 전송 전에 TypeError가 발생한다. 공식 Workers Request 문서를 확인하고 OAuth/키 상태/모델 목록/AI 요청 6곳 모두 `manual` + non-2xx 거부로 수정했다. native fetch를 가짜 함수로 바꾸지 않고 실제 workerd가 로컬 합성 HTTP provider에 접속하는 회귀 검사로 보완했다. 외부 redirect로 code/key를 넘기지 않는 정책을 유지한다. 첫 production 브라우저의 unauth redirect 검사도 Playwright의 redirect-chain intercept 제약을 수정했으며 실제 Mock 사용자 흐름은 통과했고 합성 사용자 잔여 0을 읽기 전용 집계로 재확인했다. 실제 유료 inference/사용자 OAuth 성공은 별도 확인한다.

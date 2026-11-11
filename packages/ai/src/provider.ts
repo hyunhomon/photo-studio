@@ -140,7 +140,7 @@ export function openRouterAdapter(
       try {
         response = await transport(`${baseUrl}/images/models`, {
           signal: AbortSignal.timeout(10000),
-          redirect: "error",
+          redirect: "manual",
         });
       } catch {
         throw new ProviderError("CAPABILITY_UNAVAILABLE");
@@ -180,7 +180,7 @@ export function openRouterAdapter(
       try {
         response = await transport(`${baseUrl}/models`, {
           signal: AbortSignal.timeout(10000),
-          redirect: "error",
+          redirect: "manual",
         });
       } catch {
         throw new ProviderError("CAPABILITY_UNAVAILABLE");
@@ -209,7 +209,7 @@ export function openRouterAdapter(
     try {
       response = await transport(`${baseUrl}/chat/completions`, {
         method: "POST",
-        redirect: "error",
+        redirect: "manual",
         headers: {
           Authorization: `Bearer ${key}`,
           "Content-Type": "application/json",
@@ -286,7 +286,7 @@ export function openRouterAdapter(
       try {
         response = await transport(`${baseUrl}/images`, {
           method: "POST",
-          redirect: "error",
+          redirect: "manual",
           headers: {
             Authorization: `Bearer ${key}`,
             "Content-Type": "application/json",
