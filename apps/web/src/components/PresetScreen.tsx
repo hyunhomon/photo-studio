@@ -14,7 +14,7 @@ const initial: PresetInput = {
   location: "밝은 무채색 스튜디오",
   lighting: "부드러운 확산광",
   modelAppearance: "",
-  backgroundSeparation: "balanced",
+  backgroundSeparation: "gentle",
   materialDirection: "",
 };
 export default function PresetScreen() {

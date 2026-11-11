@@ -66,7 +66,7 @@ test("approved generation, nullable costs, retired feedback and directed regener
   if (!result) throw new Error("Missing fixture result");
   expect(result).not.toHaveProperty("quality");
   expect(result).not.toHaveProperty("feedback");
-  expect(result.captureVersion).toBe("photo-v1");
+  expect(result.captureVersion).toBe("photo-v2-retail");
   expect(
     s.sqlite
       .query("SELECT status FROM generation_jobs WHERE kind='generate'")
@@ -111,6 +111,7 @@ test("approved generation, nullable costs, retired feedback and directed regener
     expect(args[4]?.previousImage?.startsWith("data:image/png;base64,")).toBe(
       true,
     );
+    expect(args[4]?.garmentAnalysis?.garmentType).toBeTruthy();
     return original(...args);
   };
   await runGenerationStage(s.env, regenerated.id, "generation", deps);

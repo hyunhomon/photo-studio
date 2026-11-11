@@ -57,6 +57,7 @@ Base path: `/api/v1` (auth callback routes are `/auth/*`). JSON envelope: `{ dat
 - `regenerationOf`/`regenerationReason`은 함께 제공한다. `adjustments`는 선택적 최대 1000자 지시이며 원본 의류 불변 조건 안에서 적용한다. 이전 컷은 같은 owner/상품의 generated asset이어야 한다.
 - `202 Accepted` + `data: JobDto`. 비율은 승인된 기획의 3:4, 호출은 1장 생성만 하며 AI 평가를 호출하지 않는다.
 - 기획/프리셋의 `model.appearance`/`modelAppearance`, `camera.backgroundSeparation`/`backgroundSeparation` (`gentle|balanced|separated`), `materialDirection`을 지원한다. 과거 `shootType`은 읽기 호환이며 새 provider 입력에는 사용하지 않는다.
+- ADR-020: 새/누락된 배경 분리는 gentle이며 명시적 기존 값은 유지한다. 승인 시점의 상품 분석은 서버가 generation snapshot에 고정한다. 이전 컷은 인물 특징 참조로 사용하며 피부 보정·crop·노출·blur를 그대로 유지하지 않는다. 상품 가시성과 요청된 교정을 위해 구도가 바뀔 수 있다.
 
 ### `GET /api/v1/jobs/:id`
 

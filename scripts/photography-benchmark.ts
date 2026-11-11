@@ -5,6 +5,7 @@ import {
   compilePhotographicPrompt,
   captureProfiles,
   focusEnvelope,
+  resolveCaptureProfile,
 } from "../packages/ai/src/photography";
 import { mockPlan, PROMPT_VERSION } from "../packages/ai/src/provider";
 import { mockAnalysisFixture } from "../packages/ai/src/fixtures";
@@ -79,10 +80,15 @@ await Bun.write(
       captureVersion: CAPTURE_PROTOCOL_VERSION,
       plan: base,
       focusProfiles: Object.fromEntries(
-        Object.entries(captureProfiles).map(([name, p]) => [
-          name,
-          { ...p, ...focusEnvelope(p) },
-        ]),
+        (Object.keys(captureProfiles) as (keyof typeof captureProfiles)[]).map(
+          (name) => {
+            const profile = resolveCaptureProfile({
+              ...base,
+              camera: { ...base.camera, backgroundSeparation: name },
+            });
+            return [name, { ...profile, ...focusEnvelope(profile) }];
+          },
+        ),
       ),
       cases,
       humanValidationRequired: true,

@@ -109,6 +109,7 @@ export async function runGenerationStage(
             reason: input.regenerationReason,
             adjustments: input.adjustments,
             previousImage,
+            garmentAnalysis: input.analysisSnapshot,
           },
         );
         await recordUsage(env, job, stage, result.usage);
@@ -220,6 +221,7 @@ export function generationRoutes() {
     ].slice(0, 20);
     const snapshot: GenerationSnapshot = {
       sourceIds,
+      analysisSnapshot: analysis ?? undefined,
       preset: null,
       description: "",
       planId: plan.id,

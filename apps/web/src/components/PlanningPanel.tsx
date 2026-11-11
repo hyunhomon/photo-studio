@@ -259,7 +259,8 @@ export function PlanEditor({
         </span>
       </div>
       <p className="my-4 text-xs leading-6 text-muted">
-        원본의 보존 포인트를 확인하고 무드·모델·장소를 조정해 주세요.
+        원본의 보존 포인트를 확인하고 무드·모델·장소를 조정해 주세요. 상품
+        사진은 얼굴보다 의류 전체와 밑단·소매가 보이는 구도를 권장합니다.
       </p>
       <div className="grid gap-4 sm:grid-cols-2">
         <Field

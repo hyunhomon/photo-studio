@@ -3,13 +3,20 @@ import {
   captureProfiles,
   compilePhotographicPrompt,
   focusEnvelope,
+  resolveCaptureProfile,
+  retailFraming,
 } from "./photography";
 import { mockPlan, openRouterAdapter, ProviderError } from "./provider";
 import { mockAnalysisFixture } from "./fixtures";
 
 test("capture profiles retain a usable garment focus region and monotonically separate the background", () => {
   const blur: number[] = [];
-  for (const profile of Object.values(captureProfiles)) {
+  for (const separation of Object.keys(
+    captureProfiles,
+  ) as (keyof typeof captureProfiles)[]) {
+    const plan = mockPlan(mockAnalysisFixture);
+    plan.camera.backgroundSeparation = separation;
+    const profile = resolveCaptureProfile(plan);
     const focus = focusEnvelope(profile),
       s = profile.subjectDistanceM * 1000,
       d = s + profile.backgroundDistanceM * 1000;
@@ -39,7 +46,7 @@ test("legacy shot modes do not enter the image prompt; revisions and reference r
   expect(prompt).not.toContain("model_studio");
   expect(prompt).toContain("references 1..3");
   expect(prompt).toContain("Reference 4");
-  expect(prompt).toContain("not wax");
+  expect(prompt).toContain("No wax");
   expect(prompt).toContain("contact shadows");
   expect(prompt).toContain("Depth blur should increase continuously");
   expect(prompt).toContain("Synthetic relaxed shoulders");
@@ -48,6 +55,41 @@ test("legacy shot modes do not enter the image prompt; revisions and reference r
   expect(() =>
     compilePhotographicPrompt(plan, 1, { captureVersion: "unsupported" }),
   ).toThrow();
+});
+test("retail framing backs the camera up to show the garment while respecting explicitly approved close-ups", () => {
+  const plan = mockPlan(mockAnalysisFixture);
+  const garment = resolveCaptureProfile(plan);
+  plan.camera.framing = "전신 · 소매와 밑단 디테일이 읽히는 구도";
+  const body = resolveCaptureProfile(plan);
+  plan.camera.framing = "embroidery close-up";
+  const detail = resolveCaptureProfile(plan);
+  expect(body.subjectDistanceM).toBeGreaterThan(garment.subjectDistanceM);
+  expect(garment.subjectDistanceM).toBeGreaterThan(detail.subjectDistanceM);
+  expect((32 * garment.subjectDistanceM) / garment.focalLengthMm).toBeCloseTo(
+    1.65,
+    1,
+  );
+  expect(retailFraming("3/4 portrait with garment visible").coverage).toBe(
+    "full_garment",
+  );
+  expect(retailFraming("얼굴 클로즈업").coverage).toBe("approved_detail");
+  const requested = compilePhotographicPrompt(plan, 1);
+  expect(requested).toContain("user explicitly approved a close-up/detail");
+  expect(requested).not.toContain("Avoid a chest-up beauty portrait");
+});
+test("retail revision releases prior retouching and crop; approved uncertain garment evidence is carried as data", () => {
+  const prompt = compilePhotographicPrompt(mockPlan(mockAnalysisFixture), 1, {
+    previousImage: "synthetic-prior",
+    reason: "human_naturalness",
+    garmentAnalysis: mockAnalysisFixture,
+  });
+  expect(prompt).toContain("fictional-adult identity cues ONLY");
+  expect(prompt).toContain("Do not inherit its skin retouching");
+  expect(prompt).toContain("hem and sleeve ends");
+  expect(prompt).toContain("NEVER by shrinking the head");
+  expect(prompt).toContain("original images take precedence");
+  expect(prompt).toContain(JSON.stringify(mockAnalysisFixture));
+  expect(prompt).toContain("without thickening, filling or simplifying");
 });
 test("one image request binds garment then continuity references and rejects insufficient reference capability before generation", async () => {
   let imageCalls = 0;

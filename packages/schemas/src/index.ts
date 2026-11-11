@@ -62,7 +62,7 @@ export const presetInputSchema = z
     modelAppearance: z.string().trim().max(500).default(""),
     backgroundSeparation: z
       .enum(["gentle", "balanced", "separated"])
-      .default("balanced"),
+      .default("gentle"),
     materialDirection: z.string().trim().max(500).default(""),
     shootType: z.enum(["model_studio", "model_location"]).optional(),
   })
@@ -117,7 +117,7 @@ export const shootPlanSchema = z
         angle: shortText,
         backgroundSeparation: z
           .enum(["gentle", "balanced", "separated"])
-          .default("balanced"),
+          .default("gentle"),
       })
       .strict(),
     location: z.object({ type: shortText, time: shortText }).strict(),

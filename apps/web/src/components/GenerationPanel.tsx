@@ -381,8 +381,9 @@ export default function GenerationPanel({
         </div>
         {regenerate && (
           <p className="mt-3 text-xs leading-6 text-muted">
-            이전 컷을 인물·구도 연속성 참조로 함께 사용합니다. 선택한 항목을
-            우선 고치며 원본 의류가 보존 기준입니다.
+            이전 컷의 인물 특징을 참조하되 빛·초점·피부 표현은 다시 구성합니다.
+            의류가 충분히 보이도록 구도가 달라질 수 있으며, 원본 의류가 보존
+            기준입니다.
           </p>
         )}
         <p className="mt-4 text-xs leading-6 text-muted">

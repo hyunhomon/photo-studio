@@ -13,7 +13,7 @@
 
 - `analyzeProduct({imageRefs, locale}) → ProductAnalysis`
 - `planShoot({productAnalysis, brandPreset, userOverrides}) → ShootPlan`
-- `generate(model, sources, plan, quality, {captureVersion, reason, adjustments, previousImage}) → GeneratedImage + Usage`
+- `generate(model, sources, plan, quality, {captureVersion, reason, adjustments, previousImage, garmentAnalysis}) → GeneratedImage + Usage`
 - 평가 메서드는 어댑터에서 제거했다. 기존 Workflow evaluation step은 새 런타임에서 no-op이며 과거 평가 데이터/비용은 보존한다.
 - Provider 파라미터/응답은 이 계층에서만 노출, 서비스 내부는 정규화된 DTO 사용.
 - 모든 결과에 `model_id`, `prompt_version`, `provider_request_id?`, `usage?`, `cost_actual_usd?`, `duration_ms` 기록.
@@ -87,7 +87,9 @@
 
 ## 촬영 프로토콜과 개선 지시
 
-`studio-v3-photography` / `photo-v1`은 광학 근사 프로필·일관된 주광원과 접촉 그림자·눈/피부/머리카락 현실감·관찰된 직물과 주변 표면 반응을 컴파일한다. 얼굴 외모/배경 분리/소재 지시를 승인된 기획에 담는다. 컷 개선 항목과 자유 지시는 snapshot에서 실제 프롬프트로 전달한다. 무작위 블러/노이즈 후처리를 적용하지 않는다. 이전 컷 참조가 얼굴·로고 보존을 보장하지 않으며 실사 개선 효과는 별도 인간 검증이 필요하다. 근거·제어·검증 루프는 `14-REALISM-RESEARCH.md`를 따른다.
+`studio-v3-photography` / `photo-v1`부터 광학 근사 프로필·일관된 주광원과 접촉 그림자·눈/피부/머리카락 현실감·관찰된 직물과 주변 표면 반응을 컴파일한다. 얼굴 외모/배경 분리/소재 지시를 승인된 기획에 담는다. 컷 개선 항목과 자유 지시는 snapshot에서 실제 프롬프트로 전달한다. 무작위 블러/노이즈 후처리를 적용하지 않는다. 이전 컷 참조가 얼굴·로고 보존을 보장하지 않으며 실사 개선 효과는 별도 인간 검증이 필요하다. 근거·제어·검증 루프는 `14-REALISM-RESEARCH.md`를 따른다.
+
+ADR-020의 현재 `studio-v4-retail` / `photo-v2-retail`은 상품 전체/명시적 전신/명시적 접사에 맞춰 근사 화각과 거리를 연결한다. 새 배경 분리 기본값은 gentle이며 기존 명시적 값은 유지한다. 상품 분석을 생성 job의 `analysisSnapshot`에 고정하고 소재 추정/불확실성을 그대로 전달한다. 이전 컷은 가상 인물의 특징용이며 crop/피부 보정/노출/blur를 그대로 복제하지 않는다. 요청한 교정과 상품 가시성을 위해 재프레이밍할 수 있다. 외부 쇼핑몰 사진은 시각 비교 근거일 뿐 provider 입력이나 배포 자산으로 사용하지 않는다.
 
 ## 실제 API 비용의 신뢰성
 

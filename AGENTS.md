@@ -8,7 +8,7 @@ Build the smallest reliable web MVP that turns clothing photos into AI-planned f
 - Hono API Worker, Zod contracts, Drizzle + D1, R2, Cloudflare Workflows.
 - OpenRouter OAuth **PKCE S256** for MVP BYOK; the user pays OpenRouter directly. Never use a shared operator API key for customer inference.
 - Image model defaults to `openai/gpt-image-2`, configurable. Analysis model remains configurable and must be capability-checked.
-- MVP has direct OpenRouter OAuth without invite codes (ADR-016), project/product/asset management, analyse+plan flow, user-approved generation, original/previous-frame comparison, directed revisions, usage/cost logging, and download. ADR-019 retires shoot modes, numeric AI evaluation and feedback controls; prioritize coherent light/focus, natural adults, and material appearance.
+- MVP has direct OpenRouter OAuth without invite codes (ADR-016), project/product/asset management, analyse+plan flow, user-approved generation, original/previous-frame comparison, directed revisions, usage/cost logging, and download. ADR-019 retires shoot modes, numeric AI evaluation and feedback controls; prioritize coherent light/focus, natural adults, and material appearance. ADR-020 makes garment visibility primary and separates prior identity cues from prior retouching/crop defects.
 - Do **not** implement payments, subscriptions, credit balances, batch generation, teams or training models now.
 
 ## Execution

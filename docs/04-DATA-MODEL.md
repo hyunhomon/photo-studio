@@ -25,6 +25,8 @@
 
 ADR-019: `evaluations`와 `asset_feedback`는 과거 이력 보존/내보내기용이며 신규 쓰기를 종료했다. 새 결과 DTO/usage에 점수·채택률을 포함하지 않는다. 기획 JSON에 `model.appearance`, `camera.backgroundSeparation`, `materialDirection`을 추가하고 기존 행에는 기본값을 적용한다. `shootType`은 읽기 호환만 남긴다. job request snapshot에 `captureVersion`, `reviewMode=manual`, `adjustments`, `regenerationReason`, `regenerationOf`를 비공개 저장한다. additive/파괴적 schema migration은 필요하지 않다.
 
+ADR-020: generation snapshot의 선택적 `analysisSnapshot`에 승인 시점 상품 분석/소재 추정/불확실성을 보관한다. 이후 상품 변경이 이미 요청된 촬영의 근거를 바꾸지 않게 하며 이전 분석이 없는 legacy snapshot도 지원한다. 새 배경 분리 기본은 gentle이고 이미 저장된 명시적 값은 변경하지 않는다.
+
 - JSON은 `packages/schemas`의 Zod로 parse + validation. 구조 변경 시 `schema_version` 또는 version 필드.
 - `analysis_json`: garment_type, colors, material_guess, pattern, silhouette, season_guess, preservation_points[], uncertainty[]; **시각적 추정과 실제 소재 정보는 구분**.
 - `model_spec_json`: 성인 모델의 스타일, 포즈, 카메라 앵글 등의 비식별 설정. 실제 개인 신원 추정/보존 금지.
