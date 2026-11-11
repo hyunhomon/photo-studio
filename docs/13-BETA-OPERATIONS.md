@@ -2,13 +2,13 @@
 
 ## 검증 상태와 외부 준비
 
-로컬/production Mock 전체 흐름은 합성 사진·합성 사용자로 검증한다. 실제 OpenRouter 계정 로그인, nullable OAuth user_id의 실제 계정별 반환, funded 계정의 유료 분석/이미지/평가 성공과 의류 보존 품질은 사람의 실행 검증이 필요하다. 실제 키나 OAuth code를 채팅/로그에 붙이지 않는다.
+로컬/production Mock 전체 흐름은 합성 사진·합성 사용자로 검증한다. 2026-11-11 런타임 수정 재배포 후 사용자가 실제 OpenRouter OAuth 연결과 스튜디오 진입 성공을 확인했다. nullable OAuth user_id의 다른 계정 유형별 반환, funded 계정의 유료 분석/이미지/평가 성공과 의류 보존 품질은 추가 검증이 필요하다. 실제 키나 OAuth code를 채팅/로그에 붙이지 않는다.
 
 운영자 공용 OpenRouter API key는 필요 없다. 사용자가 자신의 OpenRouter 계정과 크레딧을 준비하고 UI의 OAuth로 연결한다. 초대 코드는 필요 없다. 홈페이지의 OpenRouter 시작 버튼으로 바로 연결한다(ADR-016). Cloudflare 계정 로그인과 AES secret/D1/R2/Workflow는 배포 명령이 준비한다.
 
 ## 실제 유료 smoke — 사람의 명시적 실행만
 
-- [ ] 홈페이지에서 OpenRouter로 시작해 실제 계정으로 로그인한다. callback이 initiating browser 및 stable user_id에 연결되는지 확인한다. 반환되지 않으면 안전하게 실패하며 임의 계정 합치기/공용 키 우회는 하지 않는다.
+- [x] 홈페이지에서 OpenRouter로 시작해 실제 계정으로 로그인한다. callback이 initiating browser 및 stable user_id에 연결되는지 확인한다. 반환되지 않으면 안전하게 실패하며 임의 계정 합치기/공용 키 우회는 하지 않는다. 사용자 스튜디오 진입 확인; 실제 user/connection/session 각 1개를 식별자 없는 집계로 확인했다.
 - [ ] 권리를 보유한 작은 의류 사진 1장(로고/패턴 포함 권장)을 비공개 업로드한다. 이 동작만으로 OpenRouter AI 호출이 생기지 않는지 확인한다.
 - [ ] 모델 및 비용 안내를 확인하고 분석/기획 2단계 호출을 직접 승인한다. 결과의 불확실성을 확인하고 상품 보존 포인트와 콘셉트를 수정·승인한다.
 - [ ] 별도 비용 안내 후 medium 1장 + 품질 평가를 직접 승인한다. OpenRouter 사용 내역과 앱의 실제 비용/미확인 표기를 대조한다. 비용이 누락됐다고 0달러로 처리하지 않는다.

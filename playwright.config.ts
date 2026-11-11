@@ -3,6 +3,9 @@ const productionOrigin = process.env.PHOTO_STUDIO_PRODUCTION_ORIGIN;
 
 export default defineConfig({
   testDir: "./tests/e2e",
+  outputDir: productionOrigin
+    ? "test-results/production"
+    : "test-results/local",
   fullyParallel: false,
   workers: 1,
   reporter: "list",

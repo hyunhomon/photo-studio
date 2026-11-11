@@ -1,6 +1,6 @@
 # Implementation Plan — Codex 실행용
 
-> 현재 상태(2026-11-11): Phase 0–5의 MVP 기능 구현 및 production 배포 완료. 실제 외부 계정 OAuth·유료 의류 품질 검증은 미실행이다. 아래 Phase 0 기록은 해당 시점의 이력이다.
+> 현재 상태(2026-11-11): Phase 0–5의 MVP 기능 구현 및 production 배포 완료. 실제 사용자 OAuth 연결/스튜디오 진입 확인. 유료 의류 품질 검증은 남아 있다. 아래 Phase 0 기록은 해당 시점의 이력이다.
 
 **원칙:** 각 Phase는 작동하는 결과, 테스트, 문서 업데이트까지 완료한다. 외부 유료 AI 실제 호출은 사용자가 명시적으로 승인하기 전에는 실행하지 않는다.
 
@@ -119,7 +119,8 @@ Phase 5 구현(2026-11-11): 내 사용자별 비용 부분합/미확인 수·단
 - [x] 타인 프로젝트/사진 접근 차단 (운영 A/B 검증 포함).
 - [x] 중복/불확실 과금 호출 방어 (fake provider 타임아웃·재실행·R2 오류 검증).
 - [x] 고객별 실제 촬영비·대체 범위 인터뷰 양식, 운영 집계 방법.
-- [ ] 실제 OpenRouter 계정 OAuth 로그인 및 funded 계정으로 유료 분석·생성·평가 smoke.
+- [x] 실제 OpenRouter 계정 OAuth 로그인/스튜디오 진입(런타임 수정 후 사용자 재검증).
+- [ ] funded 계정으로 유료 분석·생성·평가 smoke.
 - [ ] 실제 의류 보존 품질, 최대 크기/다중 업로드 부하, 키 회전·백업 복구 리허설.
 
 ### 최종 검증 기록 — 2026-11-11
@@ -150,3 +151,12 @@ Phase 5 구현(2026-11-11): 내 사용자별 비용 부분합/미확인 수·단
 - production 배포 및 검증 결과는 후속 기록으로 남긴다. 이전 generic 콜백 오류는 상세 진단이 없어 원인을 확정하지 않았으며 실제 계정 재연결 성공을 별도 확인해야 한다.
 
 후속 런타임 수정: production에서 합성 code를 사용해 exchange 전송 실패를 재현했고, Workers 미지원 `redirect: "error"`가 원인임을 확인했다. OAuth·키 상태·모델 catalog·AI 호출 6곳을 `manual`로 바꾸고 3xx 거부 정책을 유지한다. native workerd HTTP→로컬 합성 provider로 OAuth/상태/catalog/분석/기획/생성/평가와 redirect trap 차단 검증 통과. 최종 format/lint/typecheck/unit/build **30 pass / 0 fail**, Astro 진단 0, local desktop/mobile E2E **4 pass**. 실제 유료 AI 호출 없음.
+
+production 재배포 `8b2f245` 후 같은 합성 invalid-code probe가 실제 OpenRouter exchange의 **HTTP 400**으로 안전하게 거부됨을 확인했다(수정 전: transport 실패, HTTP status null). 원격 verifier 복호화 및 외부 교환 통신 복구를 확인한 것이며 실제 사용자 키 교환 성공을 대신하지 않는다. 공개 HTTPS/CORS/초대 없는 직접 S256 redirect/오류 복구/글꼴/반응형 검사 통과. 실제 유료 추론은 실행하지 않았다.
+
+최종 운영 확인:
+- 사용자가 새 연결로 **실제 OpenRouter OAuth 성공 및 스튜디오 진입**을 확인했다. 식별자를 출력하지 않는 집계에서 real user/connection/session 각 1개를 확인했다.
+- production 전체 회귀 첫 실행은 3/4 통과, 모바일 Mock 생성 1건은 `DISPATCH_PENDING`으로 멈췄다. 기존 작업 ID를 재확인하는 사용자 복구 동작을 브라우저 검사에 포함했다. 새 과금 작업 제출이나 provider 재시도는 하지 않는다.
+- 복구 경로 포함 production Mock 전체 시나리오를 desktop/mobile로 별도 재검증해 **2/2 통과**, 임시 계정/사진 삭제 완료. 미인증 직접 OAuth desktop/mobile 검사는 앞선 실행에서 **2/2 통과**했고 공개 smoke도 통과했다. 잦은 OAuth 검사로 시작 rate limit에 도달한 동안에는 OAuth를 다시 호출하지 않는 격리 runner로 Mock 시나리오만 실행했다.
+- 병렬 local/production Playwright의 기본 결과 폴더 충돌은 환경별 outputDir로 분리했다. 분리 후 local desktop/mobile **4/4 재검증 통과**. 프로덕션 애플리케이션 변경이 아닌 테스트 보완이다.
+- funded 유료 분석/이미지/평가와 의류 보존 품질, 키 회전/복구는 여전히 별도 검증 대상이다. 이번 자동 검증에는 외부 유료 AI 호출이 없다.

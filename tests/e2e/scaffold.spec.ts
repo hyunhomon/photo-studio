@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Locator } from "@playwright/test";
 import { syntheticPng } from "../../apps/api/test/png";
 
 test("Mock: connect, upload, plan, generate, review, export and delete", async ({
@@ -6,6 +6,17 @@ test("Mock: connect, upload, plan, generate, review, export and delete", async (
   browser,
 }) => {
   const productionOrigin = process.env.PHOTO_STUDIO_PRODUCTION_ORIGIN;
+  async function waitForWorkflow(result: Locator) {
+    const reconnect = page
+      .getByRole("button", { name: "작업 연결 재확인", exact: true })
+      .first();
+    await expect(result.or(reconnect).first()).toBeVisible({ timeout: 60000 });
+    if (!(await result.isVisible()) && (await reconnect.isVisible())) {
+      // Reconcile the existing instance ID once; never submit a second paid job.
+      await reconnect.click();
+    }
+    await expect(result).toBeVisible({ timeout: 60000 });
+  }
   const sessions = JSON.parse(
     process.env.PHOTO_STUDIO_TEST_SESSIONS || "{}",
   ) as Record<string, { token: string }>;
@@ -135,9 +146,9 @@ test("Mock: connect, upload, plan, generate, review, export and delete", async (
     .getByLabel("사진 전송과 분석·기획 비용 안내를 확인했습니다.")
     .check();
   await page.getByRole("button", { name: "동의하고 분석·기획 시작" }).click();
-  await expect(
+  await waitForWorkflow(
     page.getByRole("heading", { name: "촬영 콘셉트", exact: true }),
-  ).toBeVisible({ timeout: 60000 });
+  );
   await page.getByLabel("의류 종류", { exact: true }).fill("수정한 셔츠");
   await page.getByRole("button", { name: "분석 수정 저장" }).click();
   await expect(page.getByLabel("의류 종류", { exact: true })).toHaveValue(
@@ -159,9 +170,9 @@ test("Mock: connect, upload, plan, generate, review, export and delete", async (
     .getByLabel("이미지 생성·평가 비용과 승인된 콘셉트를 확인했습니다.")
     .check();
   await page.getByRole("button", { name: "동의하고 1장 생성" }).click();
-  await expect(
+  await waitForWorkflow(
     page.getByText("Mock 합성 평가입니다.", { exact: false }),
-  ).toBeVisible({ timeout: 60000 });
+  );
   await expect(
     page.getByRole("img", { name: "Synthetic shirt 결과 비교" }),
   ).toHaveJSProperty("naturalWidth", 64);
@@ -186,6 +197,9 @@ test("Mock: connect, upload, plan, generate, review, export and delete", async (
     .getByLabel("이미지 생성·평가 비용과 승인된 콘셉트를 확인했습니다.")
     .check();
   await page.getByRole("button", { name: "동의하고 1장 생성" }).click();
+  await waitForWorkflow(
+    page.getByRole("button", { name: /결과 \d+ 선택/ }).nth(1),
+  );
   await expect(page.getByRole("button", { name: /결과 \d+ 선택/ })).toHaveCount(
     2,
     { timeout: 60000 },
