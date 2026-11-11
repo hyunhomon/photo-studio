@@ -1,8 +1,119 @@
 import { expect, test } from "bun:test";
-import { mockAdapter, ProviderError } from "@photo-studio/ai";
+import {
+  mockAdapter,
+  ProviderError,
+  InvalidOutputError,
+  unknownUsage,
+} from "@photo-studio/ai";
 import type { PipelineDto, ProductDto } from "@photo-studio/schemas";
 import { studioFixture } from "../test/studio";
 import { runPlanStage } from "./pipeline";
+
+test("failed billed planning preserves analysis and safe diagnostics; consented planning-only recovery snapshots analysis without re-analysing", async () => {
+  const s = await studioFixture();
+  expect(
+    (
+      await s.call(`/products/${s.product.id}/plan`, "POST", {
+        ...s.planInput,
+        reuseAnalysis: true,
+      })
+    ).status,
+  ).toBe(409);
+  const job = await s.startPlan();
+  const adapter = mockAdapter(),
+    originalPlan = adapter.plan;
+  let analyses = 0,
+    plans = 0;
+  const analyze = adapter.analyze;
+  adapter.analyze = async (...args) => {
+    analyses++;
+    return analyze(...args);
+  };
+  adapter.plan = async () => {
+    plans++;
+    throw new InvalidOutputError(
+      { ...unknownUsage, actualCostUsd: 0.0000965 },
+      {
+        reason: "schema_mismatch",
+        issues: [{ field: "lighting", code: "invalid_type" }],
+      },
+    );
+  };
+  const deps = { adapter: async () => adapter };
+  await runPlanStage(s.env, job.id, "analysis", deps);
+  await runPlanStage(s.env, job.id, "planning", deps);
+  expect(
+    s.sqlite.query("SELECT status,error_code FROM generation_jobs").get(),
+  ).toEqual({ status: "failed", error_code: "INVALID_PROVIDER_OUTPUT" });
+  const failed = s.sqlite
+    .query(
+      "SELECT actual_cost_usd,output_json FROM generation_attempts WHERE stage='planning'",
+    )
+    .get() as { actual_cost_usd: number; output_json: string };
+  expect(failed.actual_cost_usd).toBe(0.0000965);
+  expect(JSON.parse(failed.output_json)).toEqual({
+    validation: {
+      reason: "schema_mismatch",
+      issues: [{ field: "lighting", code: "invalid_type" }],
+    },
+  });
+  const input = {
+    ...s.planInput,
+    idempotencyKey: crypto.randomUUID(),
+    reuseAnalysis: true,
+  };
+  expect(
+    (
+      await s.call(`/products/${s.product.id}/plan`, "POST", {
+        ...input,
+        consent: false,
+      })
+    ).status,
+  ).toBe(400);
+  const started = await s.call<{ id: string }>(
+    `/products/${s.product.id}/plan`,
+    "POST",
+    input,
+  );
+  expect(started.status).toBe(202);
+  const retry = started.data.id;
+  expect(
+    (
+      await s.call<{ id: string }>(
+        `/products/${s.product.id}/plan`,
+        "POST",
+        input,
+      )
+    ).data.id,
+  ).toBe(retry);
+  const b = await s.login();
+  expect(
+    (await s.call(`/products/${s.product.id}/plan`, "POST", input, b)).status,
+  ).toBe(404);
+  adapter.plan = async (...args) => {
+    plans++;
+    expect(args[1].garmentType).toBe("shirt");
+    return originalPlan(...args);
+  };
+  // Snapshot remains authoritative even if storage changes after queueing.
+  s.sqlite.run(
+    "UPDATE products SET analysis_json=json_set(analysis_json,'$.garmentType','changed-after-queue') WHERE id=?",
+    [s.product.id],
+  );
+  await runPlanStage(s.env, retry, "analysis", deps);
+  await runPlanStage(s.env, retry, "planning", deps);
+  await runPlanStage(s.env, retry, "planning", deps);
+  expect(analyses).toBe(1);
+  expect(plans).toBe(2);
+  expect(
+    s.sqlite
+      .query("SELECT count(*) n FROM generation_attempts WHERE job_id=?")
+      .get(retry),
+  ).toEqual({ n: 1 });
+  expect(
+    s.sqlite.query("SELECT status FROM generation_jobs WHERE id=?").get(retry),
+  ).toEqual({ status: "completed" });
+});
 
 test("consent, idempotency, owner scope, durable analysis/planning and manual approval", async () => {
   const s = await studioFixture();

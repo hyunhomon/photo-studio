@@ -6,6 +6,146 @@ import {
   ProviderError,
 } from "./provider";
 import { mockAnalysisFixture } from "./fixtures";
+test("portable planning schema, lossless JSON parsing and app-owned constants tolerate provider formatting without changing garment facts", async () => {
+  let calls = 0;
+  const transport = Object.assign(
+    async (_input: unknown, init?: RequestInit) => {
+      calls++;
+      const request = JSON.parse(String(init?.body));
+      const wire = request.response_format.json_schema.schema;
+      const stage = request.response_format.json_schema.name;
+      expect(JSON.stringify(wire)).not.toContain('"const"');
+      let value: unknown = mockAnalysisFixture;
+      if (stage === "shoot_plan") {
+        expect(wire.properties.aspectRatio).toBeUndefined();
+        expect(wire.properties.shootType.enum).toEqual([
+          "model_studio",
+          "model_location",
+        ]);
+        const { aspectRatio: _ratio, ...plan } = mockPlan(mockAnalysisFixture);
+        value = {
+          ...plan,
+          model: { ...plan.model, notes: "synthetic-unused-metadata" },
+          unused: "synthetic-unused-metadata",
+        };
+      }
+      if (stage === "quality_evaluation") {
+        expect(wire.properties.needsHumanReview).toBeUndefined();
+        value = {
+          garmentFidelityScore: 0.7,
+          realismScore: 0.8,
+          compositionScore: 0.9,
+          flaggedIssues: [],
+          needsHumanReview: false,
+          evaluationVersion: "untrusted",
+        };
+      }
+      return Response.json({
+        choices: [
+          {
+            finish_reason: "stop",
+            message: {
+              content: [
+                {
+                  type: "text",
+                  text: `\uFEFF\n\`\`\`json\n${JSON.stringify(value)}\n\`\`\``,
+                },
+              ],
+            },
+          },
+        ],
+        usage: { cost: 0.0001 },
+      });
+    },
+    { preconnect: fetch.preconnect },
+  ) as typeof fetch;
+  const adapter = openRouterAdapter(
+    "synthetic-key",
+    "https://synthetic.invalid/portable",
+    transport,
+  );
+  const analysis = await adapter.analyze("synthetic", [], "synthetic");
+  expect(analysis.value).toEqual(mockAnalysisFixture);
+  const plan = await adapter.plan(
+    "synthetic",
+    analysis.value,
+    null,
+    "synthetic",
+  );
+  expect(plan.value.aspectRatio).toBe("3:4");
+  expect(plan.value.mustPreserve).toEqual(
+    mockAnalysisFixture.preservationPoints,
+  );
+  expect(JSON.stringify(plan.value)).not.toContain("synthetic-unused-metadata");
+  const quality = await adapter.evaluate("synthetic", [], "synthetic", []);
+  expect(quality.value.needsHumanReview).toBe(true);
+  expect(quality.value.evaluationVersion).toBe("v1");
+  expect(calls).toBe(3);
+});
+test("invalid or truncated paid planning output retains cost and only safe validation categories, with no retries", async () => {
+  for (const kind of [
+    "missing_field",
+    "invalid_enum",
+    "invalid_json",
+    "truncated",
+    "blocked",
+  ]) {
+    let calls = 0;
+    const transport = Object.assign(
+      async () => {
+        calls++;
+        const value: Record<string, unknown> = {
+          ...mockPlan(mockAnalysisFixture),
+        };
+        if (kind === "missing_field") delete value.lighting;
+        if (kind === "invalid_enum")
+          value.shootType = "synthetic-sensitive-model-value";
+        return Response.json({
+          choices: [
+            {
+              finish_reason:
+                kind === "truncated"
+                  ? "length"
+                  : kind === "blocked"
+                    ? "content_filter"
+                    : "stop",
+              message: {
+                content:
+                  kind === "invalid_json"
+                    ? "synthetic-sensitive-non-json"
+                    : JSON.stringify(value),
+              },
+            },
+          ],
+          usage: { cost: 0.0000965, completion_tokens: 198 },
+        });
+      },
+      { preconnect: fetch.preconnect },
+    ) as typeof fetch;
+    const adapter = openRouterAdapter(
+      "synthetic-key",
+      "https://synthetic.invalid/invalid",
+      transport,
+    );
+    try {
+      await adapter.plan("synthetic", mockAnalysisFixture, null, "synthetic");
+      throw new Error("Expected rejection");
+    } catch (error) {
+      expect(error).toBeInstanceOf(InvalidOutputError);
+      const invalid = error as InvalidOutputError;
+      expect(invalid.usage.actualCostUsd).toBe(0.0000965);
+      expect(invalid.usage.tokensOut).toBe(198);
+      expect(JSON.stringify(invalid.diagnostic)).not.toContain(
+        "synthetic-sensitive",
+      );
+      if (kind === "missing_field")
+        expect(invalid.diagnostic.issues[0]?.field).toBe("lighting");
+      if (kind === "invalid_enum")
+        expect(invalid.diagnostic.issues[0]?.field).toBe("shootType");
+    }
+    expect(calls).toBe(1);
+  }
+});
 test("provider redirects fail closed without retries or credential forwarding", async () => {
   let calls = 0;
   const transport = Object.assign(

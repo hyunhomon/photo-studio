@@ -160,3 +160,11 @@ production 재배포 `8b2f245` 후 같은 합성 invalid-code probe가 실제 Op
 - 복구 경로 포함 production Mock 전체 시나리오를 desktop/mobile로 별도 재검증해 **2/2 통과**, 임시 계정/사진 삭제 완료. 미인증 직접 OAuth desktop/mobile 검사는 앞선 실행에서 **2/2 통과**했고 공개 smoke도 통과했다. 잦은 OAuth 검사로 시작 rate limit에 도달한 동안에는 OAuth를 다시 호출하지 않는 격리 runner로 Mock 시나리오만 실행했다.
 - 병렬 local/production Playwright의 기본 결과 폴더 충돌은 환경별 outputDir로 분리했다. 분리 후 local desktop/mobile **4/4 재검증 통과**. 프로덕션 애플리케이션 변경이 아닌 테스트 보완이다.
 - funded 유료 분석/이미지/평가와 의류 보존 품질, 키 회전/복구는 여전히 별도 검증 대상이다. 이번 자동 검증에는 외부 유료 AI 호출이 없다.
+
+### 실제 촬영 기획 형식 오류 보완 — 2026-11-11
+
+- 실제 planning 응답은 STOP/198 output tokens/실제 비용 $0.0000965로 종료됐으나 앱 validation 실패였다. 원문을 저장하지 않아 정확한 불일치 필드는 미확정이다. 크레딧 부족과 구분하며 기존 분석·과금 원장을 유지한다.
+- ADR-017 및 studio-v2: provider 출력과 앱 정책 상수 분리, singleton enum, 손실 없는 JSON 포맷 처리, 추가 metadata 제거, 필수 내용 검증·안전한 실패 진단. 유료 repair/자동 재시도 없음.
+- 동의 기반 ‘이 분석으로 기획 다시 만들기’: 저장된 owner 분석 snapshot으로 기획 1회만 요청한다. 별도 key/원장을 사용하고 analysis 모델 호출이 없는 것을 검증했다.
+- format/lint/typecheck/unit/build 통과: **33 pass / 0 fail**, Astro 진단 0. local desktop/mobile E2E **4/4 통과**(기획만 복구의 동의·분석 보존·attempt planning 1개 포함). 실제 workerd native HTTP의 합성 JSON fence/앱 상수 없는 기획·평가 응답도 통과했다.
+- 기존 실제 실패 요청은 재실행하거나 자료를 수정하지 않았다. production 재배포/Mock 회귀 및 사용자의 실제 기획 재검증 결과는 후속 기록한다.

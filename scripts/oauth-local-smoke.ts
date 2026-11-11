@@ -95,21 +95,28 @@ const fixture = Bun.serve({
         response_format: { json_schema: { name: string } };
       };
       const name = payload.response_format.json_schema.name;
+      const { aspectRatio: _ratio, ...wirePlan } =
+        mockPlan(mockAnalysisFixture);
       const value =
         name === "product_analysis"
           ? mockAnalysisFixture
           : name === "shoot_plan"
-            ? mockPlan(mockAnalysisFixture)
+            ? wirePlan
             : {
                 garmentFidelityScore: 0.8,
                 realismScore: 0.8,
                 compositionScore: 0.8,
                 flaggedIssues: [],
-                needsHumanReview: true,
-                evaluationVersion: "v1",
               };
       return Response.json({
-        choices: [{ message: { content: JSON.stringify(value) } }],
+        choices: [
+          {
+            finish_reason: "stop",
+            message: {
+              content: `\`\`\`json\n${JSON.stringify(value)}\n\`\`\``,
+            },
+          },
+        ],
       });
     }
     return new Response(null, { status: 404 });

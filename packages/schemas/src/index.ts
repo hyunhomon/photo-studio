@@ -144,6 +144,7 @@ export interface PipelineDto {
 export const planRequestSchema = z
   .object({
     consent: z.literal(true),
+    reuseAnalysis: z.boolean().default(false),
     idempotencyKey: z.uuid(),
     presetId: z.uuid().nullable().default(null),
     description: z.string().trim().max(1000).default(""),

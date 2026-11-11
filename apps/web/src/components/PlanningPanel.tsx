@@ -47,7 +47,11 @@ const failureLabels: Record<string, string> = {
     "모델이 필요한 이미지 입력·구조화 출력 기능을 지원하지 않습니다.",
   CAPABILITY_UNAVAILABLE: "모델 기능을 확인할 수 없어 호출하지 않았습니다.",
   INVALID_PROVIDER_OUTPUT:
-    "응답 형식 검증에 실패했습니다. 과금 기록을 확인해 주세요.",
+    "AI 응답을 받았지만 앱에서 사용할 수 있는 형식이 아닙니다. 제공된 비용 기록은 보존하며 자동 재호출하지 않습니다.",
+  PROVIDER_OUTPUT_TRUNCATED:
+    "AI 응답이 끝나기 전에 잘렸습니다. 기록된 비용을 확인해 주세요. 자동 재호출하지 않습니다.",
+  PROVIDER_OUTPUT_BLOCKED:
+    "AI 제공자가 응답을 제한했습니다. 상품 설명과 사진을 확인해 주세요. 자동 재호출하지 않습니다.",
   DISPATCH_PENDING:
     "실행 요청 전달을 확인하지 못했습니다. 안전하게 연결을 다시 확인할 수 있습니다.",
   PROVIDER_RATE_LIMITED: "OpenRouter 요청 한도에 도달했습니다.",
@@ -74,6 +78,12 @@ export function JobStatus({
         <p className="mt-3 text-xs leading-6 text-muted">
           {failureLabels[job.errorCode] ??
             "작업을 완료하지 못했습니다. 사용 기록을 확인한 뒤 새 작업을 시작할 수 있습니다."}
+        </p>
+      )}
+      {job.status === "failed" && job.stage === "planning" && (
+        <p className="mt-2 text-xs leading-6 text-muted">
+          완료된 상품 분석은 보존했습니다. ‘이 분석으로 기획 다시 만들기’에서
+          기획 1회 비용을 확인한 뒤 다시 요청할 수 있습니다.
         </p>
       )}
       {job.status === "queued" && job.errorCode === "DISPATCH_PENDING" && (
@@ -354,6 +364,7 @@ export default function PlanningPanel({
     [preset, setPreset] = useState(""),
     [description, setDescription] = useState("");
   const [consent, setConsent] = useState(false),
+    [reuseAnalysis, setReuseAnalysis] = useState(false),
     [open, setOpen] = useState(false),
     [busy, setBusy] = useState(false),
     [error, setError] = useState("");
@@ -440,6 +451,7 @@ export default function PlanningPanel({
           className="mt-5"
           disabled={busy || active}
           onClick={() => {
+            setReuseAnalysis(false);
             setConsent(false);
             requestId.current = crypto.randomUUID();
             setOpen(true);
@@ -448,6 +460,27 @@ export default function PlanningPanel({
           <SlidersHorizontal size={15} aria-hidden="true" />
           {product.analysis ? "새로 분석·기획" : "분석 시작"}
         </Button>
+        {product.analysis && (
+          <div className="mt-4 border-t border-line pt-4">
+            <p className="text-xs leading-6 text-muted">
+              완료된 상품 분석을 그대로 사용해 촬영 기획만 새로 요청할 수
+              있습니다. 다음 화면에서 기획 1회 비용 안내를 확인한 뒤 실행합니다.
+            </p>
+            <Button
+              className="mt-3"
+              variant="secondary"
+              disabled={busy || active}
+              onClick={() => {
+                setReuseAnalysis(true);
+                setConsent(false);
+                requestId.current = crypto.randomUUID();
+                setOpen(true);
+              }}
+            >
+              이 분석으로 기획 다시 만들기
+            </Button>
+          </div>
+        )}
       </section>
       {data.jobs[0] && (
         <JobStatus
@@ -498,11 +531,19 @@ export default function PlanningPanel({
       <Modal
         open={open}
         onClose={() => setOpen(false)}
-        title="상품 분석·기획을 시작할까요?"
+        title={
+          reuseAnalysis
+            ? "기존 분석으로 촬영 기획만 만들까요?"
+            : "상품 분석·기획을 시작할까요?"
+        }
         description={
-          me.mode === "mock"
-            ? "Mock 분석과 기획을 각각 한 번 실행합니다. 외부 전송이나 비용 없이 합성 결과를 만듭니다."
-            : "상품 사진과 설명을 OpenRouter에 전송합니다. 상품 분석 1회와 촬영 기획 1회의 AI 호출 비용이 내 OpenRouter 크레딧에서 차감됩니다."
+          reuseAnalysis
+            ? me.mode === "mock"
+              ? "저장된 분석으로 Mock 기획 1회를 실행합니다. 외부 AI 비용은 없습니다."
+              : "저장된 상품 분석과 설명으로 촬영 기획 1회를 요청합니다. 사진 분석은 다시 호출하지 않습니다. 새 기획 비용이 내 OpenRouter 크레딧에서 차감됩니다."
+            : me.mode === "mock"
+              ? "Mock 분석과 기획을 각각 한 번 실행합니다. 외부 전송이나 비용 없이 합성 결과를 만듭니다."
+              : "상품 사진과 설명을 OpenRouter에 전송합니다. 상품 분석 1회와 촬영 기획 1회의 AI 호출 비용이 내 OpenRouter 크레딧에서 차감됩니다."
         }
       >
         <p className="mt-4 text-xs text-muted">
@@ -527,7 +568,9 @@ export default function PlanningPanel({
             checked={consent}
             onChange={(e) => setConsent(e.target.checked)}
           />
-          사진 전송과 분석·기획 비용 안내를 확인했습니다.
+          {reuseAnalysis
+            ? "기존 분석 사용과 기획 1회 비용 안내를 확인했습니다."
+            : "사진 전송과 분석·기획 비용 안내를 확인했습니다."}
         </label>
         <Button
           className="mt-6 w-full"
@@ -540,6 +583,7 @@ export default function PlanningPanel({
                   method: "POST",
                   body: JSON.stringify({
                     consent: true,
+                    reuseAnalysis,
                     idempotencyKey: requestId.current,
                     presetId: preset || null,
                     description,
@@ -552,7 +596,7 @@ export default function PlanningPanel({
           }
         >
           <CheckCircle2 size={16} aria-hidden="true" />
-          동의하고 분석·기획 시작
+          {reuseAnalysis ? "동의하고 기획만 시작" : "동의하고 분석·기획 시작"}
         </Button>
       </Modal>
     </div>

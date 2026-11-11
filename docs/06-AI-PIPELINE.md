@@ -94,6 +94,14 @@
 
 ## 테스트 케이스
 
+### 응답 호환 및 기획만 복구 (ADR-017)
+
+`studio-v2`는 모델이 판단할 필드와 앱 정책을 분리한다. provider용 기획에는 aspectRatio를 요구하지 않고 최종 앱 DTO에 3:4를 설정한다. 평가의 사람 검수 true/버전 v1도 앱에서 설정한다. 사용자 수정 API의 strict DTO는 유지한다. BOM/전체 JSON fence/텍스트 content part는 로컬에서만 해석하고 추가 metadata는 버린다. 누락된 필수 내용이나 잘못된 enum은 그대로 실패 처리한다. 잘림/차단과 JSON/schema 오류도 구분한다.
+
+실패 attempt의 output_json에는 원문 대신 `{validation:{reason,issues:[{field,code}]}}`만 보관한다. field는 사전 정의한 경로 또는 response이고 값/모르는 키/오류 원문은 저장하지 않는다. provider가 반환한 비용·사용량은 실패해도 유지한다. JSON repair를 위한 추가 유료 호출이나 자동 재시도는 없다.
+
+사용자가 `reuseAnalysis=true`와 비용 동의를 보내면 본인 상품의 현재 분석을 새 작업 snapshot으로 고정하고 기획 1회만 호출한다. analysis step은 provider 호출/attempt 추가 없이 건너뛴다. 이전 실패 비용과 원장은 보존하며 별도 사용자 요청·idempotency key로 기록한다.
+
 - 무지 티셔츠, 로고 티셔츠, 스트라이프 셔츠, 니트, 코트, 프린트 의류.
 - 로고 왜곡/색상 변화/단추 누락/소매 길이 변화/배경 오인식 검출.
 - 유료 호출 이전 실패/유료 호출 중 타임아웃/성공 뒤 R2 실패/검수 API 실패.

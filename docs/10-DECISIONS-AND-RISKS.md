@@ -79,3 +79,7 @@ D1 공식 limits의 Free 50 queries/invocation 및 query당 100 bound parameters
 후속 production 진단에서 실제 실패를 재현했다. OAuth의 `redirect: "error"`는 Workers에서 지원하지 않아 전송 전에 TypeError가 발생한다. 공식 Workers Request 문서를 확인하고 OAuth/키 상태/모델 목록/AI 요청 6곳 모두 `manual` + non-2xx 거부로 수정했다. native fetch를 가짜 함수로 바꾸지 않고 실제 workerd가 로컬 합성 HTTP provider에 접속하는 회귀 검사로 보완했다. 외부 redirect로 code/key를 넘기지 않는 정책을 유지한다. 첫 production 브라우저의 unauth redirect 검사도 Playwright의 redirect-chain intercept 제약을 수정했으며 실제 Mock 사용자 흐름은 통과했고 합성 사용자 잔여 0을 읽기 전용 집계로 재확인했다. 실제 유료 inference/사용자 OAuth 성공은 별도 확인한다.
 
 `8b2f245` 재배포 후 실제 exchange HTTP 400 합성 거부 응답과 사용자의 실제 OAuth/스튜디오 진입 성공을 확인했다. 운영 Mock 모바일에서 일시적 Workflow dispatch 실패가 나타나 기존 ID 재확인 경로를 테스트에 포함하고 desktop/mobile 2/2를 다시 통과했다. local/production Playwright artifact 경로도 분리했다. 실제 유료 inference와 의류 품질은 미검증으로 유지한다.
+
+## 2026-11-11 — 실제 기획 응답 형식 실패
+
+읽기 전용 진단에서 실제 planning은 Google AI Studio/`google/gemini-2.5-flash-lite`, STOP, 출력 198 tokens, 비용 $0.0000965로 정상 종료했으나 앱 validation에서 거부됐다. 원문은 저장하지 않아 정확한 필드는 소급 확인할 수 없다. ADR-017로 provider/App 계약을 분리하고 앱 정책 상수·singleton enum·JSON formatting 호환·값 없는 validation 진단을 추가했다. 성급하게 필수 항목/enum 검증을 없애거나 유료 자동 repair를 하지 않는다. 성공한 분석을 재사용하는 동의 기반 기획 1회 복구를 구현한다. 실제 사용자 기획 재검증은 배포 후 UI에서 실행해야 한다.

@@ -19,6 +19,7 @@ import {
   type PipelineDto,
   type PlanDto,
   type PresetInput,
+  type ProductAnalysis,
   planRequestSchema,
   presetInputSchema,
   productAnalysisSchema,
@@ -42,6 +43,7 @@ import { rateLimit } from "./auth";
 
 export type JobRow = typeof jobs.$inferSelect;
 export interface PlanSnapshot {
+  analysisSnapshot?: ProductAnalysis;
   sourceIds: string[];
   preset: PresetInput | null;
   description: string;
@@ -391,7 +393,12 @@ export async function paidStage<T>(
       .set({
         status: unknown ? "outcome_unknown" : "failed",
         durationMs: Date.now() - started,
-        ...(error instanceof InvalidOutputError ? error.usage : {}),
+        ...(error instanceof InvalidOutputError
+          ? {
+              ...error.usage,
+              outputJson: JSON.stringify({ validation: error.diagnostic }),
+            }
+          : {}),
       })
       .where(and(eq(attempts.id, id), eq(attempts.userId, job.userId)));
     throw error instanceof ProviderError
@@ -466,6 +473,7 @@ export async function runPlanStage(
   try {
     await jobActive(env, job);
     const snapshot = JSON.parse(job.requestJson) as PlanSnapshot;
+    if (stage === "analysis" && snapshot.analysisSnapshot) return;
     const adapter = await (deps.adapter ?? resolveAdapter)(env, job);
     await adapter.preflight(snapshot.analysisModel, stage);
     if (stage === "analysis") {
@@ -489,8 +497,11 @@ export async function runPlanStage(
         );
     } else {
       const p = await ownedProduct(env, job.userId, job.productId);
-      if (!p.analysisJson) throw new ProviderError("ANALYSIS_MISSING");
-      const analysis = productAnalysisSchema.parse(JSON.parse(p.analysisJson));
+      if (!snapshot.analysisSnapshot && !p.analysisJson)
+        throw new ProviderError("ANALYSIS_MISSING");
+      const analysis = productAnalysisSchema.parse(
+        snapshot.analysisSnapshot ?? JSON.parse(p.analysisJson ?? "null"),
+      );
       const plan = await paidStage(
         env,
         job,
@@ -600,6 +611,12 @@ export function pipelineRoutes() {
     const userId = c.get("identity").userId,
       p = await ownedProduct(c.env, userId, c.req.param("id"));
     const input = planRequestSchema.parse(await c.req.json());
+    if (input.reuseAnalysis && !p.analysisJson)
+      throw new AppError(
+        "ANALYSIS_MISSING",
+        "먼저 상품 분석을 완료해 주세요.",
+        409,
+      );
     await rateLimit(c, `analysis:${userId}`, 20);
     let preset: PresetInput | null = null;
     if (input.presetId) {
@@ -612,6 +629,13 @@ export function pipelineRoutes() {
       preset = presetInputSchema.parse(JSON.parse(row.specJson));
     }
     const snapshot: PlanSnapshot = {
+      ...(input.reuseAnalysis
+        ? {
+            analysisSnapshot: productAnalysisSchema.parse(
+              JSON.parse(p.analysisJson ?? "null"),
+            ),
+          }
+        : {}),
       sourceIds: await sourceSnapshot(c.env, userId, p.id),
       preset,
       description: input.description,

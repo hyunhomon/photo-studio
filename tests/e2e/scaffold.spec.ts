@@ -154,12 +154,44 @@ test("Mock: connect, upload, plan, generate, review, export and delete", async (
   await expect(page.getByLabel("의류 종류", { exact: true })).toHaveValue(
     "수정한 셔츠",
   );
+  await page
+    .getByRole("button", { name: "이 분석으로 기획 다시 만들기", exact: true })
+    .click();
+  await expect(
+    page.getByRole("button", { name: "동의하고 기획만 시작", exact: true }),
+  ).toBeDisabled();
+  await page
+    .getByLabel("기존 분석 사용과 기획 1회 비용 안내를 확인했습니다.")
+    .check();
+  const planningOnlyResponse = page.waitForResponse(
+    (r) =>
+      r.request().method() === "POST" &&
+      new URL(r.url()).pathname.endsWith("/plan"),
+  );
+  await page
+    .getByRole("button", { name: "동의하고 기획만 시작", exact: true })
+    .click();
+  const planningOnly = (await (await planningOnlyResponse).json()) as {
+    data: { id: string };
+  };
+  await waitForWorkflow(page.getByText(/V2 ·/));
+  const planningJob = await page.request.get(
+    `${productionOrigin || "http://localhost:8787"}/api/v1/jobs/${planningOnly.data.id}`,
+  );
+  expect(planningJob.ok()).toBe(true);
+  const jobBody = (await planningJob.json()) as {
+    data: { attempts: { stage: string }[] };
+  };
+  expect(jobBody.data.attempts.map((a) => a.stage)).toEqual(["planning"]);
+  await expect(page.getByLabel("의류 종류", { exact: true })).toHaveValue(
+    "수정한 셔츠",
+  );
   await page.getByRole("button", { name: "촬영 방식", exact: true }).click();
   await page
     .getByRole("option", { name: "가상 로케이션컷", exact: true })
     .click();
   await page.getByRole("button", { name: "콘셉트 승인", exact: true }).click();
-  await expect(page.getByText("V1 · 승인됨", { exact: true })).toBeVisible();
+  await expect(page.getByText("V2 · 승인됨", { exact: true })).toBeVisible();
   await page
     .getByRole("button", { name: "승인된 콘셉트로 생성", exact: true })
     .click();

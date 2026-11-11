@@ -113,3 +113,11 @@
 - OAuth, 키 상태 확인, 모델 catalog 및 유료 provider 요청 모두 `redirect: "manual"`로 변경한다. 3xx는 기존 `response.ok` 검사에서 거부하고 Location을 따라가지 않는다. 키/인증코드가 다른 호스트에 전달되지 않으며 자동 재시도도 하지 않는다.
 - native fetch를 가짜 함수로 교체하면 이 문제를 놓친다. `test:oauth`는 실제 workerd native HTTP와 로컬 합성 provider 서버로 OAuth/키 상태/catalog/분석/기획/생성/평가를 검증한다. 합성 redirect trap에 요청이 도달하지 않는 것도 검사한다. 외부 유료 호출은 없다.
 - 공식 근거: https://developers.cloudflare.com/workers/runtime-apis/request/
+
+## ADR-017: 구조화 응답 호환성과 기획만 복구 — Accepted (2026-11-11)
+- 실제 기획 호출은 Google AI Studio에서 STOP으로 정상 종료되고 비용도 반환됐지만 앱 형식 검증에 실패했다. 이전 실패 원문을 보관하지 않아 정확한 불일치 필드는 소급 확정할 수 없다. 크레딧 부족 오류와 응답 검증 실패를 구분한다.
+- `studio-v2`는 provider용 출력 계약과 앱 최종 계약을 분리한다. 3:4 비율, 사람 검수 필수 true, 평가 버전 v1은 앱 정책으로 바인딩하며 모델이 결정하지 않는다. 문자열 enum은 그대로 유지하고 wire JSON Schema의 literal은 동등한 singleton enum으로 표현한다.
+- 로컬에서 BOM/전체 JSON code fence/텍스트 content part만 손실 없이 해석하고 사용하지 않는 추가 metadata를 버린다. 필수 항목·타입·범위·enum은 계속 검증한다. 빠진 조명/포즈 등을 만들어 채우거나 잘못된 enum을 추측 변환하지 않는다. HTTP 사용자 수정 API의 strict 계약은 유지한다.
+- 응답 잘림/차단/JSON 오류/schema 불일치를 구분한다. 실패 attempt의 기존 `output_json`에는 값·원문·모르는 속성명·Zod 메시지 없이 고정 reason/허용된 field path/issue code만 저장한다. 사용량·실제 비용·원장은 유지하며 유료 호출 자동 재시도는 없다.
+- `reuseAnalysis=true`는 사용자 비용 동의를 받은 새 작업이다. 본인 상품의 저장된 분석을 요청 시 snapshot으로 고정하고 기존 analysis stage의 모델 호출을 생략한 뒤 planning 1회만 실행한다. 이전 실패 원장/비용은 변경하지 않으며 새 idempotency key와 원장을 사용한다. 기본 분석+기획 흐름은 유지한다.
+- 근거: https://openrouter.ai/docs/guides/features/structured-outputs 및 https://ai.google.dev/gemini-api/docs/structured-output
