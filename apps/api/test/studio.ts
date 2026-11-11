@@ -1,7 +1,7 @@
 import { createApp } from "../src/app";
 import { memoryEnv } from "./memory";
 import { syntheticPng } from "./png";
-import type { JobDto, ProductDto, ProjectDto } from "@photo-studio/schemas";
+import type { JobDto, ProductDto } from "@photo-studio/schemas";
 export async function studioFixture() {
   const state = memoryEnv(),
     app = createApp();
@@ -41,9 +41,6 @@ export async function studioFixture() {
       ...((await r.json()) as { data: T; error?: { code: string } }),
     };
   }
-  const project = (
-    await call<ProjectDto>("/projects", "POST", { name: "Synthetic fixture" })
-  ).data;
   const form = new FormData();
   form.set("name", "Synthetic garment");
   form.append(
@@ -52,9 +49,7 @@ export async function studioFixture() {
       type: "image/png",
     }),
   );
-  const product = (
-    await call<ProductDto>(`/projects/${project.id}/products`, "POST", form)
-  ).data;
+  const product = (await call<ProductDto>("/products", "POST", form)).data;
   const planInput = {
     consent: true,
     idempotencyKey: crypto.randomUUID(),
@@ -72,7 +67,6 @@ export async function studioFixture() {
     headers,
     login,
     call,
-    project,
     product,
     planInput,
     startPlan,

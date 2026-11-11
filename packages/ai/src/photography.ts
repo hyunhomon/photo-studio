@@ -112,6 +112,7 @@ export function compilePhotographicPrompt(
     location: plan.location,
     lighting: plan.lighting,
     materialDirection: plan.materialDirection,
+    referenceNotes: plan.referenceNotes,
     mustPreserve: plan.mustPreserve,
   };
   const analysis = direction.garmentAnalysis

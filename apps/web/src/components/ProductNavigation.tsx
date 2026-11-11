@@ -17,43 +17,41 @@ import {
   Search,
   PanelLeftClose,
   PanelLeftOpen,
-  Folder,
+  Shirt,
   ArrowUpRight,
   SlidersHorizontal,
   ChartNoAxesColumn,
   Settings2,
   X,
 } from "lucide-react";
-import type { ProjectDto } from "@photo-studio/schemas";
+import type { ProductSummaryDto } from "@photo-studio/schemas";
 import type { Me } from "../lib/api";
 
-export function ProjectSearch({
+export function ProductSearch({
   open,
   onClose,
-  projects,
+  products,
 }: {
   open: boolean;
   onClose: () => void;
-  projects: ProjectDto[];
+  products: ProductSummaryDto[];
 }) {
   const [query, setQuery] = useState("");
-  const results = projects.filter((p) =>
-    `${p.name} ${p.description}`
-      .toLocaleLowerCase()
-      .includes(query.trim().toLocaleLowerCase()),
+  const results = products.filter((p) =>
+    `${p.name}`.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()),
   );
   return (
     <Dialog open={open} onClose={onClose} className="relative z-50">
       <DialogBackdrop className="fixed inset-0 bg-overlay/70 backdrop-blur-sm" />
       <div className="fixed inset-0 flex items-start justify-center px-4 pt-[15dvh]">
         <DialogPanel className="w-full max-w-xl overflow-hidden rounded-2xl border border-control bg-surface shadow-2xl">
-          <DialogTitle className="sr-only">프로젝트 검색</DialogTitle>
+          <DialogTitle className="sr-only">상품 검색</DialogTitle>
           <Combobox
             value={null}
-            onChange={(project: ProjectDto | null) => {
-              if (project) {
+            onChange={(product: ProductSummaryDto | null) => {
+              if (product) {
                 onClose();
-                const path = `/studio/projects/${project.id}`;
+                const path = `/studio/products/${product.id}`;
                 if (location.pathname !== path || location.search)
                   void navigate(path);
               }
@@ -67,9 +65,9 @@ export function ProjectSearch({
               />
               <ComboboxInput
                 autoFocus
-                aria-label="프로젝트 검색어"
+                aria-label="상품 검색어"
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="프로젝트 이름이나 메모로 검색"
+                placeholder="상품 이름으로 검색"
                 className="min-h-11 min-w-0 flex-1 bg-transparent text-sm outline-none focus:outline-none"
               />
               <button
@@ -85,19 +83,19 @@ export function ProjectSearch({
               static
               className="max-h-[50dvh] overflow-y-auto p-2 outline-none"
             >
-              {results.map((project) => (
+              {results.map((product) => (
                 <ComboboxOption
-                  key={project.id}
-                  value={project}
+                  key={product.id}
+                  value={product}
                   className="flex cursor-pointer items-center gap-3 rounded-xl px-3 py-3 text-sm data-focus:bg-elevated"
                 >
-                  <Folder
+                  <Shirt
                     size={17}
                     className="shrink-0 text-muted"
                     aria-hidden="true"
                   />
                   <span className="min-w-0 flex-1 truncate">
-                    {project.name}
+                    {product.name}
                   </span>
                   <ArrowUpRight
                     size={14}
@@ -108,9 +106,9 @@ export function ProjectSearch({
               ))}
               {!results.length && (
                 <p className="px-4 py-10 text-center text-sm text-muted">
-                  {projects.length
-                    ? "일치하는 프로젝트가 없습니다."
-                    : "새 프로젝트로 첫 촬영을 시작해 보세요."}
+                  {products.length
+                    ? "일치하는 상품이 없습니다."
+                    : "새 상품으로 첫 촬영을 시작해 보세요."}
                 </p>
               )}
             </ComboboxOptions>
@@ -125,9 +123,9 @@ export function ProjectSearch({
   );
 }
 
-export function ProjectNavigation({
+export function ProductNavigation({
   me,
-  projects,
+  products,
   loading,
   listError,
   onRetry,
@@ -135,13 +133,13 @@ export function ProjectNavigation({
   onSearch,
   collapsed,
   onToggle,
-  activeProjectId,
+  activeProductId,
   section,
   mobile = false,
   onClose,
 }: {
   me: Me | null;
-  projects: ProjectDto[];
+  products: ProductSummaryDto[];
   loading: boolean;
   listError: string;
   onRetry: () => void;
@@ -149,7 +147,7 @@ export function ProjectNavigation({
   onSearch: () => void;
   collapsed: boolean;
   onToggle: () => void;
-  activeProjectId?: string;
+  activeProductId?: string;
   section: string;
   mobile?: boolean;
   onClose?: () => void;
@@ -176,10 +174,10 @@ export function ProjectNavigation({
     void navigate(path);
   }
   const groups = [
-    { label: "최근 7일", items: projects.filter((p) => p.updatedAt >= cutoff) },
+    { label: "최근 7일", items: products.filter((p) => p.createdAt >= cutoff) },
     {
-      label: "이전 프로젝트",
-      items: projects.filter((p) => p.updatedAt < cutoff),
+      label: "이전 상품",
+      items: products.filter((p) => p.createdAt < cutoff),
     },
   ];
   const iconButton =
@@ -207,7 +205,7 @@ export function ProjectNavigation({
           onClick={mobile ? onClose : onToggle}
           aria-label={
             mobile
-              ? "프로젝트 목록 닫기"
+              ? "상품 목록 닫기"
               : collapsed
                 ? "사이드바 펼치기"
                 : "사이드바 접기"
@@ -233,38 +231,38 @@ export function ProjectNavigation({
           type="button"
           onClick={onNew}
           disabled={!me}
-          title="새 프로젝트"
+          title="새 상품"
           className={`sidebar-item w-full disabled:opacity-40 ${collapsed ? "justify-center px-0" : ""}`}
         >
           <SquarePen size={18} aria-hidden="true" />
-          <span className={collapsed ? "sr-only" : ""}>새 프로젝트</span>
+          <span className={collapsed ? "sr-only" : ""}>새 상품</span>
         </button>
         <button
           type="button"
           onClick={onSearch}
           disabled={!me}
-          title="프로젝트 검색"
-          aria-label="프로젝트 검색"
+          title="상품 검색"
+          aria-label="상품 검색"
           className={`sidebar-item w-full text-muted disabled:opacity-40 ${collapsed ? "justify-center px-0" : ""}`}
         >
           <Search size={18} aria-hidden="true" />
-          <span className={collapsed ? "sr-only" : ""}>프로젝트 검색</span>
+          <span className={collapsed ? "sr-only" : ""}>상품 검색</span>
           {!collapsed && (
             <kbd className="ml-auto text-[9px] text-muted/70">Ctrl K</kbd>
           )}
         </button>
       </div>
       <nav
-        aria-label="프로젝트 목록"
+        aria-label="상품 목록"
         className="mt-7 min-h-0 flex-1 overflow-y-auto overscroll-contain"
       >
         {loading ? (
           <div
-            aria-label="프로젝트 목록을 불러오고 있습니다"
+            aria-label="상품 목록을 불러오고 있습니다"
             role="status"
             className="space-y-3 px-3 motion-safe:animate-pulse"
           >
-            <span className="sr-only">프로젝트 목록을 불러오고 있습니다</span>
+            <span className="sr-only">상품 목록을 불러오고 있습니다</span>
             {[1, 2, 3, 4].map((n) => (
               <div
                 key={n}
@@ -280,7 +278,7 @@ export function ProjectNavigation({
               다시 확인
             </button>
           </div>
-        ) : !me ? null : projects.length ? (
+        ) : !me ? null : products.length ? (
           groups
             .filter((g) => g.items.length)
             .map((group) => (
@@ -290,28 +288,28 @@ export function ProjectNavigation({
                     {group.label}
                   </p>
                 )}
-                {group.items.map((project) => (
+                {group.items.map((product) => (
                   <a
-                    key={project.id}
-                    href={`/studio/projects/${project.id}`}
-                    title={project.name}
+                    key={product.id}
+                    href={`/studio/products/${product.id}`}
+                    title={product.name}
                     aria-current={
-                      activeProjectId === project.id ? "page" : undefined
+                      activeProductId === product.id ? "page" : undefined
                     }
                     onClick={(event) =>
-                      follow(event, `/studio/projects/${project.id}`)
+                      follow(event, `/studio/products/${product.id}`)
                     }
-                    className={`sidebar-item mb-0.5 ${collapsed ? "justify-center px-0" : ""} ${activeProjectId === project.id ? "bg-elevated text-ink" : "text-muted hover:text-ink"}`}
+                    className={`sidebar-item mb-0.5 ${collapsed ? "justify-center px-0" : ""} ${activeProductId === product.id ? "bg-elevated text-ink" : "text-muted hover:text-ink"}`}
                   >
-                    <Folder size={16} className="shrink-0" aria-hidden="true" />
+                    <Shirt size={16} className="shrink-0" aria-hidden="true" />
                     <span
                       className={
                         collapsed ? "sr-only" : "min-w-0 flex-1 truncate"
                       }
                     >
-                      {project.name}
+                      {product.name}
                     </span>
-                    {!collapsed && project.status === "deleting" && (
+                    {!collapsed && product.status === "deleting" && (
                       <span className="text-[9px] text-warning">삭제 중</span>
                     )}
                   </a>
@@ -321,7 +319,7 @@ export function ProjectNavigation({
         ) : (
           !collapsed && (
             <div className="px-3 text-xs leading-6 text-muted/80">
-              <p>아직 프로젝트가 없어요.</p>
+              <p>아직 상품이 없어요.</p>
               <p className="mt-1">
                 새 촬영을 시작하면
                 <br />

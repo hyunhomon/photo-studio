@@ -6,6 +6,8 @@ import {
   ScanSearch,
   SlidersHorizontal,
 } from "lucide-react";
+import { TabGroup, TabList, Tab, TabPanels, TabPanel } from "@headlessui/react";
+import type { ReactNode } from "react";
 import { Button, Modal, Select } from "@photo-studio/ui";
 import type {
   JobDto,
@@ -16,7 +18,7 @@ import type {
   ProductDto,
   ShootPlan,
 } from "@photo-studio/schemas";
-import { errorMessage, type Me, request } from "../lib/api";
+import { apiBase, errorMessage, type Me, request } from "../lib/api";
 
 export const jobLabels: Record<string, string> = {
   queued: "작업 대기",
@@ -165,7 +167,7 @@ export function AnalysisEditor({
           EDITABLE / AI + YOU
         </span>
       </div>
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-4">
         <Field
           label="의류 종류"
           value={value.garmentType}
@@ -260,11 +262,17 @@ export function PlanEditor({
           {plan.status === "approved" ? "승인됨" : "확인 필요"}
         </span>
       </div>
+      {plan.spec.referenceNotes && (
+        <div className="my-4 rounded-xl bg-accent-soft p-3 text-xs leading-6 text-muted">
+          <strong className="block text-primary">레퍼런스 관찰</strong>
+          {plan.spec.referenceNotes}
+        </div>
+      )}
       <p className="my-4 text-xs leading-6 text-muted">
         원본의 보존 포인트를 확인하고 무드·모델·장소를 조정해 주세요. 상품
         사진은 얼굴보다 의류 전체와 밑단·소매가 보이는 구도를 권장합니다.
       </p>
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-4">
         <Field
           label="시즌"
           value={v.season}
@@ -385,13 +393,18 @@ export default function PlanningPanel({
   me,
   onRefresh,
   onPipeline,
+  referencesPanel,
 }: {
   product: ProductDto;
   me: Me;
   onRefresh: () => void;
   onPipeline?: (data: PipelineDto) => void;
+  referencesPanel?: ReactNode;
 }) {
   const requestId = useRef(crypto.randomUUID());
+  const [tab, setTab] = useState(0),
+    [useLook, setUseLook] = useState(true);
+  const lookReference = product.assets.find((a) => a.kind === "look_reference");
   const [data, setData] = useState<PipelineDto>({ plans: [], jobs: [] }),
     [presets, setPresets] = useState<PresetDto[]>([]),
     [preset, setPreset] = useState(""),
@@ -443,8 +456,11 @@ export default function PlanningPanel({
     }
   }
   const plan = data.plans[0];
+  useEffect(() => {
+    if (plan?.id) setTab(2);
+  }, [plan?.id]);
   return (
-    <div className="space-y-6">
+    <div className="planning-panel">
       {error && (
         <p
           role="alert"
@@ -453,113 +469,143 @@ export default function PlanningPanel({
           {error}
         </p>
       )}
-      <section className="rounded-panel border border-line bg-surface p-6">
-        <p className="eyebrow text-muted">01 / UNDERSTAND & DIRECT</p>
-        <div className="mt-4 flex items-center gap-3">
-          <ScanSearch size={22} aria-hidden="true" />
-          <h2 className="text-xl">한 벌을 위한 촬영 기획</h2>
-        </div>
-        <p className="mt-3 text-sm leading-7 text-muted">
-          사진 속 디테일을 분석하고, 브랜드에 어울리는 촬영 콘셉트를 제안합니다.
-          업로드만으로 AI가 실행되지는 않습니다.
-        </p>
-        <div className="mt-5 grid gap-4">
-          <Select
-            label="사용할 브랜드 프리셋"
-            value={preset}
-            onChange={setPreset}
-            options={[
-              { value: "", label: "상품에 맞게 추천" },
-              ...presets.map((p) => ({ value: p.id, label: p.name })),
-            ]}
-          />
-          <Field
-            label="상품 설명 · 기획 요청 (선택)"
-            value={description}
-            onChange={setDescription}
-            multiline
-          />
-        </div>
-        <Button
-          className="mt-5"
-          disabled={busy || active}
-          onClick={() => {
-            setReuseAnalysis(false);
-            setConsent(false);
-            requestId.current = crypto.randomUUID();
-            setOpen(true);
-          }}
-        >
-          <SlidersHorizontal size={15} aria-hidden="true" />
-          {product.analysis ? "새로 분석·기획" : "분석 시작"}
-        </Button>
-        {product.analysis && (
-          <div className="mt-4 border-t border-line pt-4">
-            <p className="text-xs leading-6 text-muted">
-              완료된 상품 분석을 그대로 사용해 촬영 기획만 새로 요청할 수
-              있습니다. 다음 화면에서 기획 1회 비용 안내를 확인한 뒤 실행합니다.
-            </p>
-            <Button
-              className="mt-3"
-              variant="secondary"
-              disabled={busy || active}
-              onClick={() => {
-                setReuseAnalysis(true);
-                setConsent(false);
-                requestId.current = crypto.randomUUID();
-                setOpen(true);
-              }}
+      <TabGroup selectedIndex={tab} onChange={setTab}>
+        <TabList className="sticky top-0 z-10 grid grid-cols-3 gap-1 border-b border-line bg-surface p-3">
+          {["기획", "상품 이해", "촬영 콘셉트"].map((label, index) => (
+            <Tab
+              key={label}
+              disabled={
+                index === 1 ? !product.analysis : index === 2 ? !plan : false
+              }
+              className="rounded-lg px-2 py-3 text-xs font-semibold text-muted data-selected:bg-elevated data-selected:text-ink disabled:opacity-35"
             >
-              이 분석으로 기획 다시 만들기
-            </Button>
-          </div>
-        )}
-      </section>
-      {data.jobs[0] && (
-        <JobStatus
-          job={data.jobs[0]}
-          onDispatch={() =>
-            void action(() =>
-              request(
-                `/api/v1/jobs/${data.jobs[0]?.id}/dispatch`,
-                { method: "POST" },
-                me.csrf,
-              ),
-            )
-          }
-        />
-      )}
-      {product.analysis && (
-        <AnalysisEditor
-          key={JSON.stringify(product.analysis)}
-          analysis={product.analysis}
-          busy={busy || active}
-          onSave={(a) =>
-            void action(() =>
-              request(
-                `/api/v1/products/${product.id}/analysis`,
-                { method: "PATCH", body: JSON.stringify(a) },
-                me.csrf,
-              ),
-            )
-          }
-        />
-      )}
-      {plan && (
-        <PlanEditor
-          key={`${plan.id}-${plan.status}`}
-          plan={plan}
-          busy={busy || active}
-          onSave={(spec, approved) =>
-            void action(() =>
-              request(
-                `/api/v1/plans/${plan.id}`,
-                { method: "PATCH", body: JSON.stringify({ spec, approved }) },
-                me.csrf,
-              ),
-            )
-          }
-        />
+              {label}
+            </Tab>
+          ))}
+        </TabList>
+        <TabPanels>
+          <TabPanel unmount={false} className="space-y-5 p-5">
+            <section className="space-y-4">
+              <p className="eyebrow text-muted">01 / UNDERSTAND & DIRECT</p>
+              <div className="mt-4 flex items-center gap-3">
+                <ScanSearch size={22} aria-hidden="true" />
+                <h2 className="text-xl">한 벌을 위한 촬영 기획</h2>
+              </div>
+              <p className="mt-3 text-sm leading-7 text-muted">
+                사진 속 디테일을 분석하고, 브랜드에 어울리는 촬영 콘셉트를
+                제안합니다. 업로드만으로 AI가 실행되지는 않습니다.
+              </p>
+              <div className="mt-5 grid gap-4">
+                {lookReference && (
+                  <label className="flex items-start gap-3 rounded-xl bg-paper p-3 text-xs leading-6">
+                    <input
+                      type="checkbox"
+                      checked={useLook}
+                      onChange={(e) => setUseLook(e.target.checked)}
+                      className="mt-1 size-4 shrink-0 accent-primary"
+                    />
+                    촬영 레퍼런스의 구도·빛·분위기로 기획하기
+                  </label>
+                )}
+                <Select
+                  label="사용할 브랜드 프리셋"
+                  value={preset}
+                  onChange={setPreset}
+                  options={[
+                    { value: "", label: "상품에 맞게 추천" },
+                    ...presets.map((p) => ({ value: p.id, label: p.name })),
+                  ]}
+                />
+                <Field
+                  label="상품 설명 · 기획 요청 (선택)"
+                  value={description}
+                  onChange={setDescription}
+                  multiline
+                />
+              </div>
+              <Button
+                className="mt-5"
+                disabled={busy || active}
+                onClick={() => {
+                  setReuseAnalysis(false);
+                  setConsent(false);
+                  requestId.current = crypto.randomUUID();
+                  setOpen(true);
+                }}
+              >
+                <SlidersHorizontal size={15} aria-hidden="true" />
+                {product.analysis ? "새로 분석·기획" : "분석 시작"}
+              </Button>
+              {product.analysis && (
+                <div className="mt-4 border-t border-line pt-4">
+                  <p className="text-xs leading-6 text-muted">
+                    완료된 상품 분석을 그대로 사용해 촬영 기획만 새로 요청할 수
+                    있습니다. 다음 화면에서 기획 1회 비용 안내를 확인한 뒤
+                    실행합니다.
+                  </p>
+                  <Button
+                    className="mt-3"
+                    variant="secondary"
+                    disabled={busy || active}
+                    onClick={() => {
+                      setReuseAnalysis(true);
+                      setConsent(false);
+                      requestId.current = crypto.randomUUID();
+                      setOpen(true);
+                    }}
+                  >
+                    이 분석으로 기획 다시 만들기
+                  </Button>
+                </div>
+              )}
+            </section>
+            {referencesPanel}
+          </TabPanel>
+          <TabPanel unmount={false} className="p-5">
+            {product.analysis && (
+              <AnalysisEditor
+                key={JSON.stringify(product.analysis)}
+                analysis={product.analysis}
+                busy={busy || active}
+                onSave={(a) =>
+                  void action(() =>
+                    request(
+                      `/api/v1/products/${product.id}/analysis`,
+                      { method: "PATCH", body: JSON.stringify(a) },
+                      me.csrf,
+                    ),
+                  )
+                }
+              />
+            )}
+          </TabPanel>
+          <TabPanel unmount={false} className="p-5">
+            {plan && (
+              <PlanEditor
+                key={`${plan.id}-${plan.status}`}
+                plan={plan}
+                busy={busy || active}
+                onSave={(spec, approved) =>
+                  void action(() =>
+                    request(
+                      `/api/v1/plans/${plan.id}`,
+                      {
+                        method: "PATCH",
+                        body: JSON.stringify({ spec, approved }),
+                      },
+                      me.csrf,
+                    ),
+                  )
+                }
+              />
+            )}
+          </TabPanel>
+        </TabPanels>
+      </TabGroup>
+      {!active && data.jobs[0]?.errorCode && (
+        <div className="px-5 pb-5">
+          <JobStatus job={data.jobs[0]} />
+        </div>
       )}
       <Modal
         open={open}
@@ -579,6 +625,19 @@ export default function PlanningPanel({
               : "상품 사진과 설명을 OpenRouter에 전송합니다. 상품 분석 1회와 촬영 기획 1회의 AI 호출 비용이 내 OpenRouter 크레딧에서 차감됩니다."
         }
       >
+        {useLook && lookReference && (
+          <div className="mt-4 flex items-start gap-3 rounded-lg bg-studio p-3 text-xs leading-6">
+            <img
+              src={`${apiBase}/api/v1/assets/${lookReference.id}/content`}
+              alt="기획에 사용할 촬영 레퍼런스"
+              className="h-20 w-16 shrink-0 rounded-md object-contain"
+            />
+            <p>
+              선택한 촬영 레퍼런스를 기획 호출에 함께 전송합니다. 추가 AI 단계
+              없이 빛·무드·구도를 읽고, 의류 원본과 구분해 반영합니다.
+            </p>
+          </div>
+        )}
         <p className="mt-4 text-xs text-muted">
           분석·기획 모델: {me.models.analysis}
         </p>
@@ -620,6 +679,10 @@ export default function PlanningPanel({
                     idempotencyKey: requestId.current,
                     presetId: preset || null,
                     description,
+                    lookReferenceId: useLook
+                      ? (lookReference?.id ?? null)
+                      : null,
+                    referenceConsent: Boolean(useLook && lookReference),
                   }),
                 },
                 me.csrf,

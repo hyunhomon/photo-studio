@@ -111,3 +111,15 @@ v2의 사용자 실행 신규 이미지가 성공했고 evaluation 없이 실제
 ADR-021은 인물/촬영감의 역할을 분리한 실제 visual reference 입력을 구현한다. 기존 private assets/정규화/owner/CSRF/삭제 정책을 재사용하고 사용 선택/외부 처리 동의/과금 전 검사로 제한한다. 인물 신원/학습 데이터 수집이나 native face-swap/MTF 보정 기능으로 과장하지 않는다. 코드/합성 transport의 역할 분리와 실제 모델이 이를 지키는 품질은 별개이며 원치 않는 인물·의류 혼합도 실제 검증 항목으로 남긴다. 새 모델 단계나 자동 유료 호출은 없다. 사용자 첨부 비교 사진을 자동으로 provider에 보내지 않았다.
 
 최종 앱 `b07cb46` commit/push 및 production web/API/Workflow 배포 완료. format/lint/typecheck/unit/build 44/44, native provider/OAuth 계약·합성 manifest 6종, local/production desktop/mobile 각 6/6, 공개 smoke 통과. 운영 wrapper exit 0과 참조/동의 UI를 확인했고 합성 계정 0, 실제 계정/연결/세션과 기존 실제 이미지 7건/평가 5건 보존을 독립 확인했다. 실제 인물/촬영감 참조를 선택한 v3 품질 효과는 아직 미검증이다. 폰트·다크 토큰·Headless UI·BYOK와 1회 생성/무평가/무자동재시도 정책을 유지한다.
+
+## 2026-11-12 — 프로젝트 제거와 상품 작업대
+
+사용자 지시를 ADR-022로 확정했다. 숨은 프로젝트를 만들지 않고 products가 user_id에 직접 속하도록 바꾼다. 사이드바는 분석/모든 asset을 내려받는 대신 owner 상품 요약만 조회한다. 최초 다중 업로드는 staging 상태에서 사진과 선택 참조를 함께 저장하고 실패 시 rollback하며, 삭제 상태를 다시 ready로 되살리지 않는다. 의류 순서와 대표 사진은 저장 시각/ID 정렬로 일관되게 유지한다.
+
+중앙 비교와 오른쪽 기획 inspector를 분리하고, 1024px에서도 패널만 스크롤할 수 있게 했다. 기존 생성 결과는 새 기획/생성 중에도 비교의 근거로 남고 큰 대기 상태는 실제 job에서만 표시한다. 인증 pending은 OAuth 실패로 표시하지 않는다. Toss의 공식 Product Principles/Design System을 참고해 다음 행동과 컨트롤 수를 줄였고 다크 네온·폰트·Tailwind/Headless UI 스택은 유지한다.
+
+선택한 촬영감 이미지를 기존 planning 호출에 전달하는 studio-v6-planning-reference를 적용했다. 의류 분석은 여전히 의류만 받으며 referenceNotes는 관찰 요약이다. 기획 결과가 특정 얼굴/조명/소재를 정확히 재현했다는 검증값이 아니다. 생성은 기획에 사용한 참조를 미리 선택하되 사용자가 제외할 수 있고, 외부 처리와 이미지 1회 비용에 다시 동의한다. 새 AI 추출 단계/무단 유료 호출은 없다.
+
+사용자가 서비스 DB 초기화를 명시해 기존 계정·연결·세션·작업/비용/과거 평가 이력·private R2 미디어까지 삭제하는 일회성 절차를 준비했다. 이는 일반 배포/보존 정책 변경이 아니며 OpenRouter 측 계정/크레딧과 Cloudflare 리소스·master secret은 보존한다. 스크립트는 고정 production 대상 확인, 접근 차단, 활성 Workflow 종료, 객체별 삭제 후 행 삭제, FK/원장/빈 상태 확인을 수행한다. 읽기 전용 사전 확인에서 활성 작업/Workflow가 각 1개라 실행 전 종료 확인이 필요하다. 실제 실행·배포 결과는 후속 기록하며 완료로 미리 표시하지 않는다.
+
+초기화 실행 결과: 전체 앱 테이블 0, private R2 객체 10개 삭제 후 0, FK 오류 0, 스키마/마이그레이션 원장 보존을 확인했다. 사전 조회의 활성 1건은 실제 실행 직전 완료되어 취소/종료 대상은 없었고 실행/최종 확인 모두 active job/Workflow 0이었다. 이전 실제 생성/과거 평가 기록과 연결 정보도 사용자 요청 범위로 삭제했다. 추가 유료 호출은 없으며 다음 사용 시 OpenRouter 재연결이 필요하다. 최종 코드 전체 check(53/53, lint 경고 0, Astro 진단 0)와 local E2E6/6도 통과했다. 배포 및 운영 회귀는 아직 후속 검증 중이다.

@@ -3,7 +3,7 @@
 ## 단계
 
 1. **ProductAnalyzer**: 시각적 상품 특징 추출. 불확실한 소재/브랜드/사이즈 단정 금지.
-2. **ShootPlanner**: 계절·브랜드 프리셋·상품 특성을 기반으로 모델, 포즈, 구도, 로케이션, 조명 추천.
+2. **ShootPlanner**: 계절·브랜드 프리셋·상품 특성과 선택·동의한 촬영감 참조를 기반으로 모델, 포즈, 구도, 로케이션, 조명 추천.
 3. **ImageGenerator**: 승인된 촬영 계획 + 원본 참조 이미지를 이미지 모델에 전달.
 4. **사람의 비교**: 원본/이전 컷과 빛·초점/인물/소재를 직접 비교. ADR-019에서 QualityEvaluator와 점수·채택/폐기 피드백은 종료했다.
 
@@ -12,7 +12,7 @@
 ## ModelAdapter 인터페이스 설계 의도
 
 - `analyzeProduct({imageRefs, locale}) → ProductAnalysis`
-- `planShoot({productAnalysis, brandPreset, userOverrides}) → ShootPlan`
+- `plan(model, productAnalysis, brandPreset, description, {lookImage?}) → ShootPlan + Usage`
 - `generate(model, sources, plan, quality, {captureVersion, reason, adjustments, personImage, lookImage, previousImage, garmentAnalysis}) → GeneratedImage + Usage`
 - 평가 메서드는 어댑터에서 제거했다. 기존 Workflow evaluation step은 새 런타임에서 no-op이며 과거 평가 데이터/비용은 보존한다.
 - Provider 파라미터/응답은 이 계층에서만 노출, 서비스 내부는 정규화된 DTO 사용.
@@ -45,6 +45,7 @@
   "lighting": "soft natural sunlight",
   "mustPreserve": ["product shape", "color", "logos and print"],
   "materialDirection": "observed matte fabric, distinguish surrounding stone roughness",
+  "referenceNotes": "selected reference has soft side light and restrained neutral tone",
   "aspectRatio": "3:4"
 }
 ```
@@ -53,7 +54,7 @@
 
 - 기본 slug: `openai/gpt-image-2` (이 모델을 유지; 다른 신모델로 임의 교체 금지).
 - 전용 API: `POST https://openrouter.ai/api/v1/images`.
-- `input_references`: 원본 의류 1–3장 뒤에 개선할 이전 생성 컷을 선택적으로 추가한다. `type: image_url` 형식의 data URL. 실제 참조 수 capability와 전체 12MB를 과금 전 검사한다. 원본은 의류 증거, 이전 컷은 가상 성인의 특징용이다. ADR-020부터 이전 crop/피부 보정/노출/blur까지 유지하라고 지시하지 않는다.
+- `input_references`: 원본 의류 1–3장 → 선택·동의한 인물 0–1장 → 촬영감 0–1장 → 이전 생성 컷 0–1장 순서다. `type: image_url` 형식의 data URL. 실제 참조 수 capability와 전체 12MB를 과금 전 검사한다. 원본은 의류 증거, 이전 컷은 가상 성인의 특징용이다. ADR-020부터 이전 crop/피부 보정/노출/blur까지 유지하라고 지시하지 않는다.
 - 응답 `data[].b64_json`을 바로 R2에 바이너리로 저장; `media_type`에 맞는 MIME/확장자 사용.
 - `usage.cost`는 있을 때만 확정 비용으로 저장; 없으면 null(또는 별도 가정치).
 - `n`, `quality`, `aspect_ratio`, 참조 이미지 제한 등 모델 capabilities를 런타임/부트스트랩 시 검증.
@@ -82,7 +83,7 @@
 }
 ```
 
-- 새 평가 생성·점수 노출·피드백 쓰기는 하지 않는다. 기존 데이터는 삭제하지 않는다. 자동 재생성도 하지 않는다.
+- 새 평가 생성·점수 노출·피드백 쓰기는 하지 않는다. 기존 데이터는 통상 보존하며 ADR-022의 사용자 요청 일회성 초기화만 예외다. 자동 재생성도 하지 않는다.
 - 새 결과는 저장 완료 후 `needs_review`/`review`. 수동 비교 안내와 원본/이전 컷 확대를 제공한다.
 
 ## 촬영 프로토콜과 개선 지시
@@ -91,7 +92,15 @@
 
 ADR-020의 `studio-v4-retail` / `photo-v2-retail`부터 상품 전체/명시적 전신/명시적 접사에 맞춰 근사 화각과 거리를 연결한다. 새 배경 분리 기본값은 gentle이며 기존 명시적 값은 유지한다. 상품 분석을 생성 job의 `analysisSnapshot`에 고정하고 소재 추정/불확실성을 그대로 전달한다. 이전 컷은 가상 인물의 특징용이며 crop/피부 보정/노출/blur를 그대로 복제하지 않는다. 요청한 교정과 상품 가시성을 위해 재프레이밍할 수 있다. 외부 쇼핑몰 사진은 시각 비교 근거일 뿐 자동으로 provider 입력이나 배포 자산으로 사용하지 않는다.
 
-ADR-021의 현재 `studio-v5-reference` / `photo-v3-reference`는 사용자가 등록·선택·외부 처리 동의한 인물/촬영감 사진을 추가한다. 의류 1–3장→인물 0–1장→촬영감 0–1장→이전 컷 0–1장 순서를 컴파일러와 Images API payload에서 일치시킨다. 인물은 얼굴 증거, 촬영감은 톤/명암/선예도/질감의 기준이며 의류/신원 복제 역할과 분리한다. 인물 참조는 직전 생성 얼굴보다 우선한다. 모든 참조를 합한 12MB와 실제 수의 capability, 동의를 과금 전 검사한다. 분석에는 추가 참조를 넣지 않는다. 외부 URL 수집/자동 업로드/새 AI 단계는 없다. 모델의 native face-swap/style-transfer 기능을 구현했다고 표시하지 않으며 실제 결과는 사람이 확인해야 한다.
+ADR-021의 `studio-v5-reference` / `photo-v3-reference`는 사용자가 등록·선택·외부 처리 동의한 인물/촬영감 사진을 추가한다. 의류 1–3장→인물 0–1장→촬영감 0–1장→이전 컷 0–1장 순서를 컴파일러와 Images API payload에서 일치시킨다. 인물은 얼굴 증거, 촬영감은 톤/명암/선예도/질감의 기준이며 의류/신원 복제 역할과 분리한다. 인물 참조는 직전 생성 얼굴보다 우선한다. 모든 참조를 합한 12MB와 실제 수의 capability, 동의를 과금 전 검사한다. 분석에는 추가 참조를 넣지 않는다. 외부 URL 수집/자동 업로드/새 AI 단계는 없다. 모델의 native face-swap/style-transfer 기능을 구현했다고 표시하지 않으며 실제 결과는 사람이 확인해야 한다.
+
+## 참조 기반 기획 — ADR-022
+
+현재 prompt_version은 `studio-v6-planning-reference`이며 generation의 capture_version `photo-v3-reference`는 유지한다. 등록 폼의 인물/촬영감 참조도 단순 저장이다. 촬영감 사진을 기획 요청에서 선택하고 외부 처리에 동의해야 planning에 포함한다. 인물 참조는 분석/기획에 넣지 않는다.
+
+서버는 선택 ID의 owner/상품/용도와 동의를 검사하고 의류+기획 참조 총 12MB를 job 생성 전 확인한다. sourceSnapshot에는 순서가 보존된 의류만 담고 별도 lookReferenceId/referenceConsent를 고정한다. 분석은 의류만 사용한다. 기존 structured planning 호출에 look image를 추가하고 조명 방향·부드러움·톤·구도·초점·포즈 리듬·표면 반응의 관찰을 referenceNotes와 편집 가능한 기획에 담는다. 정확한 카메라/EXIF를 추측하거나 참조의 얼굴·의류·로고를 복제하지 않는다. 별도 AI 추출·유료 repair·자동 재생성은 없다.
+
+PlanDto.lookReferenceId는 사용한 사진의 연결이며 새 generation에 대한 전송 허가가 아니다. UI에서 동일 사진을 확인·선택하고 referenceConsent 및 이미지 비용에 새로 동의해야 한다. 생성은 같은 참조를 input_references에 보내되 기획 관찰과 권한 있는 의류 증거를 구분한다. 참조가 삭제되거나 부적절한 용도/owner이면 과금 전 실패한다. 관찰의 정확도와 실제 실사 품질은 인간이 별도로 검증해야 한다. Mock은 사진을 실제 분석한 것처럼 표현하지 않는다.
 
 ## 실제 API 비용의 신뢰성
 

@@ -1,56 +1,38 @@
-# D1 / Drizzle 데이터 모델 초안
+# D1 / Drizzle 데이터 모델 — ADR-022
 
-데이터베이스 생성 전 타입/관계/인덱스/삭제 정책을 확정하고 Drizzle migration으로 반영한다. ID는 내부 랜덤 UUID/ULID, 시간은 일관된 UTC 타임스탬프. 소유권은 모든 데이터 조회에 강제.
+현재 schema는 packages/db/src/schema.ts가 기준이다. 내부 ID는 UUID, 시간은 UTC epoch milliseconds이며 모든 읽기/쓰기는 owner 조건을 갖는다. 프로젝트 계층과 project_id는 제거했다.
 
-| Table | 주요 필드 | 핵심 제약 |
+| Table | 현재 역할 | 핵심 제약 |
 |---|---|---|
-| `users` | id, openrouter_user_id, created_at, last_login_at | `openrouter_user_id` unique; null 거부/연결 실패 처리 |
-| `provider_connections` | id, user_id, provider, external_user_id, key_ciphertext, iv, key_version, linked_at, revoked_at | user+provider unique, encrypted only |
-| `sessions` | id, user_id, token_hash, expires_at, created_at | token_hash unique, expiry index |
-| `oauth_flows` | id, state_hash, verifier_secret, browser_binding_hash, expires_at | single-use; TTL cleanup |
-| `invite_codes` | id, code_hash, max_uses, used_count, expires_at, created_at | ADR-016 이후 사용하지 않는 과거 테이블; 기존 데이터 보존 |
-| `invite_redemptions` | id, invite_id, user_id, redeemed_at | ADR-016 이후 신규 기록 없음; 기존 이력 보존 |
-| `auth_events` | id, stage, code, http_status, created_at | 고정 오류 종류/단계만; 같은 분/종류 중복 합침, 7일 TTL, 식별자/키/원문 없음 |
-| `projects` | id, user_id, name, description, created_at, updated_at | user index |
-| `products` | id, project_id, name, category, analysis_json, analysis_version, created_at | project index; user through project |
-| `assets` | id, user_id, product_id, job_id, kind, r2_key, mime_type, size_bytes, width, height, checksum, created_at | private R2 key; unique r2_key |
-| `shoot_plans` | id, product_id, version, season, mood, model_spec_json, location_spec_json, prompt_spec_json, status | product index |
-| `brand_presets` | id, user_id, name, model_spec_json, mood_spec_json, location_spec_json, updated_at | user index |
-| `generation_jobs` | id, user_id, product_id, shoot_plan_id, job_type, status, workflow_instance_id, idempotency_key, stage, error_code, started_at, finished_at | unique user+idempotency_key |
-| `generation_attempts` | id, job_id, stage, model, provider, provider_request_id, request_hash, status, started_at, finished_at, tokens_in, tokens_out, actual_cost_usd, estimated_cost_usd, cost_source, error_type | index(job_id,stage); cost_source enum |
-| `evaluations` | id, asset_id, attempt_id, evaluation_model, scores_json, violations_json, summary, status, created_at | asset index |
-| `asset_feedback` | id, asset_id, user_id, decision, reason_code, notes, created_at | one current decision per user+asset (or history rows, decide implementation) |
+| users | OpenRouter stable identity / test flag / 계정 상태 | stable identity unique, active/deleting |
+| provider_connections | 사용자별 암호화 key envelope | key 평문/브라우저 노출 없음 |
+| sessions / oauth_flows | opaque session hash / 단일 사용 PKCE | TTL, browser binding, CSRF |
+| rate_limits / auth_events | 제한·고정 오류 진단 | raw prompt/key/identifier 없는 진단 |
+| products | user_id, name, status, analysis_json/version, created_at | user FK, owner/created index, project FK 없음 |
+| assets | user_id, product_id, job_id, kind, private R2 key, 크기/치수/시각 | product/user FK, key unique |
+| brand_presets | owner별 무드·모델·장소 JSON | owner scope |
+| shoot_plans | product/user, version, status, spec_json, source_ids_json, look_reference_id | owner/product index, 승인 snapshot과 분리 |
+| generation_jobs | owner/product, kind/status/stage, request_json/hash, idempotency_key | unique user+idempotency |
+| generation_attempts | model/stage/status/prompt version/usage/nullable cost | unique job+stage |
+| quality_evaluations / asset_feedback | 과거 형식의 보존/내보내기 호환 | ADR-019 이후 신규 평가·피드백 없음 |
+| storage_cleanup / media_purges | 실패 삭제/늦은 저장 정리 | private owner/product prefix로 제한 |
 
-## JSON 스키마와 의미
+초대 관련 과거 테이블은 신규 사용하지 않는다. projects는 ADR-022 migration에서 삭제하며 숨은 default project를 만들지 않는다.
 
-ADR-019: `evaluations`와 `asset_feedback`는 과거 이력 보존/내보내기용이며 신규 쓰기를 종료했다. 새 결과 DTO/usage에 점수·채택률을 포함하지 않는다. 기획 JSON에 `model.appearance`, `camera.backgroundSeparation`, `materialDirection`을 추가하고 기존 행에는 기본값을 적용한다. `shootType`은 읽기 호환만 남긴다. job request snapshot에 `captureVersion`, `reviewMode=manual`, `adjustments`, `regenerationReason`, `regenerationOf`를 비공개 저장한다. additive/파괴적 schema migration은 필요하지 않다.
+## 사진/기획의 의미
 
-ADR-020: generation snapshot의 선택적 `analysisSnapshot`에 승인 시점 상품 분석/소재 추정/불확실성을 보관한다. 이후 상품 변경이 이미 요청된 촬영의 근거를 바꾸지 않게 하며 이전 분석이 없는 legacy snapshot도 지원한다. 새 배경 분리 기본은 gentle이고 이미 저장된 명시적 값은 변경하지 않는다.
+- input: 의류 정면/후면/디테일 최대 3장. 정상화 후 asset.created_at을 단조 증가시키고 created_at/id 순서로 첫 사진을 유지한다. 분석 sourceSnapshot에는 input만 포함한다.
+- person_reference / look_reference: 상품별 용도당 1장. 조건부 INSERT로 동시 중복/작업 중 변경을 막는다. 실제 decode/서명/용량 검사와 private R2 정책을 공유한다. 업로드 자체는 AI 호출이 아니다.
+- 기획은 선택한 lookReferenceId/referenceConsent를 job request에 고정한다. 기존 planning 호출이 사진의 조명/톤/무드/구도를 관찰해 referenceNotes를 반환한다. 관찰은 추정이며 사용자 수정과 상품 보존이 우선이다.
+- shoot_plans.look_reference_id는 계획에 사용한 사진을 추적한다. 참조 원본이 삭제돼도 역사적 ID는 남을 수 있으나 현재 asset 검증/새 동의 없이 생성 입력으로 사용하지 않는다.
+- 생성 snapshot은 의류 IDs/승인 분석/기획, 선택한 person/look IDs·동의, 이전 컷·개선 항목/지시, captureVersion을 고정한다. 결과 DTO의 참조 사용 여부는 품질 합격 지표가 아니다.
 
-ADR-021: assets.kind에 `person_reference`/`look_reference` 용도를 사용한다. 기존 text kind와 owner/product/R2 정책을 유지하며 새 테이블/migration은 없다. 조건부 INSERT로 용도당 1장과 작업 중 변경 차단을 원자적으로 검사한다. 선택한 ID와 `referenceConsent`를 generation snapshot에 고정한다. 의류 sourceSnapshot은 `kind=input`만 포함한다. 참조 원본 삭제 후 결과 사용 여부 이력은 남지만 원본 파일/asset row는 삭제한다. 프로젝트/계정 삭제는 모든 kind를 정리한다.
+## 비용/삭제
 
-- JSON은 `packages/schemas`의 Zod로 parse + validation. 구조 변경 시 `schema_version` 또는 version 필드.
-- `analysis_json`: garment_type, colors, material_guess, pattern, silhouette, season_guess, preservation_points[], uncertainty[]; **시각적 추정과 실제 소재 정보는 구분**.
-- `model_spec_json`: 성인 모델의 스타일, 포즈, 카메라 앵글 등의 비식별 설정. 실제 개인 신원 추정/보존 금지.
-- `location_spec_json`: 장소 타입, 계절, 시간대, 조명, 분위기.
-- `scores_json`: garment_fidelity, photorealism, composition + confidence; 검수는 **자동 판정 아님**.
+actual_cost_usd는 제공자가 반환한 값만 기록하고 없으면 NULL이다. 추정은 estimated_cost_usd로 분리한다. 합계는 확인된 부분합과 미확인 호출 수를 함께 표시한다. 원문 사진·지시·키·식별자를 console/CI에 기록하지 않는다.
 
-## 비용 필드 규칙
+상품 삭제는 원본·모든 참조·결과와 종속 기획/작업을 삭제한다. 계정 삭제는 연결/세션도 정리한다. 참조 원본만 삭제하면 기존 생성 결과는 남는다고 UI에 안내한다. 실패한 R2 삭제와 late write는 queue/tombstone으로 재정리한다.
 
-- `actual_cost_usd`: API 응답의 실제 값을 받은 경우에만 기록. 없으면 NULL.
-- `estimated_cost_usd`: 내부 단가 모델 사용 시 별도로 기록. 추정 여부 라벨 표시.
-- `cost_source`: `provider_reported | estimated | unknown`.
-- 전체 누적금액은 확정 비용과 추정 비용을 별도 합산해야 한다.
+## 사용자 승인 초기화
 
-## 삭제 정책
-
-- 프로젝트 삭제 요청 시 R2 오브젝트 삭제 → 종속 메타데이터 삭제 또는 비식별 통계만 남기는 방식 검토.
-- 사용자의 OAuth 연결 해제는 발급된 API Key의 **서비스 측 사용 중단**을 보장하고, OpenRouter 측 폐기 안내/지원 기능을 검토한다.
-- 세션/PKCE 임시 데이터는 만료 후 주기적 정리, 접근 로그에서 민감값 제거.
-
-## 기본 인덱스
-
-- users.openrouter_user_id(unique), sessions.token_hash(unique)
-- projects.user_id, products.project_id, assets.product_id, assets.user_id
-- generation_jobs.user_id/status, generation_attempts.job_id/stage
-- evaluations.asset_id, feedback.asset_id
+0009 migration은 기존 studio 데이터/프리셋을 비우고 프로젝트 계층을 제거한다. migration 자체는 인증 자료를 보존한다. 별도 운영 초기화는 이번 사용자 요청에 따라 계정/연결/세션을 포함한 앱 DB와 private R2 데이터까지 제거하는 범위다. 실행 중 작업 취소·미디어 정리·잔여 검증 후 적용하며 Cloudflare 바인딩/도메인/master secret은 유지한다. 완료 여부는 09-IMPLEMENTATION-PLAN.md의 실행 기록으로 판단한다. 일반 배포마다 데이터를 초기화하는 정책은 아니다.

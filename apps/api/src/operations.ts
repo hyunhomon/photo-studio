@@ -10,7 +10,6 @@ import {
   desc,
   jobs,
   products,
-  projects,
   shootPlans,
   presets,
   evaluations,
@@ -89,20 +88,9 @@ export function operationsRoutes() {
       version: 1,
       exportedAt: new Date().toISOString(),
       account,
-      projects: await db
-        .select({
-          id: projects.id,
-          name: projects.name,
-          description: projects.description,
-          createdAt: projects.createdAt,
-        })
-        .from(projects)
-        .where(eq(projects.userId, userId))
-        .all(),
       products: await db
         .select({
           id: products.id,
-          projectId: products.projectId,
           name: products.name,
           analysisJson: products.analysisJson,
           createdAt: products.createdAt,
@@ -212,7 +200,7 @@ export function operationsRoutes() {
         userId,
       ),
       c.env.DB.prepare(
-        "UPDATE projects SET status='deleting' WHERE user_id=?",
+        "UPDATE products SET status='deleting' WHERE user_id=?",
       ).bind(userId),
     ]);
     const productIds = await createDb(c.env.DB)

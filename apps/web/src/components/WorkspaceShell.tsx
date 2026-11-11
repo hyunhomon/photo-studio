@@ -7,13 +7,13 @@ import {
 } from "@headlessui/react";
 import { Menu, Search, SquarePen, ArrowUpRight, RefreshCw } from "lucide-react";
 import { Button } from "@photo-studio/ui";
-import type { ProjectDto } from "@photo-studio/schemas";
+import type { ProductSummaryDto } from "@photo-studio/schemas";
 import type { AccountState } from "../lib/account";
 import { request, type Me } from "../lib/api";
 import ConnectionPanel from "./ConnectionPanel";
 import WorkspaceSkeleton from "./WorkspaceSkeleton";
-import { NewProjectDialog } from "./ProjectComposer";
-import { ProjectNavigation, ProjectSearch } from "./ProjectNavigation";
+import { navigate } from "astro:transitions/client";
+import { ProductNavigation, ProductSearch } from "./ProductNavigation";
 
 export default function WorkspaceShell({
   children,
@@ -22,9 +22,10 @@ export default function WorkspaceShell({
   onRetry,
   section = "스튜디오",
   error,
-  activeProjectId,
+  activeProductId,
   title,
   welcome = false,
+  workbench = false,
 }: {
   children: ReactNode;
   me: Me | null;
@@ -32,18 +33,18 @@ export default function WorkspaceShell({
   onRetry: () => void;
   section?: string;
   error?: string;
-  activeProjectId?: string;
+  activeProductId?: string;
   title?: string;
   welcome?: boolean;
+  workbench?: boolean;
 }) {
-  const [projects, setProjects] = useState<ProjectDto[]>([]),
+  const [products, setProducts] = useState<ProductSummaryDto[]>([]),
     [loading, setLoading] = useState(true),
     [listError, setListError] = useState("");
   const [listAttempt, setListAttempt] = useState(0),
     [collapsed, setCollapsed] = useState(false);
   const [drawer, setDrawer] = useState(false),
-    [search, setSearch] = useState(false),
-    [create, setCreate] = useState(false);
+    [search, setSearch] = useState(false);
   useEffect(() => {
     try {
       setCollapsed(sessionStorage.getItem("ps:sidebar:collapsed") === "true");
@@ -51,15 +52,17 @@ export default function WorkspaceShell({
       /* Preference storage is optional. */
     }
   }, []);
-  // biome-ignore lint/correctness/useExhaustiveDependencies: retry and a project rename explicitly refresh the private sidebar list.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: retry and a product rename explicitly refresh the private sidebar list.
   useEffect(() => {
     if (!me) return;
     const controller = new AbortController();
     setLoading(true);
     setListError("");
-    request<ProjectDto[]>("/api/v1/projects", { signal: controller.signal })
+    request<ProductSummaryDto[]>("/api/v1/products", {
+      signal: controller.signal,
+    })
       .then((data) => {
-        if (!controller.signal.aborted) setProjects(data);
+        if (!controller.signal.aborted) setProducts(data);
       })
       .catch(() => {
         if (!controller.signal.aborted) setListError("목록 조회 실패");
@@ -90,13 +93,13 @@ export default function WorkspaceShell({
   }
   const nav = {
     me,
-    projects,
+    products,
     loading: loading && !["unauthenticated", "error"].includes(accountState),
     listError,
     onRetry: () => setListAttempt((n) => n + 1),
     onNew: () => {
       setDrawer(false);
-      setCreate(true);
+      void navigate("/studio");
     },
     onSearch: () => {
       setDrawer(false);
@@ -104,27 +107,27 @@ export default function WorkspaceShell({
     },
     collapsed,
     onToggle: toggle,
-    activeProjectId,
+    activeProductId,
     section,
   };
   const pending = accountState === "pending" || accountState === "redirecting";
   const heading =
-    title || projects.find((p) => p.id === activeProjectId)?.name || section;
+    title || products.find((p) => p.id === activeProductId)?.name || section;
   return (
     <div
-      className={`min-h-dvh lg:grid ${collapsed ? "lg:grid-cols-[64px_minmax(0,1fr)]" : "lg:grid-cols-[264px_minmax(0,1fr)]"}`}
+      className={`min-h-dvh lg:grid ${collapsed ? "lg:grid-cols-[64px_minmax(0,1fr)]" : "lg:grid-cols-[208px_minmax(0,1fr)] xl:grid-cols-[264px_minmax(0,1fr)]"}`}
     >
       <aside
         className="sticky top-0 hidden h-dvh min-w-0 border-r border-line/60 bg-sidebar lg:block"
         aria-label="작업 사이드바"
       >
-        <ProjectNavigation {...nav} />
+        <ProductNavigation {...nav} />
       </aside>
       <div className="min-w-0">
-        <header className="sticky top-0 z-20 flex h-16 items-center gap-3 border-b border-line/40 bg-paper/95 px-4 backdrop-blur-md sm:px-7 lg:static lg:border-transparent lg:px-9">
+        <header className="sticky top-0 z-20 flex h-14 items-center gap-3 border-b border-line/40 bg-paper/95 px-4 backdrop-blur-md sm:px-7 lg:border-line/40 lg:px-7">
           <button
             type="button"
-            aria-label="프로젝트 목록 열기"
+            aria-label="상품 목록 열기"
             onClick={() => setDrawer(true)}
             className="grid size-10 shrink-0 place-items-center rounded-lg text-muted hover:bg-studio lg:hidden"
           >
@@ -140,7 +143,7 @@ export default function WorkspaceShell({
           )}
           <button
             type="button"
-            aria-label="프로젝트 검색"
+            aria-label="상품 검색"
             onClick={() => setSearch(true)}
             disabled={!me}
             className="grid size-10 shrink-0 place-items-center rounded-lg text-muted hover:bg-studio disabled:opacity-40 lg:hidden"
@@ -149,8 +152,8 @@ export default function WorkspaceShell({
           </button>
           <button
             type="button"
-            aria-label="새 프로젝트"
-            onClick={() => setCreate(true)}
+            aria-label="새 상품"
+            onClick={() => void navigate("/studio")}
             disabled={!me}
             className="grid size-10 shrink-0 place-items-center rounded-lg text-muted hover:bg-studio disabled:opacity-40 lg:hidden"
           >
@@ -166,7 +169,11 @@ export default function WorkspaceShell({
         </header>
         <main
           id="main"
-          className={`mx-auto max-w-[1480px] px-4 sm:px-7 lg:px-10 ${welcome ? "" : "py-6 lg:py-9"}`}
+          className={
+            workbench
+              ? "workbench-main"
+              : `mx-auto max-w-[1480px] px-4 sm:px-7 lg:px-10 ${welcome ? "" : "py-6 lg:py-9"}`
+          }
         >
           {error && (
             <p
@@ -216,7 +223,7 @@ export default function WorkspaceShell({
         <DialogBackdrop className="fixed inset-0 bg-overlay/70 backdrop-blur-sm" />
         <DialogPanel className="fixed inset-y-0 left-0 w-[min(310px,88vw)] bg-sidebar shadow-2xl">
           <DialogTitle className="sr-only">스튜디오 탐색</DialogTitle>
-          <ProjectNavigation
+          <ProductNavigation
             {...nav}
             collapsed={false}
             mobile
@@ -224,18 +231,12 @@ export default function WorkspaceShell({
           />
         </DialogPanel>
       </Dialog>
-      {me && (
-        <NewProjectDialog
-          me={me}
-          open={create}
-          onClose={() => setCreate(false)}
-        />
-      )}
-      <ProjectSearch
+
+      <ProductSearch
         key={String(search)}
         open={search}
         onClose={() => setSearch(false)}
-        projects={projects}
+        products={products}
       />
     </div>
   );

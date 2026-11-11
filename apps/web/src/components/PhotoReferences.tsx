@@ -84,7 +84,7 @@ export default function PhotoReferences({
   return (
     <section
       aria-label="촬영 참조"
-      className="mt-7 rounded-panel border border-line bg-surface p-6"
+      className="mt-5 rounded-panel border border-line bg-surface p-4"
     >
       <h2 className="text-lg">
         촬영 참조{" "}
@@ -103,7 +103,7 @@ export default function PhotoReferences({
           {error}
         </p>
       )}
-      <div className="mt-5 grid gap-4 sm:grid-cols-2">
+      <div className="mt-4 grid gap-3">
         {roles.map((r) => {
           const asset = product.assets.find((a) => a.kind === r.value);
           return (
@@ -217,7 +217,7 @@ export default function PhotoReferences({
           if (!busy) setRemove(null);
         }}
         title="참조 사진을 삭제할까요?"
-        description="업로드한 참조 원본을 삭제합니다. 이미 생성된 결과 사진은 남으며 상품 또는 프로젝트 삭제에서 함께 지울 수 있습니다."
+        description="업로드한 참조 원본을 삭제합니다. 이미 생성된 결과 사진은 남으며 상품 삭제에서 함께 지울 수 있습니다."
       >
         <div className="mt-5 flex gap-3">
           <Button

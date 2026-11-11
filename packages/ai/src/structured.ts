@@ -59,6 +59,7 @@ const safePaths = new Set([
   "model.appearance",
   "camera.backgroundSeparation",
   "materialDirection",
+  "referenceNotes",
   "camera",
   "camera.framing",
   "camera.angle",

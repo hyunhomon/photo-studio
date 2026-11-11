@@ -69,7 +69,7 @@ export async function cleanupStorage(env: Env) {
     const validity = await env.DB.batch<{ n: number }>(
       pending.results.map((row) =>
         env.DB.prepare(
-          "SELECT 1 AS n FROM assets a JOIN products p ON p.id=a.product_id JOIN projects pr ON pr.id=p.project_id WHERE a.r2_key=? AND p.status='ready' AND pr.status='active'",
+          "SELECT 1 AS n FROM assets a JOIN products p ON p.id=a.product_id JOIN users u ON u.id=p.user_id WHERE a.r2_key=? AND p.status='ready' AND u.status='active'",
         ).bind(row.key),
       ),
     );

@@ -49,6 +49,8 @@ export interface PlanSnapshot {
   description: string;
   analysisModel: string;
   imageModel: string;
+  lookReferenceId?: string | null;
+  referenceConsent?: boolean;
   /** Legacy snapshots only; no evaluator is invoked (ADR-019). */
   evaluationModel?: string;
 }
@@ -118,6 +120,7 @@ export const planDto = (p: typeof shootPlans.$inferSelect): PlanDto => ({
   status: p.status,
   spec: shootPlanSchema.parse(JSON.parse(p.specJson)),
   createdAt: p.createdAt,
+  lookReferenceId: p.lookReferenceId ?? null,
 });
 export async function jobDto(env: Env, job: JobRow): Promise<JobDto> {
   const list = await createDb(env.DB)
@@ -226,7 +229,7 @@ export async function insertJob(
   }
   const id = crypto.randomUUID();
   await env.DB.prepare(
-    `INSERT OR IGNORE INTO generation_jobs (id,user_id,product_id,kind,status,stage,idempotency_key,request_hash,request_json,created_at) SELECT ?,?,?,?,'queued','queued',?,?,?,? WHERE EXISTS (SELECT 1 FROM products p JOIN projects pr ON p.project_id=pr.id WHERE p.id=? AND p.user_id=? AND p.status='ready' AND pr.status='active') AND NOT EXISTS (SELECT 1 FROM generation_jobs WHERE user_id=? AND product_id=? AND ${activeSql})`,
+    `INSERT OR IGNORE INTO generation_jobs (id,user_id,product_id,kind,status,stage,idempotency_key,request_hash,request_json,created_at) SELECT ?,?,?,?,'queued','queued',?,?,?,? WHERE EXISTS (SELECT 1 FROM products p JOIN users u ON u.id=p.user_id WHERE p.id=? AND p.user_id=? AND p.status='ready' AND u.status='active') AND NOT EXISTS (SELECT 1 FROM generation_jobs WHERE user_id=? AND product_id=? AND ${activeSql})`,
   )
     .bind(
       id,
@@ -276,7 +279,7 @@ export async function sourceSnapshot(
         eq(assets.kind, "input"),
       ),
     )
-    .orderBy(assets.id)
+    .orderBy(assets.createdAt, assets.id)
     .all();
   if (!rows.length)
     throw new AppError(
@@ -323,7 +326,7 @@ export async function imageData(env: Env, job: JobRow, ids: string[]) {
 }
 export async function jobActive(env: Env, job: JobRow) {
   const found = await env.DB.prepare(
-    `SELECT j.id FROM generation_jobs j JOIN products p ON p.id=j.product_id JOIN projects pr ON pr.id=p.project_id WHERE j.id=? AND j.user_id=? AND j.status IN ('queued','running') AND p.status='ready' AND pr.status='active'`,
+    `SELECT j.id FROM generation_jobs j JOIN products p ON p.id=j.product_id AND p.user_id=j.user_id JOIN users u ON u.id=j.user_id WHERE j.id=? AND j.user_id=? AND j.status IN ('queued','running') AND p.status='ready' AND u.status='active'`,
   )
     .bind(job.id, job.userId)
     .first();
@@ -478,6 +481,8 @@ export async function runPlanStage(
   try {
     await jobActive(env, job);
     const snapshot = JSON.parse(job.requestJson) as PlanSnapshot;
+    if (snapshot.lookReferenceId && !snapshot.referenceConsent)
+      throw new ProviderError("REFERENCE_CONSENT_REQUIRED");
     if (stage === "analysis" && snapshot.analysisSnapshot) return;
     const adapter = await (deps.adapter ?? resolveAdapter)(env, job);
     await adapter.preflight(snapshot.analysisModel, stage);
@@ -507,6 +512,9 @@ export async function runPlanStage(
       const analysis = productAnalysisSchema.parse(
         snapshot.analysisSnapshot ?? JSON.parse(p.analysisJson ?? "null"),
       );
+      const lookImage = snapshot.lookReferenceId
+        ? (await imageData(env, job, [snapshot.lookReferenceId]))[0]
+        : undefined;
       const plan = await paidStage(
         env,
         job,
@@ -518,6 +526,7 @@ export async function runPlanStage(
             analysis,
             snapshot.preset,
             snapshot.description,
+            { lookImage },
           ),
       );
       const versions = await env.DB.prepare(
@@ -535,6 +544,7 @@ export async function runPlanStage(
           status: "draft",
           specJson: JSON.stringify(shootPlanSchema.parse(plan)),
           sourceIdsJson: JSON.stringify(snapshot.sourceIds),
+          lookReferenceId: snapshot.lookReferenceId ?? null,
           createdAt: Date.now(),
         })
         .onConflictDoNothing();
@@ -623,6 +633,32 @@ export function pipelineRoutes() {
         409,
       );
     await rateLimit(c, `analysis:${userId}`, 20);
+    if (input.lookReferenceId) {
+      const reference = await createDb(c.env.DB)
+        .select({ id: assets.id })
+        .from(assets)
+        .where(
+          and(
+            eq(assets.id, input.lookReferenceId),
+            eq(assets.userId, userId),
+            eq(assets.productId, p.id),
+            eq(assets.kind, "look_reference"),
+          ),
+        )
+        .get();
+      if (!reference) throw notFound();
+      const total = await c.env.DB.prepare(
+        "SELECT coalesce(sum(size_bytes),0) n FROM assets WHERE user_id=? AND product_id=? AND (kind='input' OR id=?)",
+      )
+        .bind(userId, p.id, input.lookReferenceId)
+        .first<{ n: number }>();
+      if ((total?.n ?? 0) > 12 * 1024 * 1024)
+        throw new AppError(
+          "SOURCE_TOO_LARGE",
+          "의류와 선택한 기획 레퍼런스의 합계는 12MB 이하여야 합니다. 사진 크기를 줄여 주세요. AI는 호출하지 않았습니다.",
+          409,
+        );
+    }
     let preset: PresetInput | null = null;
     if (input.presetId) {
       const row = await createDb(c.env.DB)
@@ -644,6 +680,8 @@ export function pipelineRoutes() {
       sourceIds: await sourceSnapshot(c.env, userId, p.id),
       preset,
       description: input.description,
+      lookReferenceId: input.lookReferenceId,
+      referenceConsent: input.referenceConsent,
       analysisModel: c.get("identity").isTest
         ? "mock/analyzer-planner-v1"
         : c.env.OPENROUTER_ANALYSIS_MODEL,

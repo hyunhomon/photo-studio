@@ -48,7 +48,7 @@ export function referenceRoutes(
       });
       // This atomic statement guards concurrent uploads, new jobs and deletion.
       const saved = await c.env.DB.prepare(
-        "INSERT INTO assets(id,user_id,product_id,kind,r2_key,mime_type,size_bytes,width,height,created_at) SELECT ?,p.user_id,p.id,?,?,?,?,?,?,? FROM products p JOIN projects pr ON pr.id=p.project_id JOIN users u ON u.id=p.user_id WHERE p.id=? AND p.user_id=? AND p.status='ready' AND pr.status='active' AND u.status='active' AND NOT EXISTS(SELECT 1 FROM assets a WHERE a.product_id=p.id AND a.user_id=p.user_id AND a.kind=?) AND NOT EXISTS(SELECT 1 FROM generation_jobs j WHERE j.product_id=p.id AND j.user_id=p.user_id AND j.status IN ('queued','running'))",
+        "INSERT INTO assets(id,user_id,product_id,kind,r2_key,mime_type,size_bytes,width,height,created_at) SELECT ?,p.user_id,p.id,?,?,?,?,?,?,? FROM products p JOIN users u ON u.id=p.user_id WHERE p.id=? AND p.user_id=? AND p.status='ready' AND u.status='active' AND NOT EXISTS(SELECT 1 FROM assets a WHERE a.product_id=p.id AND a.user_id=p.user_id AND a.kind=?) AND NOT EXISTS(SELECT 1 FROM generation_jobs j WHERE j.product_id=p.id AND j.user_id=p.user_id AND j.status IN ('queued','running'))",
       )
         .bind(
           id,

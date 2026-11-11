@@ -130,7 +130,7 @@ test("approved generation, nullable costs, retired feedback and directed regener
   );
   expect(download.status).toBe(200);
   expect(download.headers.get("content-disposition")).toContain("attachment");
-  await s.call(`/projects/${s.project.id}`, "DELETE");
+  await s.call(`/products/${s.product.id}`, "DELETE");
   expect(s.objects.size).toBe(0);
   expect(
     s.sqlite.query("SELECT count(*) n FROM generation_attempts").get(),
@@ -372,7 +372,7 @@ test("deletion during a generation response prevents late image resurrection", a
     original = adapter.generate;
   adapter.generate = async (...args) => {
     const result = await original(...args);
-    await s.call(`/projects/${s.project.id}`, "DELETE");
+    await s.call(`/products/${s.product.id}`, "DELETE");
     return result;
   };
   await runGenerationStage(s.env, job.id, "generation", {

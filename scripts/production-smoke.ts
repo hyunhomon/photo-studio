@@ -20,7 +20,7 @@ for (const requestOrigin of [origin, "https://untrusted.invalid"]) {
   assert.equal(body.data.phase, 5);
   assert.equal(body.data.aiMode, "openrouter");
 }
-assert.equal((await fetch(`${origin}/api/v1/projects`)).status, 401);
+assert.equal((await fetch(`${origin}/api/v1/products`)).status, 401);
 const legacy = await fetch(`${origin}/beta`, { redirect: "manual" });
 assert.equal(legacy.status, 308);
 assert.equal(
@@ -49,7 +49,7 @@ try {
     page.on("pageerror", () => errors.push("browser error"));
     await page.goto(origin);
     await expect(page.getByRole("heading", { level: 1 })).toContainText(
-      "옷 한 장에서",
+      "한 벌의 사진으로",
     );
     await page.screenshot({
       path: `${output}/landing-${viewport.width}.png`,
@@ -88,7 +88,7 @@ try {
         body: "<h1>OpenRouter OAuth destination</h1>",
       });
     });
-    await page.getByRole("link", { name: "OpenRouter로 시작하기" }).click();
+    await page.getByRole("link", { name: "사진으로 촬영 시작하기" }).click();
     await expect(
       page.getByRole("heading", { name: "OpenRouter OAuth destination" }),
     ).toBeVisible();

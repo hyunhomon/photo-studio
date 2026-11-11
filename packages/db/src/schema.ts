@@ -95,28 +95,10 @@ export const authEvents = sqliteTable("auth_events", {
   createdAt: integer("created_at").notNull(),
 });
 
-export const projects = sqliteTable(
-  "projects",
-  {
-    id: text("id").primaryKey(),
-    userId: text("user_id")
-      .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
-    name: text("name").notNull(),
-    description: text("description").notNull().default(""),
-    status: text("status").notNull().default("active"),
-    createdAt: integer("created_at").notNull(),
-    updatedAt: integer("updated_at").notNull(),
-  },
-  (t) => [index("project_owner").on(t.userId)],
-);
 export const products = sqliteTable(
   "products",
   {
     id: text("id").primaryKey(),
-    projectId: text("project_id")
-      .notNull()
-      .references(() => projects.id, { onDelete: "cascade" }),
     userId: text("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
@@ -126,7 +108,7 @@ export const products = sqliteTable(
     analysisVersion: text("analysis_version"),
     createdAt: integer("created_at").notNull(),
   },
-  (t) => [index("product_project_owner").on(t.projectId, t.userId)],
+  (t) => [index("product_owner_created").on(t.userId, t.createdAt)],
 );
 export const assets = sqliteTable(
   "assets",
@@ -189,6 +171,7 @@ export const shootPlans = sqliteTable(
     status: text("status").notNull().default("draft"),
     specJson: text("spec_json").notNull(),
     sourceIdsJson: text("source_ids_json").notNull(),
+    lookReferenceId: text("look_reference_id"),
     createdAt: integer("created_at").notNull(),
   },
   (t) => [index("plan_owner_product").on(t.userId, t.productId)],

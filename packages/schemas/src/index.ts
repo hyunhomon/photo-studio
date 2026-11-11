@@ -50,12 +50,6 @@ export type ReferenceRole = z.infer<typeof referenceRoleSchema>;
 export type CallMetrics = z.infer<typeof callMetricsSchema>;
 export type Health = z.infer<typeof healthSchema>;
 
-export const projectInputSchema = z
-  .object({
-    name: z.string().trim().min(1).max(120),
-    description: z.string().trim().max(1000).default(""),
-  })
-  .strict();
 export const presetInputSchema = z
   .object({
     name: z.string().trim().min(1).max(120),
@@ -73,14 +67,6 @@ export const presetInputSchema = z
   })
   .strict();
 export type PresetInput = z.infer<typeof presetInputSchema>;
-export interface ProjectDto {
-  id: string;
-  name: string;
-  description: string;
-  status: string;
-  createdAt: number;
-  updatedAt: number;
-}
 export interface AssetDto {
   id: string;
   productId: string;
@@ -93,12 +79,18 @@ export interface AssetDto {
 }
 export interface ProductDto {
   id: string;
-  projectId: string;
   name: string;
   status: string;
   analysis: ProductAnalysis | null;
   createdAt: number;
   assets: AssetDto[];
+}
+export interface ProductSummaryDto {
+  id: string;
+  name: string;
+  status: string;
+  createdAt: number;
+  thumbnail: AssetDto | null;
 }
 export type PresetDto = PresetInput & { id: string; updatedAt: number };
 
@@ -129,6 +121,7 @@ export const shootPlanSchema = z
     lighting: shortText,
     materialDirection: z.string().trim().max(500).default(""),
     mustPreserve: z.array(shortText).min(1).max(20),
+    referenceNotes: z.string().trim().max(1000).default(""),
     aspectRatio: z.literal("3:4"),
   })
   .strict();
@@ -139,6 +132,7 @@ export interface PlanDto {
   status: string;
   spec: ShootPlan;
   createdAt: number;
+  lookReferenceId: string | null;
 }
 export interface AttemptDto {
   stage: string;
@@ -172,8 +166,13 @@ export const planRequestSchema = z
     idempotencyKey: z.uuid(),
     presetId: z.uuid().nullable().default(null),
     description: z.string().trim().max(1000).default(""),
+    lookReferenceId: z.uuid().nullable().default(null),
+    referenceConsent: z.boolean().default(false),
   })
-  .strict();
+  .strict()
+  .refine((value) => !value.lookReferenceId || value.referenceConsent, {
+    message: "A planning reference requires explicit processing consent",
+  });
 
 export const qualitySchema = z
   .object({

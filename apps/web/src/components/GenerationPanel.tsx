@@ -3,6 +3,7 @@ import { ArrowDownToLine, ImagePlus, RotateCcw, ZoomIn } from "lucide-react";
 import { Button, Modal, Select } from "@photo-studio/ui";
 import type { PipelineDto, ProductDto, ResultDto } from "@photo-studio/schemas";
 import { apiBase, errorMessage, type Me, request } from "../lib/api";
+import WorkPending from "./WorkPending";
 import { Field, JobStatus } from "./PlanningPanel";
 export const reasons = [
   { value: "lighting_focus", label: "빛과 초점 · 배경과의 연결" },
@@ -57,9 +58,14 @@ export default function GenerationPanel({
   useEffect(() => {
     void refresh().catch((e) => setError(errorMessage(e)));
   }, [refresh, pipeline]);
+  const [sourceId, setSourceId] = useState("");
+  const inputs = product.assets.filter((a) => a.kind === "input");
+  const activeJob = pipeline.jobs.find((j) =>
+    ["queued", "running"].includes(j.status),
+  );
   const generationJob = pipeline.jobs.find((j) => j.kind === "generate");
   const result = results.find((r) => r.asset.id === selected) ?? results[0],
-    source = product.assets.find((a) => a.kind === "input"),
+    source = inputs.find((a) => a.id === sourceId) ?? inputs[0],
     plan = pipeline.plans[0],
     active = pipeline.jobs.some((j) =>
       ["queued", "running"].includes(j.status),
@@ -84,16 +90,15 @@ export default function GenerationPanel({
     setNote("");
     setConsent(false);
     setUsePerson(Boolean(personReference));
-    setUseLook(Boolean(lookReference));
+    setUseLook(
+      Boolean(lookReference && plan?.lookReferenceId === lookReference.id),
+    );
     requestId.current = crypto.randomUUID();
     setOpen(true);
   }
   const imageUrl = (id: string) => `${apiBase}/api/v1/assets/${id}/content`;
   return (
-    <section
-      id="results"
-      className="mt-9 scroll-mt-6 border-t border-line pt-9"
-    >
+    <section id="results" className="comparison-workspace relative">
       {error && (
         <p
           role="alert"
@@ -102,16 +107,28 @@ export default function GenerationPanel({
           {error}
         </p>
       )}
-      <div className="flex flex-wrap items-end justify-between gap-5">
-        <div>
-          <p className="eyebrow text-muted">02 / CREATE & REVIEW</p>
-          <h2 className="mt-3 text-2xl">
-            당신의 다음 컷.<span className="sr-only">이미지 생성과 검수</span>
-          </h2>
-          <p className="mt-3 text-sm text-muted">
-            승인한 콘셉트로 한 장씩. 최종 선택은 직접 합니다.
-          </p>
-        </div>
+      <div className="comparison-toolbar">
+        <h2 className="mr-auto text-lg">원본과 결과</h2>
+        {result && (
+          <>
+            <a
+              href={`${apiBase}/api/v1/assets/${result.asset.id}/download`}
+              data-astro-reload
+              aria-label="PNG 다운로드"
+              title="PNG 다운로드"
+              className="grid size-10 place-items-center rounded-lg border border-line text-muted hover:text-ink"
+            >
+              <ArrowDownToLine size={16} />
+            </a>
+            <Button
+              variant="secondary"
+              disabled={busy || active || plan?.status !== "approved"}
+              onClick={() => begin(result.asset.id)}
+            >
+              <RotateCcw size={14} />이 컷 개선
+            </Button>
+          </>
+        )}
         <Button
           disabled={busy || active || plan?.status !== "approved"}
           onClick={() => begin(null)}
@@ -120,7 +137,7 @@ export default function GenerationPanel({
           승인된 콘셉트로 생성
         </Button>
       </div>
-      {generationJob && (
+      {generationJob?.errorCode && !activeJob && (
         <div className="mt-5">
           <JobStatus
             job={generationJob}
@@ -141,33 +158,44 @@ export default function GenerationPanel({
           분석·기획 후 촬영 콘셉트를 승인하면 생성할 수 있습니다.
         </p>
       )}
-      {!result ? (
-        <div className="mt-7 grid min-h-72 place-items-center rounded-panel border border-dashed border-line bg-surface text-center">
-          <div className="p-8">
-            <div className="mx-auto grid size-14 place-items-center rounded-full bg-studio">
-              <ImagePlus size={23} aria-hidden="true" />
-            </div>
-            <p className="mt-5 font-editorial text-lg">
-              첫 컷을 기다리는 스튜디오
-            </p>
-            <p className="mt-3 text-xs leading-6 text-muted">
-              생성 결과는 이곳에서 원본과 비교하고 내려받을 수 있습니다.
-            </p>
-          </div>
-        </div>
-      ) : (
-        <>
+      <div className="comparison-selectors">
+        {inputs.length > 1 && (
           <fieldset
-            className="mt-7 flex items-center gap-3 overflow-x-auto pb-3"
-            aria-label="생성 결과 선택"
+            aria-label="원본 사진 선택"
+            className="flex items-center gap-2"
           >
+            <span className="mr-1 text-[10px] text-muted">원본</span>
+            {inputs.map((a, i) => (
+              <button
+                type="button"
+                key={a.id}
+                aria-pressed={source?.id === a.id}
+                aria-label={`원본 ${i + 1} 선택`}
+                onClick={() => setSourceId(a.id)}
+                className={`overflow-hidden rounded-lg border ${source?.id === a.id ? "border-primary" : "border-line"}`}
+              >
+                <img
+                  src={imageUrl(a.id)}
+                  alt=""
+                  className="h-10 w-8 object-contain"
+                />
+              </button>
+            ))}
+          </fieldset>
+        )}
+        {result && (
+          <fieldset
+            aria-label="생성 결과 선택"
+            className="flex min-w-0 items-center gap-2 overflow-x-auto"
+          >
+            <span className="mr-1 shrink-0 text-[10px] text-muted">결과</span>
             {results.map((r, i) => (
               <button
                 type="button"
                 key={r.asset.id}
                 aria-pressed={r.asset.id === result.asset.id}
                 aria-label={`결과 ${results.length - i} 선택`}
-                className={`shrink-0 overflow-hidden rounded-lg border-2 ${r.asset.id === result.asset.id ? "border-primary" : "border-transparent"}`}
+                className={`shrink-0 overflow-hidden rounded-lg border ${r.asset.id === result.asset.id ? "border-primary" : "border-line"}`}
                 onClick={() => {
                   setSelected(r.asset.id);
                   setComparePrevious(false);
@@ -176,11 +204,50 @@ export default function GenerationPanel({
                 <img
                   src={imageUrl(r.asset.id)}
                   alt={`생성 결과 ${results.length - i}`}
-                  className="h-20 w-16 bg-studio object-contain"
+                  className="h-10 w-8 bg-studio object-contain"
                 />
               </button>
             ))}
           </fieldset>
+        )}
+      </div>
+      {!result ? (
+        <div className="comparison-stage">
+          <div className="comparison-grid">
+            <figure className="comparison-figure">
+              <figcaption>원본 참조</figcaption>
+              {source && (
+                <button
+                  type="button"
+                  aria-label="비교 기준 사진 확대"
+                  onClick={() => setZoom(source.id)}
+                >
+                  <img
+                    src={imageUrl(source.id)}
+                    alt={`${product.name} 원본 비교`}
+                  />
+                </button>
+              )}
+            </figure>
+            <figure className="comparison-figure">
+              <figcaption>새로운 컷</figcaption>
+              <div className="flex min-h-64 flex-1 flex-col items-center justify-center p-8 text-center">
+                <ImagePlus
+                  size={30}
+                  className="text-muted"
+                  aria-hidden="true"
+                />
+                <h3 className="mt-5 text-base">다음 컷을 기다리고 있어요</h3>
+                <p className="mt-3 text-xs leading-6 text-muted">
+                  촬영 설정에서 기획을 확인한 뒤<br />
+                  촬영을 시작해 주세요.
+                </p>
+              </div>
+            </figure>
+          </div>
+        </div>
+      ) : (
+        <>
           {result.regenerationOf && (
             <fieldset
               className="mb-4 flex flex-wrap gap-2"
@@ -204,8 +271,8 @@ export default function GenerationPanel({
               </button>
             </fieldset>
           )}
-          <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_260px]">
-            <div className="grid gap-4 sm:grid-cols-2">
+          <div className="comparison-stage">
+            <div className="comparison-grid">
               {source && (
                 <figure className="overflow-hidden rounded-panel border border-line bg-surface">
                   <figcaption className="flex items-center justify-between border-b border-line px-5 py-3 text-xs">
@@ -273,78 +340,22 @@ export default function GenerationPanel({
                 </button>
               </figure>
             </div>
-            <aside className="rounded-panel border border-line bg-surface p-6">
-              <h3 className="text-base font-semibold">
-                {comparePrevious ? "이전 컷과 직접 확인" : "원본과 직접 확인"}
-              </h3>
-              <p className="mt-3 text-xs leading-6 text-muted">
-                세 가지를 확대해 비교해 보세요.
-              </p>
-              <ul className="mt-5 space-y-5 text-xs leading-6">
-                <li>
-                  <strong className="block text-ink">빛과 초점</strong>
-                  <span className="text-muted">
-                    얼굴·옷·배경의 빛 방향, 바닥의 접촉 그림자, 거리와 이어지는
-                    초점 흐림을 확인하세요.
-                  </span>
-                </li>
-                <li>
-                  <strong className="block text-ink">인물의 자연스러움</strong>
-                  <span className="text-muted">
-                    눈과 피부의 질감, 표정·손·몸의 무게 중심이 함께 자연스러운지
-                    확인하세요.
-                  </span>
-                </li>
-                <li>
-                  <strong className="block text-ink">소재 표현</strong>
-                  <span className="text-muted">
-                    원본의 로고·조직·주름과 두께감이 유지되고, 주변 표면이 모두
-                    같은 재질처럼 보이지 않는지 확인하세요.
-                  </span>
-                </li>
-              </ul>
-              <p className="mt-5 text-[10px] text-muted">
-                {result.captureVersion
-                  ? "빛·인물·소재를 반영한 촬영 지시 적용"
-                  : "이전 촬영 지시로 만든 컷"}
-              </p>
-              <a
-                href={`${apiBase}/api/v1/assets/${result.asset.id}/download`}
-                data-astro-reload
-                className="mt-3 flex min-h-11 items-center justify-center gap-2 rounded-lg border border-control px-4 py-3 text-xs font-semibold hover:bg-elevated"
-              >
-                <ArrowDownToLine size={14} aria-hidden="true" />
-                PNG 다운로드
-              </a>
-              <Button
-                className="mt-3 w-full px-3"
-                variant="secondary"
-                disabled={busy || active || plan?.status !== "approved"}
-                onClick={() => begin(result.asset.id)}
-              >
-                <RotateCcw size={14} aria-hidden="true" />이 컷 개선
-              </Button>
-              {result.regenerationReason && (
-                <p className="mt-4 text-[11px] leading-6 text-muted">
-                  이전 컷에서 개선 ·{" "}
-                  {reasons.find((r) => r.value === result.regenerationReason)
-                    ?.label ?? result.regenerationReason}
-                </p>
-              )}
-              {(result.personReferenceUsed || result.lookReferenceUsed) && (
-                <p className="mt-3 text-[11px] leading-6 text-muted">
-                  사용한 촬영 참조 ·{" "}
-                  {[
-                    result.personReferenceUsed ? "인물" : null,
-                    result.lookReferenceUsed ? "촬영감" : null,
-                  ]
-                    .filter(Boolean)
-                    .join(" / ")}
-                </p>
-              )}
-            </aside>
           </div>
         </>
+      )}
+      {activeJob && (
+        <WorkPending
+          job={activeJob}
+          onDispatch={() =>
+            void action(() =>
+              request(
+                `/api/v1/jobs/${activeJob.id}/dispatch`,
+                { method: "POST" },
+                me.csrf,
+              ),
+            )
+          }
+        />
       )}
       <Modal
         open={open}

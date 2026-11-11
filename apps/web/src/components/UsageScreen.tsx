@@ -89,7 +89,7 @@ export default function UsageScreen() {
             {data.mock
               ? "Mock 합성 기록입니다. 실제 AI 호출·청구·의류 품질을 측정한 값이 아닙니다."
               : "OpenRouter가 제공한 실제 비용만 집계합니다. 미확인 비용은 합계에 포함되지 않으므로 총 청구액과 다를 수 있습니다. 실제 청구는 OpenRouter에서 확인해 주세요."}{" "}
-            프로젝트·결과 삭제 시 관련 기록도 삭제되어 집계가 달라집니다.
+            상품·결과 삭제 시 관련 기록도 삭제되어 집계가 달라집니다.
           </p>
           <div className="mt-8 grid gap-6">
             <section className="rounded-panel border border-line bg-surface p-6">

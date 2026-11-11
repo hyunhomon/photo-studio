@@ -54,16 +54,16 @@ UI만 변경할 때는 기존 production 설정을 준비한 머신에서 `bun r
 - 모든 사용자 자료 쿼리는 내부 owner ID로 제한한다. private R2는 API 인증을 거쳐서만 읽는다. 연결 키·사진·프롬프트·OAuth code·개인 식별자를 console/CI 로그에 넣지 않는다. Worker observability/access logging은 비활성화한다.
 - 입력은 실제 디코딩/PNG 재인코딩, 크기·서명·픽셀 제한을 적용한다. 분석 후 원본은 고정된다. 출력도 검증 후 private PNG로 저장한다.
 - 과금 원장은 unique(job,stage)이다. Workflow paid step retries=0. 응답 미확인/5xx/저장 실패는 자동 재호출하지 않는다. 운영자가 ledger를 지워서 재실행해서는 안 된다.
-- 생성은 성공했으나 평가는 실패하면 이미지는 보존한다. 직접 검수/다운로드 가능하며 평가 재호출은 자동 실행하지 않는다. 새 생성은 다시 비용 동의를 받아 새 요청으로 기록한다.
+- ADR-019 이후 새 AI 평가/점수/피드백 호출은 없다. 생성 결과는 직접 원본과 비교/다운로드하며, 새 생성이나 지시 기반 개선은 다시 비용 동의를 받아 새 요청으로 기록한다.
 - 10분 넘게 active인 작업은 조회 시 Workflow terminal 상태와 대조한다. 선점된 응답이 없으면 outcome_unknown으로 끝낸다. 제어 API 장애를 이유로 AI를 다시 호출하지 않는다. queued dispatch 재확인은 같은 instance ID만 사용한다.
-- 삭제는 프로젝트/계정을 deleting으로 먼저 바꾸고 작업을 취소한 뒤 R2와 DB를 정리한다. 실패하면 재시도할 수 있고 접근·새 작업은 차단한다. 계정 삭제 중 세션이 만료되어도 cron이 사진 정리 성공 후 계정·키·관계 데이터를 마무리 삭제한다. 시간별 cron은 만료 세션/flow/제한 기록, object tombstone 및 계정 삭제 중 늦은 쓰기를 정리한다. 삭제된 저장소 prefix의 tombstone은 최소 24시간 유지한다. 최소 보관 기간 후에도 정리 완료 및 다음 cron 시점까지 식별자가 남을 수 있다.
-- 계정 설정에서 기록 JSON을 내보낼 수 있다. 사진은 각 상품에서 별도로 다운로드한다. 연결 해제는 키/세션만 삭제하고 프로젝트는 유지한다. OpenRouter 키 자체의 폐기와 외부 제공자의 보관 기록은 제공자 정책을 따른다.
+- 삭제는 상품/계정을 deleting으로 먼저 바꾸고 작업을 취소한 뒤 R2와 DB를 정리한다. 실패하면 재시도할 수 있고 접근·새 작업은 차단한다. 계정 삭제 중 세션이 만료되어도 cron이 사진 정리 성공 후 계정·키·관계 데이터를 마무리 삭제한다. 시간별 cron은 만료 세션/flow/제한 기록, object tombstone 및 계정 삭제 중 늦은 쓰기를 정리한다. 삭제된 저장소 prefix의 tombstone은 최소 24시간 유지한다. 최소 보관 기간 후에도 정리 완료 및 다음 cron 시점까지 식별자가 남을 수 있다.
+- 계정 설정에서 기록 JSON을 내보낼 수 있다. 사진은 각 상품에서 별도로 다운로드한다. 연결 해제는 키/세션만 삭제하고 상품은 유지한다. OpenRouter 키 자체의 폐기와 외부 제공자의 보관 기록은 제공자 정책을 따른다.
 
 ## 마이그레이션 및 롤백
 
-Drizzle 변경은 `bun run --filter @photo-studio/db generate`로 SQL/snapshot을 함께 생성한다. 현재 migrations는 additive이다. 먼저 로컬 migration·권한·실패 복구 테스트를 통과시킨 뒤 production에 적용한다. 큰/파괴적 변경은 별도 백업과 하위 호환 배포 순서가 필요하다. 이 구현은 기존 production 데이터를 삭제하는 schema rollback을 하지 않는다.
+Drizzle 변경은 `bun run --filter @photo-studio/db generate`로 SQL/snapshot을 함께 생성한다. 먼저 로컬 migration·권한·실패 복구 테스트를 통과시킨 뒤 production에 적용한다. ADR-022의 0009는 사용자 승인 초기화와 프로젝트 제거를 수행하는 파괴적 예외다. `docs/15-DATA-RESET.md`의 전체 서비스 초기화/R2 정리를 먼저 실행하고 새 web/API/Workflow를 함께 배포한다. 과거 데이터 복구본을 만드는 작업은 이번 삭제 요청에 포함하지 않는다. 이후 일반 배포에서 전체 초기화를 반복하지 않는다.
 
-Worker 문제는 Cloudflare의 이전 Worker version으로 두 서비스를 일관되게 복구한다. 설치 CLI의 `rollback --help`로 실제 옵션을 확인한 뒤 ignored production config를 사용한다. Worker rollback은 DB/R2 또는 실행 중인 Workflow를 되돌리지 않는다. 배포 전 버전과 migration 적용 이력을 확인하고 호환성을 먼저 판단한다.
+Worker 문제는 현재 DB와 호환되는 버전만 사용해 두 서비스를 일관되게 복구한다. 설치 CLI의 `rollback --help`로 실제 옵션을 확인한 뒤 ignored production config를 사용한다. Worker rollback은 DB/R2 또는 실행 중인 Workflow를 되돌리지 않는다. 0009 이후 프로젝트를 요구하는 이전 앱 버전으로 단순 rollback할 수 없으므로 상품 중심 구조에서 forward fix한다. 배포 전 버전과 migration 적용 이력을 확인하고 호환성을 먼저 판단한다.
 
 급한 유료 호출 차단은 API의 `AI_MODE`를 openrouter가 아닌 값으로 바꾸어 새 실제 호출을 거부하는 방식으로 한다. 일반 사용자에게 Mock을 실제 결과처럼 제공하지 않는다. 이미 시작된 외부 호출의 취소/환불은 보장할 수 없다. 복구 과정에서 ledger 삭제, uncertain paid step restart, bucket/DB 재생성은 하지 않는다.
 

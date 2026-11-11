@@ -4,7 +4,7 @@ import { studioFixture } from "../test/studio";
 import { runPlanStage } from "./pipeline";
 import { runGenerationStage } from "./generation";
 import { cleanupStorage } from "./storage";
-import type { ProjectDto, ProductDto } from "@photo-studio/schemas";
+import type { ProductDto } from "@photo-studio/schemas";
 test("owner-only usage distinguishes unknown costs; safe export excludes credentials; account deletion cascades", async () => {
   const s = await studioFixture(),
     planJob = await s.startPlan();
@@ -122,7 +122,7 @@ test("failed account cleanup blocks new work, preserves retry session and finish
   ).toBe(503);
   expect((await s.call<{ deleting: boolean }>("/me")).data.deleting).toBe(true);
   expect(
-    (await s.call("/projects", "POST", { name: "Must be blocked" })).status,
+    (await s.call("/products", "POST", { name: "Must be blocked" })).status,
   ).toBe(409);
   failure.mockRestore();
   expect(
@@ -133,9 +133,9 @@ test("failed account cleanup blocks new work, preserves retry session and finish
     n: 0,
   });
 });
-test("a project with 61 products reads and deletes all private media through batched data access", async () => {
+test("an account with 61 standalone products lists and deletes all private media through batched data access", async () => {
   const s = await studioFixture(),
-    owner = s.sqlite.query("SELECT user_id FROM projects").get() as {
+    owner = s.sqlite.query("SELECT user_id FROM products").get() as {
       user_id: string;
     };
   const image = [...s.objects.values()][0];
@@ -145,8 +145,8 @@ test("a project with 61 products reads and deletes all private media through bat
       assetId = crypto.randomUUID(),
       key = `${owner.user_id}/${id}/${assetId}.png`;
     s.sqlite.run(
-      "INSERT INTO products(id,user_id,project_id,name,status,created_at) VALUES(?,?,?,'synthetic','ready',0)",
-      [id, owner.user_id, s.project.id],
+      "INSERT INTO products(id,user_id,name,status,created_at) VALUES(?,?,'synthetic','ready',0)",
+      [id, owner.user_id],
     );
     s.sqlite.run(
       "INSERT INTO assets(id,user_id,product_id,kind,r2_key,mime_type,size_bytes,width,height,created_at) VALUES(?,?,?,'input',?,'image/png',1,1,1,0)",
@@ -154,14 +154,12 @@ test("a project with 61 products reads and deletes all private media through bat
     );
     s.objects.set(key, image);
   }
-  const project = await s.call<ProjectDto & { products: ProductDto[] }>(
-    `/projects/${s.project.id}`,
-  );
-  expect(project.status).toBe(200);
-  expect(project.data.products.length).toBe(61);
-  expect((await s.call(`/projects/${s.project.id}`, "DELETE")).status).toBe(
-    200,
-  );
+  const list = await s.call<ProductDto[]>("/products");
+  expect(list.status).toBe(200);
+  expect(list.data.length).toBe(61);
+  expect(
+    (await s.call("/account", "DELETE", { confirm: "DELETE" })).status,
+  ).toBe(200);
   expect(s.objects.size).toBe(0);
 });
 test("scheduled cleanup finishes a failed account deletion after its session has expired", async () => {

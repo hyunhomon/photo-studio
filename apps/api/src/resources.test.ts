@@ -28,7 +28,7 @@ async function user(
     "X-CSRF-Token": body.data.csrf,
   };
 }
-describe("private projects and uploads", () => {
+describe("private standalone products and uploads", () => {
   test("JPEG and WebP are decoded and converted to canonical PNG", async () => {
     async function module(value: WebAssembly.Module) {
       return value instanceof WebAssembly.Module
@@ -85,54 +85,48 @@ describe("private projects and uploads", () => {
     corrupt.fill(0, 45, 55);
     await expect(normalizeImage(corrupt, "image/png")).rejects.toThrow();
   });
-  test("A uploads/downloads/deletes; B cannot read or mutate any project/product/asset/preset; upload never invokes AI", async () => {
-    const { env, objects } = memoryEnv();
-    const app = createApp();
-    const a = await user(app, env),
+  function uploadForm(name = "Synthetic shirt", count = 1) {
+    const form = new FormData();
+    form.set("name", name);
+    for (let i = 0; i < count; i++)
+      form.append(
+        "images",
+        new File(
+          [new Uint8Array(syntheticPng()).buffer],
+          `synthetic-${i}.png`,
+          { type: "image/png" },
+        ),
+      );
+    return form;
+  }
+  test("standalone uploads/list/delete enforce owner and CSRF; upload never invokes AI", async () => {
+    const { env, objects } = memoryEnv(),
+      app = createApp(),
+      a = await user(app, env),
       b = await user(app, env);
     const network = spyOn(globalThis, "fetch").mockImplementation(
       Object.assign(
         async () => {
-          throw new Error("Unexpected provider call");
+          throw Error("Unexpected provider call");
         },
         { preconnect: globalThis.fetch.preconnect },
       ),
     );
     try {
-      const created = await app.request(
-        "/api/v1/projects",
-        {
-          method: "POST",
-          headers: a,
-          body: JSON.stringify({ name: "Synthetic collection" }),
-        },
-        env,
-      );
-      const { data: project } = (await created.json()) as {
-        data: { id: string };
-      };
-      expect(created.status).toBe(201);
-      const form = new FormData();
-      form.set("name", "Synthetic shirt");
-      form.append(
-        "images",
-        new File([new Uint8Array(syntheticPng()).buffer], "fixture.png", {
-          type: "image/png",
-        }),
-      );
       const uploaded = await app.request(
-        `/api/v1/projects/${project.id}/products`,
-        { method: "POST", headers: a, body: form },
+        "/api/v1/products",
+        { method: "POST", headers: a, body: uploadForm() },
         env,
       );
       expect(uploaded.status).toBe(201);
       const { data: product } = (await uploaded.json()) as {
         data: { id: string; assets: { id: string }[] };
       };
+      expect(product).not.toHaveProperty("projectId");
       const asset = product.assets[0];
-      expect(asset).toBeDefined();
+      if (!asset) throw Error("Missing synthetic asset");
       const downloaded = await app.request(
-        `/api/v1/assets/${asset?.id}/download`,
+        `/api/v1/assets/${asset.id}/download`,
         { headers: a },
         env,
       );
@@ -141,53 +135,57 @@ describe("private projects and uploads", () => {
       expect(downloaded.headers.get("content-disposition")).toContain(
         "attachment",
       );
-      const spec = {
-        name: "Synthetic preset",
-        mood: "editorial",
-        modelStyle: "adult",
-        location: "studio",
-        lighting: "soft",
-      };
       const preset = (await (
         await app.request(
           "/api/v1/presets",
-          { method: "POST", headers: a, body: JSON.stringify(spec) },
+          {
+            method: "POST",
+            headers: a,
+            body: JSON.stringify({
+              name: "Synthetic preset",
+              mood: "editorial",
+              modelStyle: "adult",
+              location: "studio",
+              lighting: "soft",
+            }),
+          },
           env,
         )
       ).json()) as { data: { id: string } };
       for (const [path, method] of [
-        [`/projects/${project.id}`, "GET"],
-        [`/projects/${project.id}`, "DELETE"],
         [`/products/${product.id}`, "GET"],
-        [`/assets/${asset?.id}/content`, "GET"],
-        [`/assets/${asset?.id}`, "DELETE"],
+        [`/products/${product.id}`, "DELETE"],
+        [`/assets/${asset.id}/content`, "GET"],
+        [`/assets/${asset.id}`, "DELETE"],
         [`/presets/${preset.data.id}`, "DELETE"],
-      ]) {
+      ])
         expect(
           (await app.request(`/api/v1${path}`, { method, headers: b }, env))
             .status,
         ).toBe(404);
-      }
       expect(
         (
           (await (
-            await app.request("/api/v1/projects", { headers: b }, env)
+            await app.request("/api/v1/products", { headers: b }, env)
           ).json()) as { data: unknown[] }
         ).data,
       ).toEqual([]);
       expect(
         (
           await app.request(
-            `/api/v1/projects/${project.id}`,
+            `/api/v1/products/${product.id}`,
             { method: "DELETE", headers: { ...a, "X-CSRF-Token": "forged" } },
             env,
           )
         ).status,
       ).toBe(403);
       expect(
+        (await app.request("/api/v1/projects", { headers: a }, env)).status,
+      ).toBe(410);
+      expect(
         (
           await app.request(
-            `/api/v1/projects/${project.id}`,
+            `/api/v1/products/${product.id}`,
             { method: "DELETE", headers: a },
             env,
           )
@@ -197,7 +195,7 @@ describe("private projects and uploads", () => {
       expect(
         (
           await app.request(
-            `/api/v1/assets/${asset?.id}/content`,
+            `/api/v1/assets/${asset.id}/content`,
             { headers: a },
             env,
           )
@@ -208,47 +206,113 @@ describe("private projects and uploads", () => {
       network.mockRestore();
     }
   });
-  test("R2 deletion failure keeps a retryable project and cleanup tombstones", async () => {
-    const { env, sqlite } = memoryEnv();
-    const app = createApp();
-    const headers = await user(app, env);
-    const created = (await (
-      await app.request(
-        "/api/v1/projects",
-        {
-          method: "POST",
-          headers,
-          body: JSON.stringify({ name: "Synthetic deletion recovery" }),
-        },
-        env,
-      )
-    ).json()) as { data: { id: string } };
-    const form = new FormData();
-    form.set("name", "Synthetic shirt");
-    form.append(
-      "images",
-      new File([new Uint8Array(syntheticPng()).buffer], "fixture.png", {
+  test("initial registration accepts three garment previews and consented optional references, rolling back invalid combined uploads", async () => {
+    const { env, sqlite, objects } = memoryEnv(),
+      app = createApp(),
+      headers = await user(app, env);
+    const noRights = uploadForm();
+    noRights.set(
+      "lookImage",
+      new File([new Uint8Array(syntheticPng()).buffer], "synthetic-look.png", {
         type: "image/png",
       }),
     );
-    await app.request(
-      `/api/v1/projects/${created.data.id}/products`,
-      { method: "POST", headers, body: form },
+    expect(
+      (
+        await app.request(
+          "/api/v1/products",
+          { method: "POST", headers, body: noRights },
+          env,
+        )
+      ).status,
+    ).toBe(400);
+    const good = uploadForm("Synthetic multi-view", 3);
+    good.set("rightsConfirmed", "true");
+    for (const field of ["lookImage", "personImage"])
+      good.set(
+        field,
+        new File(
+          [new Uint8Array(syntheticPng(32, 48)).buffer],
+          "synthetic-reference.png",
+          { type: "image/png" },
+        ),
+      );
+    const saved = await app.request(
+      "/api/v1/products",
+      { method: "POST", headers, body: good },
       env,
     );
+    expect(saved.status).toBe(201);
+    const data = (
+      (await saved.json()) as { data: { assets: { kind: string }[] } }
+    ).data;
+    expect(data.assets.filter((a) => a.kind === "input")).toHaveLength(3);
+    expect(
+      data.assets.filter((a) => a.kind.endsWith("_reference")),
+    ).toHaveLength(2);
+    const sidebar = (
+      (await (
+        await app.request("/api/v1/products", { headers }, env)
+      ).json()) as {
+        data: {
+          thumbnail: { kind: string };
+          assets?: unknown;
+          analysis?: unknown;
+        }[];
+      }
+    ).data;
+    expect(sidebar).toHaveLength(1);
+    expect(sidebar[0]?.thumbnail.kind).toBe("input");
+    expect(sidebar[0]).not.toHaveProperty("assets");
+    expect(sidebar[0]).not.toHaveProperty("analysis");
+    expect(
+      sqlite.query("SELECT count(*) n FROM generation_jobs").get(),
+    ).toEqual({ n: 0 });
+    const bad = uploadForm("Synthetic failed combined", 2);
+    bad.set("rightsConfirmed", "true");
+    bad.set(
+      "lookImage",
+      new File([new Uint8Array([1, 2, 3]).buffer], "synthetic-invalid.png", {
+        type: "image/png",
+      }),
+    );
+    expect(
+      (
+        await app.request(
+          "/api/v1/products",
+          { method: "POST", headers, body: bad },
+          env,
+        )
+      ).status,
+    ).toBe(400);
+    expect(sqlite.query("SELECT count(*) n FROM products").get()).toEqual({
+      n: 1,
+    });
+    expect(objects.size).toBe(5);
+  });
+  test("R2 deletion failure keeps a retryable product and cleanup tombstones", async () => {
+    const { env, sqlite } = memoryEnv(),
+      app = createApp(),
+      headers = await user(app, env);
+    const response = await app.request(
+      "/api/v1/products",
+      { method: "POST", headers, body: uploadForm() },
+      env,
+    );
+    const { data } = (await response.json()) as { data: { id: string } };
     const failure = spyOn(env.ASSETS, "delete").mockRejectedValue(
       new Error("Synthetic R2 failure"),
     );
     expect(
       (
         await app.request(
-          `/api/v1/projects/${created.data.id}`,
+          `/api/v1/products/${data.id}`,
           { method: "DELETE", headers },
           env,
         )
       ).status,
     ).toBe(500);
-    expect(sqlite.query("SELECT status FROM projects").get()).toEqual({
+    expect(sqlite.query("SELECT status FROM products").get()).toEqual({
       status: "deleting",
     });
     expect(
@@ -258,7 +322,7 @@ describe("private projects and uploads", () => {
     expect(
       (
         await app.request(
-          `/api/v1/projects/${created.data.id}`,
+          `/api/v1/products/${data.id}`,
           { method: "DELETE", headers },
           env,
         )

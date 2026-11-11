@@ -147,7 +147,7 @@ export async function runGenerationStage(
           httpMetadata: { contentType: image.mimeType },
         });
         const inserted = await env.DB.prepare(
-          "INSERT OR IGNORE INTO assets(id,user_id,product_id,job_id,kind,r2_key,mime_type,size_bytes,width,height,created_at) SELECT ?,j.user_id,j.product_id,j.id,'generated',?,?,?,?,?,? FROM generation_jobs j JOIN products p ON p.id=j.product_id JOIN projects pr ON pr.id=p.project_id WHERE j.id=? AND j.user_id=? AND j.status='running' AND p.status='ready' AND pr.status='active'",
+          "INSERT OR IGNORE INTO assets(id,user_id,product_id,job_id,kind,r2_key,mime_type,size_bytes,width,height,created_at) SELECT ?,j.user_id,j.product_id,j.id,'generated',?,?,?,?,?,? FROM generation_jobs j JOIN products p ON p.id=j.product_id AND p.user_id=j.user_id JOIN users u ON u.id=j.user_id WHERE j.id=? AND j.user_id=? AND j.status='running' AND p.status='ready' AND u.status='active'",
         )
           .bind(
             job.id,

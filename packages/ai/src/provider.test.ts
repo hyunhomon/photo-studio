@@ -7,6 +7,58 @@ import {
 } from "./provider";
 import { mockAnalysisFixture } from "./fixtures";
 import { presetInputSchema } from "@photo-studio/schemas";
+test("planning derives editable photographic choices from a selected visual reference in the existing single planning request", async () => {
+  let calls = 0;
+  const transport = Object.assign(
+    async (_input: unknown, init?: RequestInit) => {
+      calls++;
+      const request = JSON.parse(String(init?.body));
+      expect(request.response_format.json_schema.name).toBe("shoot_plan");
+      const content = request.messages[1].content;
+      expect(
+        content
+          .filter((part: { type: string }) => part.type === "image_url")
+          .map((part: { image_url: { url: string } }) => part.image_url.url),
+      ).toEqual(["synthetic-look-reference"]);
+      expect(content[0].text).toContain("lighting");
+      expect(content[0].text).toContain(
+        "Do not copy the reference person's identity",
+      );
+      return Response.json({
+        choices: [
+          {
+            finish_reason: "stop",
+            message: {
+              content: JSON.stringify({
+                ...mockPlan(mockAnalysisFixture),
+                referenceNotes: "Synthetic side light and restrained contrast",
+              }),
+            },
+          },
+        ],
+        usage: { cost: 0.0001 },
+      });
+    },
+    { preconnect: fetch.preconnect },
+  ) as typeof fetch;
+  const adapter = openRouterAdapter(
+    "synthetic-key",
+    "https://synthetic.invalid/planning",
+    transport,
+  );
+  const response = await adapter.plan(
+    "synthetic",
+    mockAnalysisFixture,
+    null,
+    "Synthetic request",
+    { lookImage: "synthetic-look-reference" },
+  );
+  expect(response.value.referenceNotes).toBe(
+    "Synthetic side light and restrained contrast",
+  );
+  expect(response.usage.actualCostUsd).toBe(0.0001);
+  expect(calls).toBe(1);
+});
 test("portable planning schema, lossless JSON parsing and app-owned constants tolerate provider formatting without changing garment facts", async () => {
   let calls = 0;
   const transport = Object.assign(

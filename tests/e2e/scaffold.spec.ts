@@ -1,28 +1,113 @@
-import { expect, test, type Locator } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
+import type {
+  JobDto,
+  PipelineDto,
+  ProductDto,
+  ResultDto,
+} from "../../packages/schemas/src";
 import { syntheticPng } from "../../apps/api/test/png";
 
-test("Mock: connect, upload, plan, generate, review, export and delete", async ({
+const productionOrigin = process.env.PHOTO_STUDIO_PRODUCTION_ORIGIN;
+const apiOrigin = productionOrigin || "http://localhost:8787";
+const appOrigin = productionOrigin || "http://localhost:4321";
+const fixture = (name: string, width = 64) => ({
+  name,
+  mimeType: "image/png",
+  buffer: Buffer.from(syntheticPng(width, width + 16)),
+});
+
+async function data<T>(page: Page, path: string): Promise<T> {
+  const response = await page.request.get(`${apiOrigin}/api/v1${path}`);
+  expect(response.ok()).toBe(true);
+  return ((await response.json()) as { data: T }).data;
+}
+
+async function waitForWorkflow(page: Page, result: Locator) {
+  const reconnect = page
+    .getByRole("button", { name: "작업 연결 재확인", exact: true })
+    .first();
+  await expect(result.or(reconnect).first()).toBeVisible({ timeout: 60000 });
+  if (!(await result.isVisible()) && (await reconnect.isVisible())) {
+    // Reconcile the existing instance once; never submit a second paid job.
+    await reconnect.click();
+  }
+  await expect(result).toBeVisible({ timeout: 60000 });
+}
+
+async function openNavigation(page: Page) {
+  if (test.info().project.name === "mobile-chromium")
+    await page.getByRole("button", { name: "상품 목록 열기" }).click();
+}
+
+async function verifyComparisonLayout(page: Page) {
+  const inspector = page.getByRole("complementary", { name: "촬영 설정 패널" });
+  const original = page.getByRole("img", {
+    name: "Synthetic shirt 원본 비교",
+    exact: true,
+  });
+  const result = page.getByRole("img", {
+    name: "Synthetic shirt 결과 비교",
+    exact: true,
+  });
+  if (test.info().project.name === "desktop-chromium") {
+    for (const width of [1440, 1024]) {
+      await page.setViewportSize({ width, height: 1000 });
+      await inspector
+        .getByRole("tab", { name: "촬영 콘셉트", exact: true })
+        .click();
+      await inspector.evaluate((element) => element.scrollTo(0, 0));
+      const before = await original.boundingBox();
+      await inspector.evaluate((element) =>
+        element.scrollTo(0, element.scrollHeight),
+      );
+      await expect
+        .poll(() => inspector.evaluate((element) => element.scrollTop))
+        .toBeGreaterThan(0);
+      const after = await original.boundingBox(),
+        panel = await inspector.boundingBox(),
+        generated = await result.boundingBox();
+      if (!before || !after || !panel || !generated)
+        throw new Error("Missing comparison layout");
+      expect(Math.abs(before.y - after.y)).toBeLessThan(1);
+      expect(Math.abs(before.x - after.x)).toBeLessThan(1);
+      expect(after.x + after.width).toBeLessThan(panel.x);
+      expect(generated.x + generated.width).toBeLessThan(panel.x);
+      expect(
+        await page.evaluate(
+          () => document.documentElement.scrollWidth <= innerWidth,
+        ),
+      ).toBe(true);
+      await page.screenshot({
+        path: `.tmp/product-workbench-${width}.png`,
+        fullPage: true,
+      });
+    }
+    await page.setViewportSize({ width: 1440, height: 1000 });
+  } else {
+    const canvas = await page.locator(".workbench-canvas").boundingBox(),
+      panel = await inspector.boundingBox();
+    if (!canvas || !panel) throw new Error("Missing responsive workbench");
+    expect(panel.y).toBeGreaterThanOrEqual(canvas.y + canvas.height - 1);
+    await page.screenshot({
+      path: ".tmp/product-workbench-mobile.png",
+      fullPage: true,
+    });
+  }
+}
+
+test("Mock: direct multi-photo upload, reference planning, compare, revise, export and delete", async ({
   page,
   browser,
 }) => {
-  const productionOrigin = process.env.PHOTO_STUDIO_PRODUCTION_ORIGIN;
-  async function waitForWorkflow(result: Locator) {
-    const reconnect = page
-      .getByRole("button", { name: "작업 연결 재확인", exact: true })
-      .first();
-    await expect(result.or(reconnect).first()).toBeVisible({ timeout: 60000 });
-    if (!(await result.isVisible()) && (await reconnect.isVisible())) {
-      // Reconcile the existing instance ID once; never submit a second paid job.
-      await reconnect.click();
-    }
-    await expect(result).toBeVisible({ timeout: 60000 });
-  }
+  test.setTimeout(productionOrigin ? 240000 : 180000);
+  if (test.info().project.name === "desktop-chromium")
+    await page.setViewportSize({ width: 1440, height: 1000 });
   const sessions = JSON.parse(
     process.env.PHOTO_STUDIO_TEST_SESSIONS || "{}",
   ) as Record<string, { token: string }>;
-  const session = sessions[test.info().project.name];
-  test.setTimeout(productionOrigin ? 180000 : 90000);
-  if (productionOrigin && session)
+  if (productionOrigin) {
+    const session = sessions[test.info().project.name];
+    if (!session) throw new Error("Missing synthetic test user session");
     await page.context().addCookies([
       {
         name: "__Host-ps_session",
@@ -33,11 +118,13 @@ test("Mock: connect, upload, plan, generate, review, export and delete", async (
         sameSite: "Lax",
       },
     ]);
-  const errors: string[] = [];
-  const unexpected: string[] = [];
-  page.on("pageerror", (e) => errors.push(e.message));
-  page.on("request", (r) => {
-    const url = new URL(r.url());
+  }
+  const errors: string[] = [],
+    unexpected: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  page.on("request", (request) => {
+    const url = new URL(request.url());
+    if (["blob:", "data:"].includes(url.protocol)) return;
     const analytics =
       productionOrigin &&
       ((url.origin === "https://static.cloudflareinsights.com" &&
@@ -57,84 +144,126 @@ test("Mock: connect, upload, plan, generate, review, export and delete", async (
     "background-color",
     "rgb(11, 12, 14)",
   );
-  await page.screenshot({
-    path: `.tmp/${productionOrigin ? "production-" : ""}dark-landing-${test.info().project.name}.png`,
-    fullPage: true,
-  });
   await expect(page.getByRole("heading", { level: 1 })).toContainText(
-    "옷 한 장에서",
+    "한 벌의 사진으로",
   );
-  if (productionOrigin) await page.goto("/studio");
-  else {
-    await page.goto("/studio");
-    await page.getByRole("button", { name: "로컬 Mock 스튜디오 열기" }).click();
-  }
-  await expect(page.getByRole("heading", { level: 1 })).toContainText(
-    "어떤 장면을 만들까요?",
-  );
-  await page.screenshot({
-    path: `.tmp/workspace-home-${test.info().project.name}.png`,
-    fullPage: true,
-  });
-  await page.getByRole("button", { name: "새 프로젝트", exact: true }).click();
-  await page.keyboard.press("Escape");
-  await expect(
-    page.getByRole("button", { name: "새 프로젝트", exact: true }),
-  ).toBeFocused();
-  await page.getByRole("button", { name: "새 프로젝트", exact: true }).click();
   await page
-    .getByLabel("프로젝트 이름", { exact: true })
-    .fill("Synthetic E2E collection");
-  await page
-    .getByRole("button", { name: "프로젝트 만들기", exact: true })
+    .getByRole("link", { name: "사진으로 촬영 시작하기", exact: true })
     .click();
-  await expect(page).toHaveURL(/\/studio\/projects\//);
-  const projectUrl = page.url();
+  if (!productionOrigin) {
+    const connected = page.waitForResponse(
+      (response) =>
+        response.request().method() === "POST" &&
+        new URL(response.url()).pathname === "/auth/demo",
+    );
+    await page.getByRole("button", { name: "로컬 Mock 스튜디오 열기" }).click();
+    expect((await connected).ok()).toBe(true);
+  }
   await expect(
-    page.getByRole("heading", {
-      name: "Synthetic E2E collection",
+    page.getByRole("heading", { name: "어떤 옷을 촬영할까요?", exact: true }),
+  ).toBeVisible({ timeout: 30000 });
+  // This scenario must never consume funded OpenRouter credits, even remotely.
+  expect((await data<{ mode: string }>(page, "/me")).mode).toBe("mock");
+  await expect(page.getByLabel("프로젝트 이름")).toHaveCount(0);
+  const form = page.getByRole("form", { name: "상품 등록 폼" });
+  const upload = form.getByLabel("상품 사진", { exact: true });
+  await form.getByLabel(/^상품 이름/).fill("Synthetic shirt");
+  await upload.setInputFiles(fixture("synthetic-front.png"));
+  await expect(
+    form.getByRole("img", { name: "상품 사진 미리보기 1", exact: true }),
+  ).toHaveJSProperty("naturalWidth", 64);
+  // A second selection appends rather than replacing the existing preview.
+  await upload.setInputFiles(fixture("synthetic-back.png", 72));
+  await upload.setInputFiles(fixture("synthetic-detail.png", 80));
+  await expect(
+    form.getByRole("img", { name: /상품 사진 미리보기 \d/ }),
+  ).toHaveCount(3);
+  await form
+    .getByRole("button", { name: "상품 사진 2번 삭제", exact: true })
+    .click();
+  await expect(
+    form.getByRole("img", { name: /상품 사진 미리보기 \d/ }),
+  ).toHaveCount(2);
+  await expect(
+    form.getByRole("img", { name: "상품 사진 미리보기 2", exact: true }),
+  ).toHaveJSProperty("naturalWidth", 80);
+  await upload.setInputFiles(fixture("synthetic-back.png", 72));
+  await expect(
+    form.getByRole("img", { name: /상품 사진 미리보기 \d/ }),
+  ).toHaveCount(3);
+  await form
+    .getByLabel("촬영 레퍼런스 (선택)", { exact: true })
+    .setInputFiles(fixture("synthetic-look.png", 40));
+  await expect(
+    form.getByRole("img", {
+      name: "촬영 레퍼런스 (선택) 미리보기 1",
       exact: true,
     }),
-  ).toBeVisible();
+  ).toHaveJSProperty("naturalWidth", 40);
+  await expect(
+    form.getByRole("button", { name: "상품 등록", exact: true }),
+  ).toBeDisabled();
+  await form
+    .getByLabel(/^참조 사진의 사용 권한과 성인 인물의 사용 동의를 확인했습니다/)
+    .check();
+  await form.screenshot({
+    path: `.tmp/product-upload-${test.info().project.name}.png`,
+  });
+  await form.getByRole("button", { name: "상품 등록", exact: true }).click();
+  await expect(page).toHaveURL(/\/studio\/products\//);
+  const productUrl = page.url(),
+    productId = new URL(productUrl).pathname.split("/").at(-1);
+  if (!productId) throw new Error("Missing created product");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+    "Synthetic shirt",
+  );
+  await expect(page.getByText("의류 원본 3장", { exact: true })).toBeVisible();
+  const original = page.getByRole("img", {
+    name: "Synthetic shirt 원본 비교",
+    exact: true,
+  });
+  await expect(original).toHaveJSProperty("naturalWidth", 64);
+  await page.getByRole("button", { name: "원본 2 선택", exact: true }).click();
+  await expect(original).toHaveJSProperty("naturalWidth", 80);
+  await page.getByRole("button", { name: "원본 1 선택", exact: true }).click();
+  const product = await data<ProductDto>(page, `/products/${productId}`),
+    look = product.assets.find((asset) => asset.kind === "look_reference");
+  expect(product.assets.filter((asset) => asset.kind === "input")).toHaveLength(
+    3,
+  );
+  expect(look).toBeDefined();
+  if (!look) throw new Error("Missing initial photographic reference");
+  expect(
+    (await data<PipelineDto>(page, `/products/${productId}/pipeline`)).jobs,
+  ).toHaveLength(0);
+
   await page.keyboard.press("Control+k");
   await page
-    .getByRole("combobox", { name: "프로젝트 검색어" })
-    .fill("Synthetic E2E");
+    .getByRole("combobox", { name: "상품 검색어" })
+    .fill("Synthetic shirt");
   await expect(
-    page.getByRole("option", { name: "Synthetic E2E collection" }),
+    page.getByRole("option", { name: "Synthetic shirt", exact: true }),
   ).toBeVisible();
   await page.keyboard.press("ArrowDown");
   await page.keyboard.press("Enter");
-  await expect(page.getByRole("dialog", { name: "프로젝트 검색" })).toHaveCount(
-    0,
-  );
-  await expect(page).toHaveURL(projectUrl);
-  await expect(
-    page.getByRole("heading", {
-      name: "Synthetic E2E collection",
-      exact: true,
-    }),
-  ).toBeVisible();
+  await expect(page.getByRole("dialog", { name: "상품 검색" })).toHaveCount(0);
+  await expect(page).toHaveURL(productUrl);
   if (test.info().project.name === "mobile-chromium") {
-    await page.getByRole("button", { name: "프로젝트 목록 열기" }).click();
+    await openNavigation(page);
     await expect(
       page
-        .getByRole("navigation", { name: "프로젝트 목록" })
-        .getByRole("link", { name: "Synthetic E2E collection" }),
+        .getByRole("navigation", { name: "상품 목록" })
+        .getByRole("link", { name: "Synthetic shirt", exact: true }),
     ).toHaveAttribute("aria-current", "page");
-    await page.screenshot({
-      path: ".tmp/workspace-mobile-drawer.png",
-      fullPage: true,
-    });
     await page.keyboard.press("Escape");
     await expect(
-      page.getByRole("button", { name: "프로젝트 목록 열기" }),
+      page.getByRole("button", { name: "상품 목록 열기" }),
     ).toBeFocused();
   } else {
     await expect(
       page
-        .getByRole("navigation", { name: "프로젝트 목록" })
-        .getByRole("link", { name: "Synthetic E2E collection" }),
+        .getByRole("navigation", { name: "상품 목록" })
+        .getByRole("link", { name: "Synthetic shirt", exact: true }),
     ).toHaveAttribute("aria-current", "page");
     await page.getByRole("button", { name: "사이드바 접기" }).click();
     await expect(
@@ -142,58 +271,64 @@ test("Mock: connect, upload, plan, generate, review, export and delete", async (
     ).toBeVisible();
     await page.getByRole("button", { name: "사이드바 펼치기" }).click();
   }
-  await page.getByRole("button", { name: "상품 등록", exact: true }).click();
-  await page.getByLabel("상품 이름", { exact: true }).fill("Synthetic shirt");
-  await page.getByLabel("상품 사진", { exact: true }).setInputFiles({
-    name: "fixture.png",
-    mimeType: "image/png",
-    buffer: Buffer.from(syntheticPng()),
-  });
-  await page.getByRole("button", { name: "비공개로 상품 등록" }).click();
-  await expect(page).toHaveURL(/\/studio\/products\//);
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText(
-    "Synthetic shirt",
-  );
-  await expect(
-    page.getByRole("img", { name: "Synthetic shirt 참조" }),
-  ).toBeVisible();
-  await expect(
-    page.getByRole("img", { name: "Synthetic shirt 참조" }),
-  ).toHaveJSProperty("naturalWidth", 64);
-  if (productionOrigin && test.info().project.name === "desktop-chromium") {
-    const other = sessions["mobile-chromium"];
-    if (!other) throw new Error("Missing synthetic second user");
-    const context = await browser.newContext();
-    await context.addCookies([
-      {
-        name: "__Host-ps_session",
-        value: other.token,
-        url: productionOrigin,
-        httpOnly: true,
-        secure: true,
-        sameSite: "Lax",
-      },
-    ]);
-    const productId = new URL(page.url()).pathname.split("/").at(-1);
-    expect(
-      (
-        await context.request.get(
-          `${productionOrigin}/api/v1/products/${productId}`,
-        )
-      ).status(),
-    ).toBe(404);
-    const image = await page
-      .getByRole("img", { name: "Synthetic shirt 참조" })
-      .getAttribute("src");
-    if (!image) throw new Error("Missing synthetic asset");
-    expect((await context.request.get(image)).status()).toBe(404);
-    await context.close();
+  if (test.info().project.name === "desktop-chromium") {
+    const other = await browser.newContext();
+    let cleanupCsrf: string | undefined;
+    if (productionOrigin) {
+      const session = sessions["mobile-chromium"];
+      if (!session) throw new Error("Missing synthetic second user");
+      await other.addCookies([
+        {
+          name: "__Host-ps_session",
+          value: session.token,
+          url: productionOrigin,
+          httpOnly: true,
+          secure: true,
+          sameSite: "Lax",
+        },
+      ]);
+    } else {
+      const response = await other.request.post(`${apiOrigin}/auth/demo`, {
+        headers: { Origin: appOrigin },
+      });
+      expect(response.ok()).toBe(true);
+      cleanupCsrf = ((await response.json()) as { data: { csrf: string } }).data
+        .csrf;
+    }
+    try {
+      expect(
+        (
+          await other.request.get(`${apiOrigin}/api/v1/products/${productId}`)
+        ).status(),
+      ).toBe(404);
+      const src = await original.getAttribute("src");
+      if (!src) throw new Error("Missing synthetic asset URL");
+      expect((await other.request.get(src)).status()).toBe(404);
+      expect(
+        (
+          await other.request.get(
+            `${apiOrigin}/api/v1/assets/${look.id}/content`,
+          )
+        ).status(),
+      ).toBe(404);
+    } finally {
+      if (cleanupCsrf)
+        await other.request.delete(`${apiOrigin}/api/v1/account`, {
+          headers: { Origin: appOrigin, "X-CSRF-Token": cleanupCsrf },
+          data: { confirmation: "삭제" },
+        });
+      await other.close();
+    }
   }
-  expect(
-    await page.evaluate(
-      () => document.documentElement.scrollWidth <= innerWidth,
-    ),
-  ).toBe(true);
+  const inspector = page.getByRole("complementary", { name: "촬영 설정 패널" });
+  await expect(
+    inspector.getByRole("tab", { name: "기획", exact: true }),
+  ).toHaveAttribute("aria-selected", "true");
+  await expect(
+    page.getByLabel("촬영 레퍼런스의 구도·빛·분위기로 기획하기", {
+      exact: true,
+    }),
+  ).toBeChecked();
   await page.getByRole("button", { name: "분석 시작", exact: true }).click();
   await expect(
     page.getByRole("button", { name: "동의하고 분석·기획 시작" }),
@@ -201,15 +336,40 @@ test("Mock: connect, upload, plan, generate, review, export and delete", async (
   await page
     .getByLabel("사진 전송과 분석·기획 비용 안내를 확인했습니다.")
     .check();
+  const planningRequest = page.waitForRequest(
+    (request) =>
+      request.method() === "POST" &&
+      new URL(request.url()).pathname.endsWith("/plan"),
+  );
   await page.getByRole("button", { name: "동의하고 분석·기획 시작" }).click();
+  expect((await planningRequest).postDataJSON()).toMatchObject({
+    lookReferenceId: look.id,
+    referenceConsent: true,
+    reuseAnalysis: false,
+  });
   await waitForWorkflow(
+    page,
     page.getByRole("heading", { name: "촬영 콘셉트", exact: true }),
   );
+  await expect(
+    inspector.getByRole("tab", { name: "촬영 콘셉트", exact: true }),
+  ).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByText("레퍼런스 관찰", { exact: true })).toBeVisible();
+  const initialPipeline = await data<PipelineDto>(
+    page,
+    `/products/${productId}/pipeline`,
+  );
+  expect(initialPipeline.plans[0]?.lookReferenceId).toBe(look.id);
+  expect(initialPipeline.plans[0]?.spec.referenceNotes.length).toBeGreaterThan(
+    0,
+  );
+  await inspector.getByRole("tab", { name: "상품 이해", exact: true }).click();
   await page.getByLabel("의류 종류", { exact: true }).fill("수정한 셔츠");
   await page.getByRole("button", { name: "분석 수정 저장" }).click();
   await expect(page.getByLabel("의류 종류", { exact: true })).toHaveValue(
     "수정한 셔츠",
   );
+  await inspector.getByRole("tab", { name: "기획", exact: true }).click();
   await page
     .getByRole("button", { name: "이 분석으로 기획 다시 만들기", exact: true })
     .click();
@@ -220,74 +380,80 @@ test("Mock: connect, upload, plan, generate, review, export and delete", async (
     .getByLabel("기존 분석 사용과 기획 1회 비용 안내를 확인했습니다.")
     .check();
   const planningOnlyResponse = page.waitForResponse(
-    (r) =>
-      r.request().method() === "POST" &&
-      new URL(r.url()).pathname.endsWith("/plan"),
+    (response) =>
+      response.request().method() === "POST" &&
+      new URL(response.url()).pathname.endsWith("/plan"),
   );
   await page
     .getByRole("button", { name: "동의하고 기획만 시작", exact: true })
     .click();
-  const planningOnly = (await (await planningOnlyResponse).json()) as {
-    data: { id: string };
-  };
-  await waitForWorkflow(page.getByText(/V2 ·/));
-  const planningJob = await page.request.get(
-    `${productionOrigin || "http://localhost:8787"}/api/v1/jobs/${planningOnly.data.id}`,
-  );
-  expect(planningJob.ok()).toBe(true);
-  const jobBody = (await planningJob.json()) as {
-    data: { attempts: { stage: string }[] };
-  };
-  expect(jobBody.data.attempts.map((a) => a.stage)).toEqual(["planning"]);
-  await expect(page.getByLabel("의류 종류", { exact: true })).toHaveValue(
-    "수정한 셔츠",
-  );
+  const planningOnly = (
+    (await (await planningOnlyResponse).json()) as { data: { id: string } }
+  ).data;
+  await waitForWorkflow(page, page.getByText(/V2 ·/));
+  const planningJob = await data<JobDto>(page, `/jobs/${planningOnly.id}`);
+  expect(planningJob.attempts.map((attempt) => attempt.stage)).toEqual([
+    "planning",
+  ]);
+  expect(
+    (await data<ProductDto>(page, `/products/${productId}`)).analysis
+      ?.garmentType,
+  ).toBe("수정한 셔츠");
   await page.getByRole("button", { name: "배경 분리", exact: true }).click();
   await page
     .getByRole("option", { name: "분리감 있게 · 멀리 있는 배경", exact: true })
     .click();
   await page.getByRole("button", { name: "콘셉트 승인", exact: true }).click();
   await expect(page.getByText("V2 · 승인됨", { exact: true })).toBeVisible();
-  for (const [button, label, consent, width] of [
-    [
-      "인물 사진 등록",
-      "인물 참조 사진 선택",
-      "사진의 사용 권한과 성인 모델의 사용 동의를 확인했습니다.",
-      32,
-    ],
-    [
-      "촬영감 사진 등록",
-      "촬영감 참조 사진 선택",
-      "AI 참조로 사용할 권한이 있는 사진임을 확인했습니다.",
-      40,
-    ],
-  ] as const) {
-    await page.getByRole("button", { name: button, exact: true }).click();
-    await page.getByLabel(label, { exact: true }).setInputFiles({
-      name: "synthetic-reference.png",
-      mimeType: "image/png",
-      buffer: Buffer.from(syntheticPng(width, width + 16)),
-    });
-    await expect(
-      page.getByRole("button", { name: "비공개로 사진 저장", exact: true }),
-    ).toBeDisabled();
-    await page.getByLabel(consent, { exact: true }).check();
-    await page
-      .getByRole("button", { name: "비공개로 사진 저장", exact: true })
-      .click();
-    await expect(page.getByRole("dialog")).toHaveCount(0);
-  }
-  await expect(
-    page.getByRole("img", { name: "인물 참조 사진", exact: true }),
-  ).toHaveJSProperty("naturalWidth", 32);
+
+  await inspector.getByRole("tab", { name: "기획", exact: true }).click();
   await expect(
     page.getByRole("img", { name: "촬영감 참조 사진", exact: true }),
   ).toHaveJSProperty("naturalWidth", 40);
   await page
-    .getByRole("region", { name: "촬영 참조", exact: true })
-    .screenshot({
-      path: `.tmp/${productionOrigin ? "production-" : ""}photo-references-${test.info().project.name}.png`,
-    });
+    .getByRole("button", { name: "인물 사진 등록", exact: true })
+    .click();
+  await page
+    .getByLabel("인물 참조 사진 선택", { exact: true })
+    .setInputFiles(fixture("synthetic-person.png", 32));
+  await expect(
+    page.getByRole("button", { name: "비공개로 사진 저장", exact: true }),
+  ).toBeDisabled();
+  await page
+    .getByLabel("사진의 사용 권한과 성인 모델의 사용 동의를 확인했습니다.", {
+      exact: true,
+    })
+    .check();
+  await page
+    .getByRole("button", { name: "비공개로 사진 저장", exact: true })
+    .click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(
+    page.getByRole("img", { name: "인물 참조 사진", exact: true }),
+  ).toHaveJSProperty("naturalWidth", 32);
+  expect(
+    (await data<PipelineDto>(page, `/products/${productId}/pipeline`)).jobs,
+  ).toHaveLength(2);
+
+  // Synthetic UI-only delay: the real Mock adapter completes normally. Keep its
+  // pipeline snapshot visibly active until the large pending canvas is checked.
+  // No extra inference call or provider delay is introduced by this fixture.
+  let showPending = true;
+  const pipelinePattern = `**/api/v1/products/${productId}/pipeline`;
+  await page.route(pipelinePattern, async (route) => {
+    const response = await route.fetch();
+    const body = (await response.json()) as { data: PipelineDto };
+    if (showPending) {
+      const job = body.data.jobs.find((item) => item.kind === "generate");
+      if (job)
+        Object.assign(job, {
+          status: "running",
+          stage: "generation",
+          finishedAt: null,
+        });
+    }
+    await route.fulfill({ response, json: body });
+  });
   await page
     .getByRole("button", { name: "승인된 콘셉트로 생성", exact: true })
     .click();
@@ -300,39 +466,63 @@ test("Mock: connect, upload, plan, generate, review, export and delete", async (
   await expect(
     page.getByLabel("촬영감 참조 사진 사용", { exact: true }),
   ).toBeChecked();
-  await page.getByLabel("촬영감 참조 사진 사용", { exact: true }).uncheck();
-  await page.getByRole("dialog").screenshot({
-    path: `.tmp/${productionOrigin ? "production-" : ""}reference-consent-${test.info().project.name}.png`,
-  });
+  await page.getByLabel("인물 참조 사진 사용", { exact: true }).uncheck();
   await page
     .getByLabel("이미지 생성 비용과 승인된 촬영 지시를 확인했습니다.")
     .check();
+  const generationRequest = page.waitForRequest(
+    (request) =>
+      request.method() === "POST" &&
+      new URL(request.url()).pathname.endsWith("/generate"),
+  );
   await page.getByRole("button", { name: "동의하고 1장 생성" }).click();
+  expect((await generationRequest).postDataJSON()).toMatchObject({
+    lookReferenceId: look.id,
+    personReferenceId: null,
+    referenceConsent: true,
+    count: 1,
+  });
+  const pending = page.getByRole("status", {
+    name: "이미지를 생성하고 있습니다",
+    exact: true,
+  });
+  try {
+    await expect(pending).toBeVisible();
+    await expect(pending).toHaveAttribute("aria-busy", "true");
+    await expect(
+      page.getByRole("button", { name: "승인된 콘셉트로 생성", exact: true }),
+    ).toBeDisabled();
+    const size = await pending.boundingBox();
+    expect(size?.width).toBeGreaterThan(280);
+    expect(size?.height).toBeGreaterThanOrEqual(300);
+    await page.locator("#results").screenshot({
+      path: `.tmp/product-pending-${test.info().project.name}.png`,
+    });
+  } finally {
+    showPending = false;
+  }
+  await expect(pending).toHaveCount(0, { timeout: 60000 });
+  await page.unrouteAll({ behavior: "wait" });
   await waitForWorkflow(
-    page.getByRole("heading", { name: "원본과 직접 확인", exact: true }),
+    page,
+    page.getByRole("img", { name: "Synthetic shirt 결과 비교", exact: true }),
   );
   await expect(
-    page.getByRole("img", { name: "Synthetic shirt 결과 비교" }),
+    page.getByRole("img", { name: "Synthetic shirt 결과 비교", exact: true }),
   ).toHaveJSProperty("naturalWidth", 64);
   await expect(
     page.getByRole("button", { name: "채택", exact: true }),
   ).toHaveCount(0);
   await expect(page.getByText("상품 충실도", { exact: true })).toHaveCount(0);
-  const resultsPath =
-    new URL(page.url()).pathname.replace(
-      "/studio/products/",
-      "/api/v1/products/",
-    ) + "/results";
-  const firstResults = await page.request.get(
-    `${productionOrigin || "http://localhost:8787"}${resultsPath}`,
+  const firstResults = await data<ResultDto[]>(
+    page,
+    `/products/${productId}/results`,
   );
-  const firstReferenceUsage = (await firstResults.json()).data[0];
-  expect(firstReferenceUsage.personReferenceUsed).toBe(true);
-  expect(firstReferenceUsage.lookReferenceUsed).toBe(false);
+  expect(firstResults[0]?.personReferenceUsed).toBe(false);
+  expect(firstResults[0]?.lookReferenceUsed).toBe(true);
   const downloadEvent = page.waitForEvent("download");
   await page.getByRole("link", { name: "PNG 다운로드" }).click();
-  const download = await downloadEvent;
-  expect(download.suggestedFilename()).toBe("photo-studio.png");
+  expect((await downloadEvent).suggestedFilename()).toBe("photo-studio.png");
   await page.getByRole("button", { name: "이 컷 개선", exact: true }).click();
   await page.getByRole("button", { name: "개선할 항목", exact: true }).click();
   await page
@@ -344,23 +534,34 @@ test("Mock: connect, upload, plan, generate, review, export and delete", async (
   await page
     .getByLabel("이번 컷에 반영할 요청 (선택)")
     .fill("Synthetic relaxed expression revision");
+  await expect(
+    page.getByLabel("인물 참조 사진 사용", { exact: true }),
+  ).toBeChecked();
+  await expect(
+    page.getByLabel("촬영감 참조 사진 사용", { exact: true }),
+  ).toBeChecked();
   await page
     .getByLabel("이미지 생성 비용과 승인된 촬영 지시를 확인했습니다.")
     .check();
   await page.getByRole("button", { name: "동의하고 1장 생성" }).click();
   await waitForWorkflow(
-    page.getByRole("button", { name: /결과 \d+ 선택/ }).nth(1),
+    page,
+    page.getByRole("button", { name: "결과 2 선택", exact: true }),
   );
   await expect(page.getByRole("button", { name: /결과 \d+ 선택/ })).toHaveCount(
     2,
     { timeout: 60000 },
   );
-  const revisedResults = await page.request.get(
-    `${productionOrigin || "http://localhost:8787"}${resultsPath}`,
+  const revised = await data<ResultDto[]>(
+    page,
+    `/products/${productId}/results`,
   );
-  const revisedReferenceUsage = (await revisedResults.json()).data[0];
-  expect(revisedReferenceUsage.personReferenceUsed).toBe(true);
-  expect(revisedReferenceUsage.lookReferenceUsed).toBe(true);
+  expect(revised[0]).toMatchObject({
+    personReferenceUsed: true,
+    lookReferenceUsed: true,
+    regenerationOf: firstResults[0]?.asset.id,
+    regenerationReason: "human_naturalness",
+  });
   await page
     .getByRole("button", { name: "이전 컷과 비교", exact: true })
     .click();
@@ -373,17 +574,16 @@ test("Mock: connect, upload, plan, generate, review, export and delete", async (
   await page
     .getByRole("button", { name: "원본 의류와 비교", exact: true })
     .click();
-  await page
-    .getByRole("heading", { name: "당신의 다음 컷." })
-    .scrollIntoViewIfNeeded();
   await page.locator("#results").screenshot({
-    path: `.tmp/${productionOrigin ? "production-" : ""}studio-review-${test.info().project.name}.png`,
+    path: `.tmp/product-review-${test.info().project.name}.png`,
   });
+  await verifyComparisonLayout(page);
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= innerWidth,
     ),
   ).toBe(true);
+
   let releaseSession: () => void = () => {};
   const sessionGate = new Promise<void>((resolve) => {
     releaseSession = resolve;
@@ -397,8 +597,7 @@ test("Mock: connect, upload, plan, generate, review, export and delete", async (
     { times: 1 },
   );
   const documentOrigin = await page.evaluate(() => performance.timeOrigin);
-  if (test.info().project.name === "mobile-chromium")
-    await page.getByRole("button", { name: "프로젝트 목록 열기" }).click();
+  await openNavigation(page);
   await page.getByRole("link", { name: "사용 기록", exact: true }).click();
   try {
     await expect(
@@ -441,15 +640,21 @@ test("Mock: connect, upload, plan, generate, review, export and delete", async (
   await expect(
     page.getByRole("heading", { name: "Synthetic brand" }),
   ).toBeVisible();
-  await page.goto(projectUrl);
+  await page.goto(productUrl);
+  await page.getByRole("button", { name: "상품 삭제", exact: true }).click();
   await page
-    .getByRole("button", { name: "프로젝트 삭제", exact: true })
+    .getByRole("button", { name: "상품 영구 삭제", exact: true })
     .click();
-  await page.getByRole("button", { name: "영구 삭제", exact: true }).click();
   await expect(page).toHaveURL(/\/studio$/);
   await expect(
-    page.getByRole("heading", { name: "어떤 장면을 만들까요?" }),
+    page.getByRole("heading", { name: "어떤 옷을 촬영할까요?", exact: true }),
   ).toBeVisible();
+  await openNavigation(page);
+  await expect(
+    page
+      .getByRole("navigation", { name: "상품 목록" })
+      .getByRole("link", { name: "Synthetic shirt", exact: true }),
+  ).toHaveCount(0);
   await page.goto("/studio/settings");
   await page.getByRole("button", { name: "계정과 모든 데이터 삭제" }).click();
   await page.getByLabel("계속하려면 ‘삭제’를 입력하세요.").fill("삭제");
@@ -467,14 +672,9 @@ test("unauthenticated studio starts OAuth directly with no invitation form", asy
   const legacy = await page.request.get("/beta", { maxRedirects: 0 });
   expect(legacy.status()).toBe(308);
   expect(
-    new URL(
-      legacy.headers().location ?? "/invalid",
-      page.url().startsWith("http")
-        ? page.url()
-        : process.env.PHOTO_STUDIO_PRODUCTION_ORIGIN || "http://localhost:4321",
-    ).pathname,
+    new URL(legacy.headers().location ?? "/invalid", appOrigin).pathname,
   ).toBe("/studio");
-  if (process.env.PHOTO_STUDIO_PRODUCTION_ORIGIN) {
+  if (productionOrigin) {
     let authorize: URL | undefined;
     await page.route("**/auth/openrouter/start", async (route) => {
       const response = await route.fetch({ maxRedirects: 0 });

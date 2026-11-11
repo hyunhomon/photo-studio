@@ -8,7 +8,8 @@ Build the smallest reliable web MVP that turns clothing photos into AI-planned f
 - Hono API Worker, Zod contracts, Drizzle + D1, R2, Cloudflare Workflows.
 - OpenRouter OAuth **PKCE S256** for MVP BYOK; the user pays OpenRouter directly. Never use a shared operator API key for customer inference.
 - Image model defaults to `openai/gpt-image-2`, configurable. Analysis model remains configurable and must be capability-checked.
-- MVP has direct OpenRouter OAuth without invite codes (ADR-016), project/product/asset management, analyse+plan flow, user-approved generation, original/previous-frame comparison, directed revisions, usage/cost logging, and download. ADR-019 retires shoot modes, numeric AI evaluation and feedback controls; prioritize coherent light/focus, natural adults, and material appearance. ADR-020 makes garment visibility primary and separates prior identity cues from prior retouching/crop defects. ADR-021 adds optional consented adult-person and photographic-look references, always separate from authoritative garment evidence and never automatically scraped or inferred on upload.
+- MVP has direct OpenRouter OAuth without invite codes (ADR-016), direct product/asset management without project containers, analyse+plan flow, user-approved generation, original/previous-frame comparison, directed revisions, usage/cost logging, and download. ADR-019 retires shoot modes, numeric AI evaluation and feedback controls; prioritize coherent light/focus, natural adults, and material appearance. ADR-020 makes garment visibility primary and separates prior identity cues from prior retouching/crop defects. ADR-021 adds optional consented adult-person and photographic-look references, always separate from authoritative garment evidence and never automatically scraped or inferred on upload.
+- ADR-022 removes project routes/table and starts `/studio` with product upload/previews; the sidebar lists products, comparison stays central and planning stays in a right inspector. A selected consented look reference informs the existing planning call and can be explicitly selected again for generation. User-authorized service reset is an explicit exception to historical-data preservation; preserve CF resources and the master encryption secret, and record reset/verification results honestly.
 - Do **not** implement payments, subscriptions, credit balances, batch generation, teams or training models now.
 
 ## Execution
@@ -30,13 +31,13 @@ Build the smallest reliable web MVP that turns clothing photos into AI-planned f
 ## Security & identity
 - Server-side OAuth callback exchanges code using PKCE verifier; protect `state` and the initiating browser; issue separate app session cookie.
 - Encrypt OpenRouter keys server-side with versioned AES-GCM key; never return them to browser. No browser localStorage for keys.
-- Scope every project, product, asset, feedback and job query to current internal user ID.
+- Scope every product, asset, feedback and job query to current internal user ID.
 - Validate file type by signature and size; authorize R2 reads and uploads; avoid public buckets.
 - SameSite and CORS allowed origin must be explicit; no `*` with credentials.
 - When OpenRouter does not return a stable `user_id`, fail safely rather than merging unrelated accounts.
 
 ## Core metrics
-Capture API call model/stage/latency/outcome/usage/actual cost or null, capture protocol/prompt versions, revision axis/instructions and regeneration linkage. Preserve legacy quality/feedback history but do not create or display new ratings (ADR-019). Never fabricate cost when provider omits it: mark `unknown` and optionally store separately identified estimate.
+Capture API call model/stage/latency/outcome/usage/actual cost or null, capture protocol/prompt versions, revision axis/instructions and regeneration linkage. Preserve legacy quality/feedback history except explicitly authorized resets (ADR-022); do not create or display new ratings (ADR-019). Never fabricate cost when provider omits it: mark `unknown` and optionally store separately identified estimate.
 
 ## Working definition of done
 - End-to-end scenario documented in `docs/09-IMPLEMENTATION-PLAN.md` works with a mock adapter and then (by explicit human invocation) with a funded test OpenRouter account.

@@ -8,6 +8,199 @@ import {
 import type { PipelineDto, ProductDto } from "@photo-studio/schemas";
 import { studioFixture } from "../test/studio";
 import { runPlanStage } from "./pipeline";
+import { referenceForm } from "../test/references";
+
+test("a consented look reference informs planning once, stays out of garment analysis and is inherited by the saved plan", async () => {
+  const s = await studioFixture();
+  const uploaded = await s.call<ProductDto>(
+    `/products/${s.product.id}/references`,
+    "POST",
+    referenceForm("look_reference"),
+  );
+  const reference = uploaded.data.assets.find(
+    (a) => a.kind === "look_reference",
+  );
+  const source = uploaded.data.assets.find((a) => a.kind === "input");
+  if (!reference || !source) throw new Error("Missing synthetic reference");
+  const request = {
+    ...s.planInput,
+    lookReferenceId: reference.id,
+    referenceConsent: true,
+  };
+  expect(
+    (
+      await s.call(`/products/${s.product.id}/plan`, "POST", {
+        ...request,
+        referenceConsent: false,
+      })
+    ).status,
+  ).toBe(400);
+  expect(
+    (
+      await s.call(`/products/${s.product.id}/plan`, "POST", {
+        ...request,
+        lookReferenceId: source.id,
+      })
+    ).status,
+  ).toBe(404);
+  expect(
+    s.sqlite.query("SELECT count(*) n FROM generation_attempts").get(),
+  ).toEqual({ n: 0 });
+  const job = (
+    await s.call<{ id: string }>(
+      `/products/${s.product.id}/plan`,
+      "POST",
+      request,
+    )
+  ).data;
+  const adapter = mockAdapter(),
+    analyze = adapter.analyze,
+    plan = adapter.plan;
+  let analysisCalls = 0,
+    planningCalls = 0;
+  adapter.analyze = async (...args) => {
+    analysisCalls++;
+    expect(args[1]).toHaveLength(1);
+    return analyze(...args);
+  };
+  adapter.plan = async (...args) => {
+    planningCalls++;
+    expect(args[4]?.lookImage).toStartWith("data:image/png;base64,");
+    return plan(...args);
+  };
+  const deps = { adapter: async () => adapter };
+  await runPlanStage(s.env, job.id, "analysis", deps);
+  await runPlanStage(s.env, job.id, "planning", deps);
+  expect(analysisCalls).toBe(1);
+  expect(planningCalls).toBe(1);
+  const saved = (
+    await s.call<PipelineDto>(`/products/${s.product.id}/pipeline`)
+  ).data.plans[0];
+  expect(saved?.lookReferenceId).toBe(reference.id);
+  expect(saved?.spec.referenceNotes).toContain("Mock");
+  expect(
+    s.sqlite
+      .query("SELECT stage FROM generation_attempts ORDER BY stage")
+      .all(),
+  ).toEqual([{ stage: "analysis" }, { stage: "planning" }]);
+  const stranger = await s.login();
+  expect(
+    (
+      await s.call(
+        `/products/${s.product.id}/plan`,
+        "POST",
+        { ...request, idempotencyKey: crypto.randomUUID() },
+        stranger,
+      )
+    ).status,
+  ).toBe(404);
+});
+
+test("missing look media or revoked reference consent stops planning before a paid planning claim", async () => {
+  const s = await studioFixture();
+  const uploaded = await s.call<ProductDto>(
+    `/products/${s.product.id}/references`,
+    "POST",
+    referenceForm("look_reference"),
+  );
+  const ref = uploaded.data.assets.find((a) => a.kind === "look_reference");
+  if (!ref) throw new Error("Missing fixture reference");
+  const job = (
+    await s.call<{ id: string }>(`/products/${s.product.id}/plan`, "POST", {
+      ...s.planInput,
+      lookReferenceId: ref.id,
+      referenceConsent: true,
+    })
+  ).data;
+  await runPlanStage(s.env, job.id, "analysis");
+  const key = s.sqlite
+    .query("SELECT r2_key FROM assets WHERE id=?")
+    .get(ref.id) as { r2_key: string };
+  s.objects.delete(key.r2_key);
+  let calls = 0;
+  const adapter = mockAdapter();
+  adapter.plan = async () => {
+    calls++;
+    throw new Error("Must not call missing reference");
+  };
+  await runPlanStage(s.env, job.id, "planning", {
+    adapter: async () => adapter,
+  });
+  expect(calls).toBe(0);
+  expect(
+    s.sqlite
+      .query(
+        "SELECT count(*) n FROM generation_attempts WHERE stage='planning'",
+      )
+      .get(),
+  ).toEqual({ n: 0 });
+  const revoked = await studioFixture();
+  const refProduct = await revoked.call<ProductDto>(
+    `/products/${revoked.product.id}/references`,
+    "POST",
+    referenceForm("look_reference"),
+  );
+  const look = refProduct.data.assets.find((a) => a.kind === "look_reference");
+  if (!look) throw new Error("Missing fixture reference");
+  const revokedJob = (
+    await revoked.call<{ id: string }>(
+      `/products/${revoked.product.id}/plan`,
+      "POST",
+      {
+        ...revoked.planInput,
+        lookReferenceId: look.id,
+        referenceConsent: true,
+      },
+    )
+  ).data;
+  revoked.sqlite.run(
+    "UPDATE generation_jobs SET request_json=json_set(request_json,'$.referenceConsent',json('false')) WHERE id=?",
+    [revokedJob.id],
+  );
+  let resolutions = 0;
+  await runPlanStage(revoked.env, revokedJob.id, "analysis", {
+    adapter: async () => {
+      resolutions++;
+      return mockAdapter();
+    },
+  });
+  expect(resolutions).toBe(0);
+  expect(
+    revoked.sqlite.query("SELECT count(*) n FROM generation_attempts").get(),
+  ).toEqual({ n: 0 });
+});
+
+test("combined garment and planning reference size is rejected before any job or paid call", async () => {
+  const s = await studioFixture();
+  const uploaded = await s.call<ProductDto>(
+    `/products/${s.product.id}/references`,
+    "POST",
+    referenceForm("look_reference"),
+  );
+  const ref = uploaded.data.assets.find((a) => a.kind === "look_reference");
+  if (!ref) throw new Error("Missing fixture reference");
+  s.sqlite.run(
+    "UPDATE assets SET size_bytes=? WHERE product_id=? AND kind='input'",
+    [9 * 1024 * 1024, s.product.id],
+  );
+  s.sqlite.run("UPDATE assets SET size_bytes=? WHERE id=?", [
+    4 * 1024 * 1024,
+    ref.id,
+  ]);
+  const request = await s.call(`/products/${s.product.id}/plan`, "POST", {
+    ...s.planInput,
+    lookReferenceId: ref.id,
+    referenceConsent: true,
+  });
+  expect(request.status).toBe(409);
+  expect(request.error?.code).toBe("SOURCE_TOO_LARGE");
+  expect(
+    s.sqlite.query("SELECT count(*) n FROM generation_jobs").get(),
+  ).toEqual({ n: 0 });
+  expect(
+    s.sqlite.query("SELECT count(*) n FROM generation_attempts").get(),
+  ).toEqual({ n: 0 });
+});
 
 test("failed billed planning preserves analysis and safe diagnostics; consented planning-only recovery snapshots analysis without re-analysing", async () => {
   const s = await studioFixture();

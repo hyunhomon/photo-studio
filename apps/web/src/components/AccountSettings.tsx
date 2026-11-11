@@ -123,8 +123,8 @@ export default function AccountSettings() {
             <section className="mt-6 rounded-panel border border-line p-7">
               <h2 className="text-xl">사진과 데이터 보관</h2>
               <p className="mt-4 text-sm leading-7 text-muted">
-                프로젝트와 사진은 삭제할 때까지 비공개로 보관합니다. 프로젝트
-                삭제 시 관련 원본·결과와 작업 기록을 함께 삭제합니다.{" "}
+                상품와 사진은 삭제할 때까지 비공개로 보관합니다. 상품 삭제 시
+                관련 원본·결과와 작업 기록을 함께 삭제합니다.{" "}
                 <a href="/privacy" className="underline underline-offset-4">
                   외부 AI 처리·보관 안내
                 </a>
@@ -165,7 +165,7 @@ export default function AccountSettings() {
           open={disconnect}
           onClose={() => setDisconnect(false)}
           title="OpenRouter 연결을 해제할까요?"
-          description="진행 중 작업의 중단을 요청하고 서버 연결 키와 앱 세션을 삭제합니다. 이미 시작된 AI 호출은 과금될 수 있습니다. 프로젝트는 유지되며 OpenRouter 키 자체의 폐기는 제공자 Keys 화면에서 확인해 주세요."
+          description="진행 중 작업의 중단을 요청하고 서버 연결 키와 앱 세션을 삭제합니다. 이미 시작된 AI 호출은 과금될 수 있습니다. 상품는 유지되며 OpenRouter 키 자체의 폐기는 제공자 Keys 화면에서 확인해 주세요."
         >
           <div className="mt-6 flex gap-3">
             <Button variant="secondary" onClick={() => setDisconnect(false)}>
@@ -183,7 +183,7 @@ export default function AccountSettings() {
           open={remove}
           onClose={() => setRemove(false)}
           title="계정과 사진을 영구 삭제할까요?"
-          description="모든 프로젝트·원본·결과·기획·작업·피드백과 연결 키를 삭제합니다. 복구할 수 없습니다. 이미 시작된 외부 AI 호출의 비용과 제공자의 보관 기록은 취소되지 않습니다."
+          description="모든 상품·원본·결과·기획·작업·피드백과 연결 키를 삭제합니다. 복구할 수 없습니다. 이미 시작된 외부 AI 호출의 비용과 제공자의 보관 기록은 취소되지 않습니다."
         >
           <label className="mt-5 block text-sm">
             계속하려면 ‘삭제’를 입력하세요.

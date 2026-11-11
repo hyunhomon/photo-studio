@@ -1,4 +1,4 @@
-# Hono API Contract — v1 (ADR-019 반영)
+# Hono API Contract — v1 (ADR-022 상품 중심)
 
 Base path: `/api/v1` (auth callback routes are `/auth/*`). JSON envelope: `{ data, error?: { code, message }, meta? }` with standard HTTP status. Response types shared via Zod; never include encrypted credentials.
 
@@ -10,17 +10,21 @@ Base path: `/api/v1` (auth callback routes are `/auth/*`). JSON envelope: `{ dat
 | GET | `/auth/openrouter/callback` | code+state 교환 후 내부 세션 쿠키 발급 | OAuth callback |
 | POST | `/auth/logout` | 세션 종료 | session |
 | GET | `/api/v1/me` | 사용자/연결 상태 | session |
-| POST | `/api/v1/projects` | 프로젝트 생성 | session |
-| GET | `/api/v1/projects` | 내 프로젝트 목록 | session |
-| GET | `/api/v1/projects/:id` | 프로젝트+상품 조회 | owner |
-| DELETE | `/api/v1/projects/:id` | 프로젝트/파일 삭제 작업 | owner |
-| POST | `/api/v1/projects/:id/products` | 의류 파일 업로드 (multipart) | owner |
+| GET | `/api/v1/products` | 내 상품 요약 목록/첫 의류 썸네일 | session |
+| POST | `/api/v1/products` | 상품 직접 등록: 의류 1–3장/선택적 참조 multipart | session, Origin/CSRF |
+| PATCH | `/api/v1/products/:id` | 상품 이름 수정 | owner |
+| DELETE | `/api/v1/products/:id` | 상품/모든 미디어·기획·작업 삭제 | owner |
 | GET | `/api/v1/products/:id` | 상품/분석 상태 | owner |
+| POST | `/api/v1/products/:id/assets` | 첫 AI 작업 전 의류 원본 추가, 총 3장 | owner, Origin/CSRF |
+| DELETE | `/api/v1/assets/:id` | 원본/참조/결과 삭제; 입력 불변/진행 중 제약 적용 | owner, Origin/CSRF |
+| GET | `/api/v1/products/:id/pipeline` | 기획 목록과 실제 작업/호출 상태 | owner |
 | POST | `/api/v1/products/:id/plan` | 상품 분석 + 콘셉트 추천 작업 시작 | owner |
+| PATCH | `/api/v1/products/:id/analysis` | 상품 이해 수정; 콘셉트 재승인 필요 | owner, Origin/CSRF |
 | POST | `/api/v1/products/:id/references` | 인물/촬영감 참조 1장 저장, AI 미실행 | owner, Origin/CSRF |
-| PATCH | `/api/v1/shoot-plans/:id` | 사람이 촬영 계획 수정 | owner |
+| PATCH | `/api/v1/plans/:id` | 사람이 촬영 계획 수정 | owner |
 | POST | `/api/v1/products/:id/generate` | **비용 확인 후** 승인된 기획으로 1장 생성/컷 개선 | owner |
 | GET | `/api/v1/jobs/:id` | 작업 상태/단계/결과 요약 | owner |
+| POST | `/api/v1/jobs/:id/dispatch` | 기존 동일 작업 전달 상태 재확인, 새 유료 요청 생성 없음 | owner, Origin/CSRF |
 | GET | `/api/v1/products/:id/results` | 결과/원본 연결·이전 컷·개선 지시·촬영 버전 (점수 없음) | owner |
 | GET | `/api/v1/assets/:id/content` | private R2 이미지 보기 | owner |
 | GET | `/api/v1/assets/:id/download` | 파일 다운로드 | owner |
@@ -29,13 +33,21 @@ Base path: `/api/v1` (auth callback routes are `/auth/*`). JSON envelope: `{ dat
 | POST | `/api/v1/presets` | 프리셋 생성 | session |
 | PATCH | `/api/v1/presets/:id` | 프리셋 수정 | owner |
 | DELETE | `/api/v1/presets/:id` | 프리셋 삭제 | owner |
-| GET | `/api/v1/usage/summary` | 비용/생성/재생성/지연 요약 (점수·채택률 없음) | session |
+| GET | `/api/v1/usage` | 비용/생성/재생성/지연 요약 (점수·채택률 없음) | session |
+
+## 상품 등록과 제거된 프로젝트 계약
+
+`POST /products` multipart는 `name`, `images` 1–3장, 선택적 `lookImage`/`personImage` 각 1장을 받는다. 참조가 있으면 `rightsConfirmed="true"`가 필요하다. 유효성/정규화·저장 실패는 rollback 또는 정리 예약으로 처리하며 업로드는 AI를 호출하지 않는다. `ProductDto`에는 `projectId`가 없다. 의류 입력 순서는 생성 시각과 ID의 안정 순서이며 업로드 루프는 생성 시각을 단조 증가시켜 첫 사진을 보존한다. `/projects` 계열은 HTTP 410이며 숨은 프로젝트를 자동 생성하지 않는다.
+
+`GET /products`의 원소는 `ProductSummaryDto { id, name, status, createdAt, thumbnail: AssetDto | null }`이다. 썸네일은 첫 input만 사용하며 전체 분석·참조·결과는 목록에 포함하지 않는다. 상세 GET/POST/PATCH 응답은 `ProductDto`이며 사진·참조와 분석을 포함한다.
 
 ## 요청 예시 (스키마 계약 개념, 실행 코드 아님)
 
 ### `POST /api/v1/products/:id/plan`
 
-실제 요청은 `{ consent: true, idempotencyKey: UUID, presetId: UUID | null, description: string, reuseAnalysis?: boolean }`이다. `reuseAnalysis` 기본값은 false(상품 분석+기획 각 1회). true는 저장된 본인 상품 분석을 snapshot으로 고정해 기획 1회만 새로 요청한다. 분석이 없으면 409, 동의가 없으면 400이며 Origin/CSRF/owner/rate limit/idempotency 검사를 유지한다. 비용 동의가 필요한 새 작업이며 이전 유료 요청을 자동 재시도하지 않는다.
+실제 요청은 `{ consent: true, idempotencyKey: UUID, presetId: UUID | null, description: string, reuseAnalysis?: boolean, lookReferenceId?: UUID | null, referenceConsent?: boolean }`이다. `reuseAnalysis` 기본값은 false(상품 분석+기획 각 1회). true는 저장된 본인 상품 분석을 snapshot으로 고정해 기획 1회만 새로 요청한다. 분석이 없으면 409, 동의가 없으면 400이며 Origin/CSRF/owner/rate limit/idempotency 검사를 유지한다. 비용 동의가 필요한 새 작업이며 이전 유료 요청을 자동 재시도하지 않는다.
+
+ADR-022: 선택한 `lookReferenceId`는 현재 owner/상품의 look_reference여야 하며 `referenceConsent:true`가 없으면 거부한다. 의류+선택 참조 합계 12MB를 job 생성 전 검사한다. 분석은 의류만 보고, 기존 planning 호출 1회에 촬영감 사진을 추가해 조명·톤·무드·구도를 관찰한다. 별도 유료 참조 분석 단계는 없다. `PlanDto.lookReferenceId`와 `PlanDto.spec.referenceNotes`에 연결/관찰 요약을 반환한다. 관찰은 추정이며 생성 시에는 다시 확인·선택한 참조와 별도 동의가 필요하다. 서버가 기획의 연결 ID를 자동으로 생성 입력에 넣지 않는다.
 
 ### `POST /api/v1/products/:id/generate`
 
@@ -63,7 +75,7 @@ Base path: `/api/v1` (auth callback routes are `/auth/*`). JSON envelope: `{ dat
 
 ### `POST /api/v1/products/:id/references`
 
-multipart `image`(JPEG/PNG/WebP 1장), `role`(`person_reference|look_reference`), `rightsConfirmed`(`"true"`)를 받는다. 사용 권한 및 인물 동의 확인을 요구한다. 기존 signature/decode/10MB·4MP·4096px 검사로 정규화하고 private R2에 저장한다. 용도별 상품당 1장/진행 중 작업 없음/owner 및 active user/project/product 조건을 원자적 INSERT에서 검사한다. 201 ProductDto, 중복/작업 경합 409. 업로드로 분석/생성을 호출하지 않는다. 삭제는 기존 `DELETE /api/v1/assets/:id`를 사용하며 진행 중에는 409다. 참조 원본 삭제 후 기존 생성 결과는 유지한다.
+multipart `image`(JPEG/PNG/WebP 1장), `role`(`person_reference|look_reference`), `rightsConfirmed`(`"true"`)를 받는다. 사용 권한 및 인물 동의 확인을 요구한다. 기존 signature/decode/10MB·4MP·4096px 검사로 정규화하고 private R2에 저장한다. 용도별 상품당 1장/진행 중 작업 없음/owner 및 active user/product 조건을 원자적 INSERT에서 검사한다. 201 ProductDto, 중복/작업 경합 409. 업로드로 분석/생성을 호출하지 않는다. 삭제는 기존 `DELETE /api/v1/assets/:id`를 사용하며 진행 중에는 409다. 참조 원본 삭제 후 기존 생성 결과는 유지한다.
 
 결과 DTO의 `personReferenceUsed`/`lookReferenceUsed`는 해당 생성 snapshot의 사용 여부이며 인물 보존/촬영감 합격 판정이 아니다.
 

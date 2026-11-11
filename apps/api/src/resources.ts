@@ -7,15 +7,13 @@ import {
   eq,
   presets,
   products,
-  projects,
 } from "@photo-studio/db";
 import {
   type AssetDto,
   type ProductDto,
-  type ProjectDto,
+  type ProductSummaryDto,
   presetInputSchema,
   productAnalysisSchema,
-  projectInputSchema,
 } from "@photo-studio/schemas";
 import { z } from "zod";
 import { rateLimit } from "./auth";
@@ -29,14 +27,6 @@ import {
   queueObject,
 } from "./storage";
 
-export const projectDto = (row: typeof projects.$inferSelect): ProjectDto => ({
-  id: row.id,
-  name: row.name,
-  description: row.description,
-  status: row.status,
-  createdAt: row.createdAt,
-  updatedAt: row.updatedAt,
-});
 export const assetDto = (row: typeof assets.$inferSelect): AssetDto => ({
   id: row.id,
   productId: row.productId,
@@ -47,26 +37,6 @@ export const assetDto = (row: typeof assets.$inferSelect): AssetDto => ({
   height: row.height,
   createdAt: row.createdAt,
 });
-export async function ownedProject(
-  env: Env,
-  userId: string,
-  id: string,
-  deleting = false,
-) {
-  const row = await createDb(env.DB)
-    .select()
-    .from(projects)
-    .where(and(eq(projects.id, id), eq(projects.userId, userId)))
-    .get();
-  if (!row) throw notFound();
-  if (!deleting && row.status !== "active")
-    throw new AppError(
-      "PROJECT_DELETING",
-      "삭제 중인 프로젝트입니다. 삭제를 다시 시도해 주세요.",
-      409,
-    );
-  return row;
-}
 export async function ownedProduct(
   env: Env,
   userId: string,
@@ -79,9 +49,14 @@ export async function ownedProduct(
     .where(and(eq(products.id, id), eq(products.userId, userId)))
     .get();
   if (!row) throw notFound();
-  await ownedProject(env, userId, row.projectId, deleting);
-  if (!deleting && row.status === "deleting")
-    throw new AppError("PRODUCT_DELETING", "삭제 중인 상품입니다.", 409);
+  if (!deleting && row.status !== "ready")
+    throw new AppError(
+      row.status === "deleting" ? "PRODUCT_DELETING" : "PRODUCT_NOT_READY",
+      row.status === "deleting"
+        ? "삭제 중인 상품입니다."
+        : "사진 저장이 끝난 뒤 다시 실행해 주세요.",
+      409,
+    );
   return row;
 }
 export async function productDto(
@@ -92,7 +67,7 @@ export async function productDto(
     .select()
     .from(assets)
     .where(and(eq(assets.productId, row.id), eq(assets.userId, row.userId)))
-    .orderBy(assets.createdAt)
+    .orderBy(assets.createdAt, assets.id)
     .all();
   return productWithImages(row, images);
 }
@@ -102,7 +77,6 @@ function productWithImages(
 ): ProductDto {
   return {
     id: row.id,
-    projectId: row.projectId,
     name: row.name,
     status: row.status,
     analysis: row.analysisJson
@@ -112,19 +86,36 @@ function productWithImages(
     assets: images.map(assetDto),
   };
 }
-async function productDtos(env: Env, list: (typeof products.$inferSelect)[]) {
-  const db = createDb(env.DB),
-    queries = list.map((p) =>
-      db
-        .select()
-        .from(assets)
-        .where(and(eq(assets.productId, p.id), eq(assets.userId, p.userId)))
-        .orderBy(assets.createdAt),
-    );
-  const first = queries[0];
+async function productDtos(
+  env: Env,
+  list: Pick<
+    typeof products.$inferSelect,
+    "id" | "userId" | "name" | "status" | "createdAt"
+  >[],
+): Promise<ProductSummaryDto[]> {
+  const first = list[0];
   if (!first) return [];
-  const rows = await db.batch([first, ...queries.slice(1)]);
-  return list.map((p, i) => productWithImages(p, rows[i] ?? []));
+  // One owner-scoped read, rather than one D1 query per sidebar entry.
+  const rows = await createDb(env.DB)
+    .select()
+    .from(assets)
+    .where(and(eq(assets.userId, first.userId), eq(assets.kind, "input")))
+    .orderBy(assets.createdAt, assets.id)
+    .all();
+  const images = new Map<string, typeof assets.$inferSelect>();
+  for (const row of rows) {
+    if (!images.has(row.productId)) images.set(row.productId, row);
+  }
+  return list.map((p) => {
+    const thumbnail = images.get(p.id);
+    return {
+      id: p.id,
+      name: p.name,
+      status: p.status,
+      createdAt: p.createdAt,
+      thumbnail: thumbnail ? assetDto(thumbnail) : null,
+    };
+  });
 }
 export interface ResourceDeps {
   normalize?: typeof normalizeImage;
@@ -136,91 +127,32 @@ export interface ResourceDeps {
 }
 export function resourceRoutes(deps: ResourceDeps = {}) {
   const api = new Hono<AppContext>();
-  api.get("/projects", async (c) => {
+  api.get("/products", async (c) => {
     const rows = await createDb(c.env.DB)
-      .select()
-      .from(projects)
-      .where(eq(projects.userId, c.get("identity").userId))
-      .orderBy(desc(projects.updatedAt))
+      .select({
+        id: products.id,
+        userId: products.userId,
+        name: products.name,
+        status: products.status,
+        createdAt: products.createdAt,
+      })
+      .from(products)
+      .where(eq(products.userId, c.get("identity").userId))
+      .orderBy(desc(products.createdAt))
       .limit(200)
       .all();
-    return c.json({ data: rows.map(projectDto) });
+    return c.json({ data: await productDtos(c.env, rows) });
   });
-  api.post("/projects", async (c) => {
-    const identity = c.get("identity");
-    await rateLimit(c, `project:${identity.userId}`, 20);
-    const input = projectInputSchema.parse(await c.req.json());
-    const count = await c.env.DB.prepare(
-      "SELECT count(*) n FROM projects WHERE user_id=?",
-    )
-      .bind(identity.userId)
-      .first<{ n: number }>();
-    if ((count?.n ?? 0) >= 200)
-      throw new AppError(
-        "LIMIT_REACHED",
-        "베타에서는 최대 200개 프로젝트를 보관할 수 있습니다.",
-        409,
-      );
-    const row = {
-      id: crypto.randomUUID(),
-      userId: identity.userId,
-      ...input,
-      status: "active",
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-    };
-    const inserted = await c.env.DB.prepare(
-      "INSERT INTO projects(id,user_id,name,description,status,created_at,updated_at) SELECT ?,id,?,?,'active',?,? FROM users WHERE id=? AND status='active'",
-    )
-      .bind(
-        row.id,
-        row.name,
-        row.description,
-        row.createdAt,
-        row.updatedAt,
-        identity.userId,
-      )
-      .run();
-    if (!inserted.meta.changes)
-      throw new AppError("ACCOUNT_DELETING", "계정 삭제가 진행 중입니다.", 409);
-    return c.json({ data: projectDto(row) }, 201);
-  });
-  api.get("/projects/:id", async (c) => {
-    const row = await ownedProject(
-      c.env,
-      c.get("identity").userId,
-      c.req.param("id"),
-      true,
+  // Project endpoints are retired rather than creating hidden containers.
+  api.all("/projects", () => {
+    throw new AppError(
+      "FEATURE_RETIRED",
+      "프로젝트가 상품 중심 작업으로 통합됐습니다.",
+      410,
     );
-    const list = await createDb(c.env.DB)
-      .select()
-      .from(products)
-      .where(
-        and(eq(products.projectId, row.id), eq(products.userId, row.userId)),
-      )
-      .orderBy(desc(products.createdAt))
-      .all();
-    return c.json({
-      data: {
-        ...projectDto(row),
-        products: await productDtos(c.env, list),
-      },
-    });
   });
-  api.patch("/projects/:id", async (c) => {
-    const row = await ownedProject(
-      c.env,
-      c.get("identity").userId,
-      c.req.param("id"),
-    );
-    const input = projectInputSchema.parse(await c.req.json());
-    await createDb(c.env.DB)
-      .update(projects)
-      .set({ ...input, updatedAt: Date.now() })
-      .where(and(eq(projects.id, row.id), eq(projects.userId, row.userId)));
-    return c.json({
-      data: projectDto({ ...row, ...input, updatedAt: Date.now() }),
-    });
+  api.all("/projects/*", () => {
+    throw new AppError("FEATURE_RETIRED", "상품 화면에서 계속해 주세요.", 410);
   });
   async function removeProducts(env: Env, userId: string, ids: string[]) {
     await deps.beforeDelete?.(env, userId, ids);
@@ -242,70 +174,55 @@ export function resourceRoutes(deps: ResourceDeps = {}) {
         .map((a) => a.key),
     ]);
   }
-  api.delete("/projects/:id", async (c) => {
-    const row = await ownedProject(
-      c.env,
-      c.get("identity").userId,
-      c.req.param("id"),
-      true,
-    );
-    await createDb(c.env.DB)
-      .update(projects)
-      .set({ status: "deleting" })
-      .where(and(eq(projects.id, row.id), eq(projects.userId, row.userId)));
-    const list = await createDb(c.env.DB)
-      .select({ id: products.id })
-      .from(products)
-      .where(
-        and(eq(products.projectId, row.id), eq(products.userId, row.userId)),
-      )
-      .all();
-    await removeProducts(
-      c.env,
-      row.userId,
-      list.map((p) => p.id),
-    );
-    await createDb(c.env.DB)
-      .delete(projects)
-      .where(and(eq(projects.id, row.id), eq(projects.userId, row.userId)));
-    return c.json({ data: { deleted: true } });
-  });
   async function upload(
     env: Env,
     userId: string,
     productId: string,
-    files: File[],
+    files: {
+      file: File;
+      kind: "input" | "person_reference" | "look_reference";
+    }[],
   ) {
     const uploaded: string[] = [];
     const inserted: string[] = [];
+    const latest = await env.DB.prepare(
+      "SELECT coalesce(max(created_at),0) latest FROM assets WHERE product_id=? AND user_id=?",
+    )
+      .bind(productId, userId)
+      .first<{ latest: number }>();
+    let lastCreatedAt = latest?.latest ?? 0;
     try {
-      for (const file of files) {
+      for (const { file, kind } of files) {
         const image = await (deps.normalize ?? normalizeImage)(
           new Uint8Array(await file.arrayBuffer()),
           file.type,
         );
         const id = crypto.randomUUID(),
           r2Key = `${userId}/${productId}/${id}.png`;
+        const createdAt = Math.max(Date.now(), lastCreatedAt + 1);
+        lastCreatedAt = createdAt;
         uploaded.push(r2Key);
         await queueObject(env, r2Key);
         await env.ASSETS.put(r2Key, image.bytes, {
           httpMetadata: { contentType: image.mimeType },
         });
         const result = await env.DB.prepare(
-          "INSERT INTO assets (id,user_id,product_id,kind,r2_key,mime_type,size_bytes,width,height,created_at) SELECT ?,?,p.id,'input',?,?,?,?,?,? FROM products p JOIN projects pr ON pr.id=p.project_id WHERE p.id=? AND p.user_id=? AND pr.user_id=? AND pr.status='active' AND p.status!='deleting' AND EXISTS (SELECT 1 FROM users u WHERE u.id=p.user_id AND u.status='active') AND NOT EXISTS (SELECT 1 FROM generation_jobs j WHERE j.product_id=p.id AND j.user_id=p.user_id) AND (SELECT count(*) FROM assets WHERE product_id=p.id AND kind='input')<3",
+          "INSERT INTO assets (id,user_id,product_id,kind,r2_key,mime_type,size_bytes,width,height,created_at) SELECT ?,?,p.id,?,?,?,?,?,?,? FROM products p WHERE p.id=? AND p.user_id=? AND p.status!='deleting' AND EXISTS (SELECT 1 FROM users u WHERE u.id=p.user_id AND u.status='active') AND NOT EXISTS (SELECT 1 FROM generation_jobs j WHERE j.product_id=p.id AND j.user_id=p.user_id) AND (SELECT count(*) FROM assets WHERE product_id=p.id AND kind=?)<?",
         )
           .bind(
             id,
             userId,
+            kind,
             r2Key,
             image.mimeType,
             image.bytes.length,
             image.width,
             image.height,
-            Date.now(),
+            createdAt,
             productId,
             userId,
-            userId,
+            kind,
+            kind === "input" ? 3 : 1,
           )
           .run();
         if (!result.meta.changes)
@@ -357,28 +274,41 @@ export function resourceRoutes(deps: ResourceDeps = {}) {
       );
     return files as File[];
   }
-  api.post("/projects/:id/products", async (c) => {
+  api.post("/products", async (c) => {
     const owner = c.get("identity").userId;
     await rateLimit(c, `upload:${owner}`, 15);
-    const project = await ownedProject(c.env, owner, c.req.param("id"));
-    const count = await c.env.DB.prepare(
-      "SELECT count(*) n FROM products WHERE project_id=? AND user_id=?",
-    )
-      .bind(project.id, owner)
-      .first<{ n: number }>();
-    if ((count?.n ?? 0) >= 100)
-      throw new AppError(
-        "LIMIT_REACHED",
-        "프로젝트에는 최대 100개 상품을 등록할 수 있습니다.",
-        409,
-      );
     const form = await c.req.formData(),
-      files = filesFrom(form);
+      garmentFiles = filesFrom(form);
     const name = z.string().trim().min(1).max(120).parse(form.get("name"));
+    const files: {
+      file: File;
+      kind: "input" | "person_reference" | "look_reference";
+    }[] = garmentFiles.map((file) => ({ file, kind: "input" }));
+    for (const [field, kind] of [
+      ["personImage", "person_reference"],
+      ["lookImage", "look_reference"],
+    ] as const) {
+      const file = form.get(field);
+      if (file === null || file === "") continue;
+      if (form.get("rightsConfirmed") !== "true")
+        throw new AppError(
+          "REFERENCE_CONSENT_REQUIRED",
+          "참조 사진의 사용 권한과 인물 동의를 확인해 주세요.",
+        );
+      if (
+        !(file instanceof File) ||
+        file.size <= 0 ||
+        file.size > 10 * 1024 * 1024
+      )
+        throw new AppError(
+          "INVALID_IMAGE",
+          "참조 사진은 한 장당 10MB까지 선택해 주세요.",
+        );
+      files.push({ file, kind });
+    }
     const row = {
       id: crypto.randomUUID(),
       userId: owner,
-      projectId: project.id,
       name,
       status: "uploading",
       analysisJson: null,
@@ -386,14 +316,14 @@ export function resourceRoutes(deps: ResourceDeps = {}) {
       createdAt: Date.now(),
     };
     const inserted = await c.env.DB.prepare(
-      "INSERT INTO products(id,user_id,project_id,name,status,created_at) SELECT ?,pr.user_id,pr.id,?,'uploading',? FROM projects pr JOIN users u ON u.id=pr.user_id WHERE pr.id=? AND pr.user_id=? AND pr.status='active' AND u.status='active'",
+      "INSERT INTO products(id,user_id,name,status,created_at) SELECT ?,id,?,'uploading',? FROM users WHERE id=? AND status='active' AND (SELECT count(*) FROM products WHERE user_id=?)<200",
     )
-      .bind(row.id, row.name, row.createdAt, row.projectId, owner)
+      .bind(row.id, name, row.createdAt, owner, owner)
       .run();
     if (!inserted.meta.changes)
       throw new AppError(
-        "PROJECT_DELETING",
-        "프로젝트나 계정의 삭제가 진행 중입니다.",
+        "PRODUCT_LIMIT_OR_ACCOUNT_DELETING",
+        "계정이 삭제 중이거나 상품 200개가 등록돼 있습니다.",
         409,
       );
     try {
@@ -410,18 +340,38 @@ export function resourceRoutes(deps: ResourceDeps = {}) {
           .where(and(eq(products.id, row.id), eq(products.userId, owner)));
       throw e;
     }
-    await createDb(c.env.DB)
+    const completed = await createDb(c.env.DB)
       .update(products)
       .set({ status: "ready" })
-      .where(and(eq(products.id, row.id), eq(products.userId, owner)));
+      .where(
+        and(
+          eq(products.id, row.id),
+          eq(products.userId, owner),
+          eq(products.status, "uploading"),
+        ),
+      )
+      .returning()
+      .get();
+    if (!completed)
+      throw new AppError(
+        "UPLOAD_CONFLICT",
+        "사진을 저장하는 동안 상품이 삭제됐습니다.",
+        409,
+      );
+    return c.json({ data: await productDto(c.env, completed) }, 201);
+  });
+  api.patch("/products/:id", async (c) => {
+    const owner = c.get("identity").userId,
+      product = await ownedProduct(c.env, owner, c.req.param("id"));
+    const { name } = z
+      .object({ name: z.string().trim().min(1).max(120) })
+      .strict()
+      .parse(await c.req.json());
     await createDb(c.env.DB)
-      .update(projects)
-      .set({ updatedAt: Date.now() })
-      .where(and(eq(projects.id, project.id), eq(projects.userId, owner)));
-    return c.json(
-      { data: await productDto(c.env, { ...row, status: "ready" }) },
-      201,
-    );
+      .update(products)
+      .set({ name })
+      .where(and(eq(products.id, product.id), eq(products.userId, owner)));
+    return c.json({ data: await productDto(c.env, { ...product, name }) });
   });
   api.post("/products/:id/assets", async (c) => {
     const owner = c.get("identity").userId;
@@ -429,14 +379,27 @@ export function resourceRoutes(deps: ResourceDeps = {}) {
     await (
       await import("./pipeline")
     ).immutableSources(c.env, owner, product.id);
-    await upload(c.env, owner, product.id, filesFrom(await c.req.formData()));
+    await upload(
+      c.env,
+      owner,
+      product.id,
+      filesFrom(await c.req.formData()).map((file) => ({
+        file,
+        kind: "input",
+      })),
+    );
     return c.json({ data: await productDto(c.env, product) }, 201);
   });
   api.get("/products/:id", async (c) =>
     c.json({
       data: await productDto(
         c.env,
-        await ownedProduct(c.env, c.get("identity").userId, c.req.param("id")),
+        await ownedProduct(
+          c.env,
+          c.get("identity").userId,
+          c.req.param("id"),
+          true,
+        ),
       ),
     }),
   );
