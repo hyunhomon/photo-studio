@@ -116,20 +116,21 @@ export default function PhotoReferences({
                 {r.description}
               </p>
               {asset ? (
-                <div className="mt-4 flex items-start gap-4">
+                <div className="group relative mt-4 w-fit">
                   <img
                     src={`${apiBase}/api/v1/assets/${asset.id}/content`}
                     alt={`${r.title} 사진`}
                     className="h-28 w-24 rounded-lg object-contain"
                   />
-                  <Button
-                    variant="secondary"
+                  <button
+                    type="button"
+                    className="media-hover-action absolute top-1 right-1 grid size-8 place-items-center rounded-lg bg-surface opacity-0 group-hover:opacity-100 group-focus-within:opacity-100"
                     aria-label={`${r.title} 사진 삭제`}
                     disabled={active || busy}
                     onClick={() => setRemove(asset)}
                   >
                     <Trash2 size={15} aria-hidden="true" />
-                  </Button>
+                  </button>
                 </div>
               ) : (
                 <Button
@@ -166,7 +167,7 @@ export default function PhotoReferences({
             void upload();
           }}
         >
-          <label className="relative flex min-h-32 cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-control bg-studio p-5 text-center focus-within:outline-2 focus-within:outline-offset-4 focus-within:outline-primary">
+          <label className="relative flex min-h-32 cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-control bg-studio p-5 text-center">
             <ImagePlus size={24} aria-hidden="true" />
             <span className="mt-3 text-xs font-semibold">
               {file ? file.name : `${info?.title} 사진 선택`}
@@ -228,7 +229,7 @@ export default function PhotoReferences({
             취소
           </Button>
           <Button
-            variant="danger"
+            variant="primary"
             onClick={() => void drop()}
             disabled={busy || active}
           >

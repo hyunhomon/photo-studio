@@ -75,7 +75,7 @@ export function PhotoPicker({
           e.preventDefault();
           if (!disabled) add(Array.from(e.dataTransfer.files));
         }}
-        className={`relative flex min-h-32 cursor-pointer flex-col items-center justify-center rounded-2xl border border-dashed border-control bg-paper/50 p-5 text-center transition-colors hover:border-primary focus-within:outline-2 focus-within:outline-primary ${disabled ? "opacity-50" : ""}`}
+        className={`relative flex min-h-32 cursor-pointer flex-col items-center justify-center rounded-2xl border border-dashed border-control bg-paper/50 p-5 text-center transition-colors hover:border-primary ${disabled ? "opacity-50" : ""}`}
       >
         <ImagePlus size={25} className="text-primary" aria-hidden="true" />
         <span className="mt-3 text-sm font-semibold">{label}</span>

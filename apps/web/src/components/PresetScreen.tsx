@@ -78,7 +78,6 @@ export default function PresetScreen() {
     >
       <div className="flex flex-wrap items-end justify-between gap-5">
         <div>
-          <p className="eyebrow text-muted">A CONSISTENT POINT OF VIEW</p>
           <h1 className="mt-3 text-3xl sm:text-4xl">브랜드 프리셋</h1>
           <p className="mt-4 text-sm leading-7 text-muted">
             모델의 스타일, 무드, 빛과 장소를 저장해 다음 촬영에서도 이어가세요.
@@ -101,7 +100,6 @@ export default function PresetScreen() {
               key={item.id}
               className="rounded-panel border border-line bg-surface p-6"
             >
-              <p className="eyebrow text-muted">SHOOT DIRECTION</p>
               <h2 className="mt-4 text-xl">{item.name}</h2>
               <p className="mt-4 text-sm leading-7 text-muted">{item.mood}</p>
               <dl className="mt-5 space-y-3 border-t border-line pt-4 text-xs text-muted">

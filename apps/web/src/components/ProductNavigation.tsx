@@ -11,12 +11,10 @@ import {
   DialogPanel,
   DialogTitle,
 } from "@headlessui/react";
-import { BrandLockup, BrandMark, Button, Modal } from "@photo-studio/ui";
+import { BrandLockup, Button, Modal } from "@photo-studio/ui";
 import {
   SquarePen,
   Search,
-  PanelLeftClose,
-  PanelLeftOpen,
   Pencil,
   Trash2,
   ArrowUpRight,
@@ -127,8 +125,6 @@ export function ProductNavigation({
   onRetry,
   onNew,
   onSearch,
-  collapsed,
-  onToggle,
   activeProductId,
   section,
   mobile = false,
@@ -142,8 +138,6 @@ export function ProductNavigation({
   onRetry: () => void;
   onNew: () => void;
   onSearch: () => void;
-  collapsed: boolean;
-  onToggle: () => void;
   activeProductId?: string;
   section: string;
   mobile?: boolean;
@@ -181,7 +175,6 @@ export function ProductNavigation({
       setBusy(false);
     }
   }
-  const cutoff = Date.now() - 7 * 86400000;
   function follow(event: MouseEvent<HTMLAnchorElement>, path: string) {
     if (
       event.button !== 0 ||
@@ -202,23 +195,15 @@ export function ProductNavigation({
     onClose();
     void navigate(path);
   }
-  const groups = [
-    { label: "최근 7일", items: products.filter((p) => p.createdAt >= cutoff) },
-    {
-      label: "이전 상품",
-      items: products.filter((p) => p.createdAt < cutoff),
-    },
-  ];
+  const groups = [{ label: "내 상품", items: products }];
   const iconButton =
     "grid size-9 shrink-0 place-items-center rounded-lg text-muted transition-colors hover:bg-studio hover:text-ink";
   return (
-    <div
-      className={`flex h-full min-h-0 flex-col ${collapsed ? "px-2" : "px-3"} pb-3 pt-4`}
-    >
+    <div className={`flex h-full min-h-0 flex-col px-3 pb-3 pt-4`}>
       <div
-        className={`mb-5 flex min-h-10 items-center ${collapsed ? "justify-center" : "justify-between gap-2 px-2"}`}
+        className={`mb-5 flex min-h-10 items-center justify-between gap-2 px-2`}
       >
-        {!collapsed && (
+        {
           <a
             href="/studio"
             onClick={(event) => follow(event, "/studio")}
@@ -227,63 +212,46 @@ export function ProductNavigation({
           >
             <BrandLockup stacked />
           </a>
+        }
+        {mobile && (
+          <button
+            type="button"
+            className={iconButton}
+            onClick={onClose}
+            aria-label="상품 목록 닫기"
+          >
+            <X size={19} />
+          </button>
         )}
-        <button
-          type="button"
-          className={iconButton}
-          onClick={mobile ? onClose : onToggle}
-          aria-label={
-            mobile
-              ? "상품 목록 닫기"
-              : collapsed
-                ? "사이드바 펼치기"
-                : "사이드바 접기"
-          }
-          aria-expanded={!collapsed}
-        >
-          {mobile ? (
-            <X size={19} aria-hidden="true" />
-          ) : collapsed ? (
-            <PanelLeftOpen size={19} aria-hidden="true" />
-          ) : (
-            <PanelLeftClose size={19} aria-hidden="true" />
-          )}
-        </button>
       </div>
-      {collapsed && (
-        <a href="/studio" aria-label="스튜디오 홈" className="mx-auto mb-4">
-          <BrandMark className="size-7 text-primary" />
-        </a>
-      )}
       <div className="space-y-1">
         <button
           type="button"
           onClick={onNew}
           disabled={!me}
           title="새 상품"
-          className={`sidebar-item w-full disabled:opacity-40 ${collapsed ? "justify-center px-0" : ""}`}
+          className={`sidebar-item w-full disabled:opacity-40 `}
         >
           <SquarePen size={18} aria-hidden="true" />
-          <span className={collapsed ? "sr-only" : ""}>새 상품</span>
+          <span>새 상품</span>
         </button>
+      </div>
+      <div className="mt-6 flex items-center justify-between px-3">
+        <h2 className="text-sm font-semibold">내 상품</h2>
         <button
           type="button"
+          aria-label="상품 검색"
+          title="상품 검색 (Ctrl K)"
           onClick={onSearch}
           disabled={!me}
-          title="상품 검색"
-          aria-label="상품 검색"
-          className={`sidebar-item w-full text-muted disabled:opacity-40 ${collapsed ? "justify-center px-0" : ""}`}
+          className={iconButton}
         >
-          <Search size={18} aria-hidden="true" />
-          <span className={collapsed ? "sr-only" : ""}>상품 검색</span>
-          {!collapsed && (
-            <kbd className="ml-auto text-[9px] text-muted/70">Ctrl K</kbd>
-          )}
+          <Search size={16} />
         </button>
       </div>
       <nav
         aria-label="상품 목록"
-        className="mt-7 min-h-0 flex-1 overflow-y-auto overscroll-contain"
+        className="mt-2 min-h-0 flex-1 overflow-y-auto overscroll-contain"
       >
         {loading ? (
           <div
@@ -302,7 +270,7 @@ export function ProductNavigation({
           </div>
         ) : listError ? (
           <div className="px-3 text-xs leading-6 text-muted">
-            <p>{collapsed ? "목록 오류" : "목록을 불러오지 못했습니다."}</p>
+            <p>목록을 불러오지 못했습니다.</p>
             <button type="button" onClick={onRetry} className="mt-2 underline">
               다시 확인
             </button>
@@ -312,11 +280,6 @@ export function ProductNavigation({
             .filter((g) => g.items.length)
             .map((group) => (
               <div key={group.label} className="mb-5">
-                {!collapsed && (
-                  <p className="mb-2 px-3 text-[10px] font-medium text-muted/80">
-                    {group.label}
-                  </p>
-                )}
                 {group.items.map((product) => (
                   <div
                     key={product.id}
@@ -332,20 +295,11 @@ export function ProductNavigation({
                       onClick={(event) =>
                         follow(event, `/studio/products/${product.id}`)
                       }
-                      className={`min-w-0 flex-1 truncate py-3 text-xs ${collapsed ? "px-1 text-center" : "px-3 pr-16"}`}
+                      className={`min-w-0 flex-1 truncate py-3 text-xs px-3 pr-16`}
                     >
-                      {collapsed ? (
-                        <>
-                          <span aria-hidden="true">
-                            {product.name.slice(0, 1)}
-                          </span>
-                          <span className="sr-only">{product.name}</span>
-                        </>
-                      ) : (
-                        product.name
-                      )}
+                      {product.name}
                     </a>
-                    {!collapsed && (
+                    {
                       <div className="product-row-actions absolute right-1 flex items-center opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
                         <button
                           type="button"
@@ -373,22 +327,20 @@ export function ProductNavigation({
                           <Trash2 size={13} />
                         </button>
                       </div>
-                    )}
+                    }
                   </div>
                 ))}
               </div>
             ))
         ) : (
-          !collapsed && (
-            <div className="px-3 text-xs leading-6 text-muted/80">
-              <p>아직 상품이 없어요.</p>
-              <p className="mt-1">
-                새 촬영을 시작하면
-                <br />
-                이곳에서 이어갈 수 있습니다.
-              </p>
-            </div>
-          )
+          <div className="px-3 text-xs leading-6 text-muted/80">
+            <p>아직 상품이 없어요.</p>
+            <p className="mt-1">
+              새 촬영을 시작하면
+              <br />
+              이곳에서 이어갈 수 있습니다.
+            </p>
+          </div>
         )}
       </nav>
       <nav
@@ -413,10 +365,10 @@ export function ProductNavigation({
             title={label}
             onClick={(event) => follow(event, href)}
             aria-current={section === label ? "page" : undefined}
-            className={`sidebar-item ${collapsed ? "justify-center px-0" : ""} ${section === label ? "bg-elevated" : "text-muted"}`}
+            className={`sidebar-item  ${section === label ? "bg-elevated" : "text-muted"}`}
           >
             <Icon size={17} aria-hidden="true" />
-            <span className={collapsed ? "sr-only" : ""}>{label}</span>
+            <span>{label}</span>
           </a>
         ))}
       </nav>
@@ -425,12 +377,12 @@ export function ProductNavigation({
         title="계정과 데이터"
         onClick={(event) => follow(event, "/studio/settings")}
         aria-current={section === "계정과 데이터" ? "page" : undefined}
-        className={`mt-2 flex min-h-14 items-center gap-3 rounded-xl hover:bg-studio ${collapsed ? "justify-center" : "px-3"}`}
+        className={`mt-2 flex min-h-14 items-center gap-3 rounded-xl hover:bg-studio px-3`}
       >
         <span className="grid size-8 shrink-0 place-items-center rounded-full border border-line bg-surface">
           <Settings2 size={16} aria-hidden="true" />
         </span>
-        <span className={collapsed ? "sr-only" : "min-w-0"}>
+        <span className="min-w-0">
           <span className="block text-xs font-medium">계정과 데이터</span>
           <span className="mt-1 block text-[10px] text-muted">
             {me
@@ -442,7 +394,7 @@ export function ProductNavigation({
               : "스튜디오"}
           </span>
         </span>
-        {!collapsed && me?.connected && (
+        {me?.connected && (
           <span
             className="ml-auto size-1.5 shrink-0 rounded-full bg-primary"
             aria-hidden="true"
@@ -496,7 +448,7 @@ export function ProductNavigation({
             </Button>
             <Button
               type="submit"
-              variant={action?.kind === "delete" ? "danger" : "primary"}
+              variant="primary"
               disabled={busy || (action?.kind === "rename" && !name.trim())}
             >
               {action?.kind === "delete" ? "상품 영구 삭제" : "제목 저장"}

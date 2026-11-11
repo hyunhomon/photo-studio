@@ -50,9 +50,9 @@
   a {
     cursor: pointer;
   }
+  :focus,
   :focus-visible {
-    outline: 2px solid var(--color-primary);
-    outline-offset: 5px;
+    outline: none;
   }
   ::selection {
     background: var(--color-accent);
@@ -91,16 +91,13 @@
     font-size: 0.875rem;
     color: var(--color-ink);
   }
-  .studio-input:focus {
+  input.studio-input:focus,
+  textarea.studio-input:focus {
     border-color: var(--color-primary);
     outline: 2px solid color-mix(in srgb, var(--color-primary) 16%, transparent);
     outline-offset: 1px;
   }
-  .eyebrow {
-    font-size: 0.65rem;
-    font-weight: 600;
-    letter-spacing: 0.17em;
-  }
+
   .page-width {
     width: min(100% - 3rem, 1320px);
     margin-inline: auto;
@@ -149,7 +146,6 @@
   }
   .studio-input::placeholder {
     color: var(--color-muted);
-    opacity: 0.6;
   }
   input[type="checkbox"] {
     accent-color: var(--color-primary);
@@ -218,57 +214,121 @@
   padding: 10px 12px;
   font-size: 11px;
 }
-.comparison-selectors {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 12px 24px;
-  margin: 16px 0;
-}
-.comparison-selectors:empty {
-  display: none;
-}
 .comparison-stage {
+  flex: 1;
   min-height: 330px;
+  margin-top: 16px;
 }
 .comparison-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
   min-height: 330px;
+  height: 100%;
 }
-.comparison-grid figure {
-  display: flex;
-  flex-direction: column;
+.photo-frame {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) 56px;
   min-width: 0;
+  min-height: 0;
   overflow: hidden;
   border: 1px solid var(--color-line);
   border-radius: 16px;
   background: var(--color-surface);
 }
-.comparison-grid figcaption {
+.photo-display {
+  position: relative;
   display: flex;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 12px 16px;
-  border-bottom: 1px solid var(--color-line);
-  font-size: 11px;
-  color: var(--color-muted);
+  align-items: safe center;
+  justify-content: center;
+  min-height: 0;
+  overflow: auto;
 }
-.comparison-grid figure button {
+.photo-display > img {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-width: none;
+  max-height: none;
+  flex-shrink: 0;
+}
+.photo-display:has(.work-pending) {
+  overflow: hidden;
+}
+.photo-filmstrip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-top: 1px solid var(--color-line);
+}
+.photo-filmstrip fieldset {
   display: flex;
   flex: 1;
-  min-height: 0;
-  width: 100%;
-  position: relative;
-  align-items: center;
-  justify-content: center;
+  gap: 6px;
+  min-width: 0;
+  overflow-x: auto;
 }
-.comparison-grid figure img {
+.photo-filmstrip fieldset button {
+  flex: 0 0 32px;
+  height: 40px;
+  overflow: hidden;
+  border: 1px solid transparent;
+  border-radius: 5px;
+}
+.photo-filmstrip fieldset button.selected {
+  border-color: var(--color-primary);
+  opacity: 1;
+}
+.photo-filmstrip fieldset img {
   width: 100%;
   height: 100%;
-  max-height: 58dvh;
   object-fit: contain;
+}
+.photo-expand {
+  display: grid;
+  place-items: center;
+  flex: 0 0 36px;
+  height: 40px;
+  border-radius: 6px;
+}
+.photo-expand:hover {
+  background: var(--color-elevated);
+}
+.image-viewer-canvas {
+  display: flex;
+  align-items: safe center;
+  justify-content: safe center;
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+  cursor: zoom-in;
+}
+.image-viewer .image-viewer-canvas img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.image-viewer-canvas.native {
+  cursor: zoom-out;
+}
+.image-viewer-canvas.native img {
+  width: auto;
+  height: auto;
+  max-width: none;
+  max-height: none;
+  flex-shrink: 0;
+}
+:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not(
+    [type="button"]
+  ):not([type="submit"]):focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
 }
 .result-frame {
   position: relative;
@@ -292,7 +352,8 @@
   backdrop-filter: blur(10px);
 }
 @media (hover: none) {
-  .product-row-actions {
+  .product-row-actions,
+  .media-hover-action {
     opacity: 1;
   }
 }
@@ -348,10 +409,6 @@
     height: 100%;
     min-height: 260px;
   }
-  .comparison-grid figure img {
-    max-height: calc(100dvh - 310px);
-    aspect-ratio: auto;
-  }
 }
 @media (max-width: 639px) {
   .workbench-canvas {
@@ -359,11 +416,5 @@
   }
   .comparison-grid {
     gap: 8px;
-  }
-  .comparison-grid figcaption {
-    padding: 10px;
-  }
-  .comparison-grid figcaption .eyebrow {
-    display: none;
   }
 }

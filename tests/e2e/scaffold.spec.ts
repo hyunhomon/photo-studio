@@ -270,11 +270,12 @@ test("Mock: direct multi-photo upload, reference planning, compare, revise, expo
         .getByRole("navigation", { name: "상품 목록" })
         .getByRole("link", { name: "Synthetic shirt", exact: true }),
     ).toHaveAttribute("aria-current", "page");
-    await page.getByRole("button", { name: "사이드바 접기" }).click();
     await expect(
-      page.getByRole("button", { name: "사이드바 펼치기" }),
+      page.getByRole("button", { name: "사이드바 접기" }),
+    ).toHaveCount(0);
+    await expect(
+      page.getByRole("heading", { name: "내 상품", exact: true }),
     ).toBeVisible();
-    await page.getByRole("button", { name: "사이드바 펼치기" }).click();
   }
   if (test.info().project.name === "desktop-chromium") {
     const other = await browser.newContext();
@@ -599,6 +600,58 @@ test("Mock: direct multi-photo upload, reference planning, compare, revise, expo
   await page.locator("#results").screenshot({
     path: `.tmp/product-review-${test.info().project.name}.png`,
   });
+  const gallery = page.getByRole("group", {
+    name: "생성 결과 선택",
+    exact: true,
+  });
+  const photoFrame = page.locator(".result-frame");
+  const strip = photoFrame.locator(".photo-filmstrip");
+  expect(await gallery.boundingBox()).not.toBeNull();
+  await gallery
+    .getByRole("button", { name: "결과 1 선택", exact: true })
+    .click();
+  await expect(
+    page.getByRole("img", { name: "Synthetic shirt 결과 비교", exact: true }),
+  ).toHaveAttribute(
+    "src",
+    new RegExp(revised[1]?.asset.id ?? "missing-synthetic-result"),
+  );
+  await gallery
+    .getByRole("button", { name: "결과 2 선택", exact: true })
+    .click();
+  const frameBox = await photoFrame.boundingBox(),
+    stripBox = await strip.boundingBox();
+  if (!frameBox || !stripBox) throw new Error("Missing filmstrip");
+  expect(stripBox.y + stripBox.height).toBeLessThanOrEqual(
+    frameBox.y + frameBox.height + 1,
+  );
+  await page
+    .getByRole("button", { name: "결과 사진 확대", exact: true })
+    .click();
+  const viewer = page.getByRole("dialog", { name: "사진 확대", exact: true });
+  await expect(viewer).toBeVisible();
+  const panel = await page.locator(".image-viewer").boundingBox(),
+    viewport = page.viewportSize();
+  if (!panel || !viewport) throw new Error("Missing image viewer");
+  expect(panel.width).toBeGreaterThan(viewport.width * 0.9);
+  expect(panel.height).toBeGreaterThan(viewport.height * 0.9);
+  await expect(
+    viewer.getByRole("img", { name: "확대 사진", exact: true }),
+  ).toHaveJSProperty("naturalWidth", 64);
+  await viewer.screenshot({
+    path: `.tmp/large-viewer-${test.info().project.name}.png`,
+  });
+  await page
+    .getByRole("button", { name: "원본 크기로 보기", exact: true })
+    .click();
+  await expect(
+    page.getByRole("button", { name: "화면에 맞추기", exact: true }),
+  ).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(viewer).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: "결과 사진 확대", exact: true }),
+  ).toBeFocused();
   await verifyComparisonLayout(page);
   expect(
     await page.evaluate(
@@ -663,6 +716,35 @@ test("Mock: direct multi-photo upload, reference planning, compare, revise, expo
     page.getByRole("heading", { name: "Synthetic brand" }),
   ).toBeVisible();
   await page.goto(productUrl);
+  await expect(
+    page.getByRole("heading", { name: "촬영 콘셉트", exact: true }),
+  ).toBeVisible();
+  await page
+    .getByRole("complementary", { name: "촬영 설정 패널" })
+    .getByRole("tab", { name: "기획", exact: true })
+    .click();
+  const personImage = page.getByRole("img", {
+    name: "인물 참조 사진",
+    exact: true,
+  });
+  await personImage.hover();
+  await expect(
+    page.getByRole("button", { name: "인물 참조 사진 삭제", exact: true }),
+  ).toHaveCSS("opacity", "1");
+  await page
+    .getByRole("button", { name: "인물 참조 사진 삭제", exact: true })
+    .click();
+  const deletionModal = page.getByRole("dialog");
+  await expect(
+    deletionModal.getByText("PHOTO STUDIO / YOUR NEXT SHOT"),
+  ).toHaveCount(0);
+  const confirmDelete = deletionModal.getByRole("button", {
+    name: "참조 사진 영구 삭제",
+    exact: true,
+  });
+  await expect(confirmDelete).toHaveCSS("background-color", "rgb(0, 245, 155)");
+  await confirmDelete.click();
+  await expect(personImage).toHaveCount(0);
   await openNavigation(page);
   const row = page.locator("[data-product-id]").filter({
     has: page.getByRole("link", { name: "Synthetic shirt", exact: true }),
@@ -676,6 +758,13 @@ test("Mock: direct multi-photo upload, reference planning, compare, revise, expo
     .last()
     .getByLabel("상품 제목", { exact: true })
     .fill("Renamed shirt");
+  await expect(
+    page.getByRole("dialog").last().getByLabel("상품 제목", { exact: true }),
+  ).toHaveCSS("outline-style", "solid");
+  await page.getByRole("button", { name: "제목 저장", exact: true }).focus();
+  await expect(
+    page.getByRole("button", { name: "제목 저장", exact: true }),
+  ).toHaveCSS("outline-style", "none");
   await page.getByRole("button", { name: "제목 저장", exact: true }).click();
   await expect(
     page

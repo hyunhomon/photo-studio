@@ -19,15 +19,13 @@ export function Button({
   type = "button",
   ...props
 }: ButtonHTMLAttributes<HTMLButtonElement> & {
-  variant?: "primary" | "secondary" | "danger";
+  variant?: "primary" | "secondary";
 }) {
   const variants = {
     primary:
       "border border-primary bg-primary text-on-primary hover:border-primary-hover hover:bg-primary-hover",
     secondary:
       "border border-control bg-surface text-ink hover:border-muted hover:bg-elevated",
-    danger:
-      "border border-danger-line bg-danger-surface text-danger hover:border-danger",
   };
   return (
     <button
@@ -104,9 +102,7 @@ export function Modal({
           >
             <X size={20} aria-hidden="true" />
           </button>
-          <p className="eyebrow mb-5 text-primary">
-            PHOTO STUDIO / YOUR NEXT SHOT
-          </p>
+
           <DialogTitle className="pr-5 text-2xl font-semibold tracking-tight">
             {title}
           </DialogTitle>

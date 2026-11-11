@@ -41,17 +41,9 @@ export default function WorkspaceShell({
   const [products, setProducts] = useState<ProductSummaryDto[]>([]),
     [loading, setLoading] = useState(true),
     [listError, setListError] = useState("");
-  const [listAttempt, setListAttempt] = useState(0),
-    [collapsed, setCollapsed] = useState(false);
+  const [listAttempt, setListAttempt] = useState(0);
   const [drawer, setDrawer] = useState(false),
     [search, setSearch] = useState(false);
-  useEffect(() => {
-    try {
-      setCollapsed(sessionStorage.getItem("ps:sidebar:collapsed") === "true");
-    } catch {
-      /* Preference storage is optional. */
-    }
-  }, []);
   // biome-ignore lint/correctness/useExhaustiveDependencies: retry and a product rename explicitly refresh the private sidebar list.
   useEffect(() => {
     if (!me) return;
@@ -83,14 +75,6 @@ export default function WorkspaceShell({
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, [me]);
-  function toggle() {
-    setCollapsed((value) => {
-      try {
-        sessionStorage.setItem("ps:sidebar:collapsed", String(!value));
-      } catch {}
-      return !value;
-    });
-  }
   const nav = {
     me,
     products,
@@ -106,8 +90,6 @@ export default function WorkspaceShell({
       setDrawer(false);
       setSearch(true);
     },
-    collapsed,
-    onToggle: toggle,
     activeProductId,
     section,
   };
@@ -115,9 +97,7 @@ export default function WorkspaceShell({
   const heading =
     title || products.find((p) => p.id === activeProductId)?.name || section;
   return (
-    <div
-      className={`min-h-dvh lg:grid ${collapsed ? "lg:grid-cols-[64px_minmax(0,1fr)]" : "lg:grid-cols-[208px_minmax(0,1fr)] xl:grid-cols-[264px_minmax(0,1fr)]"}`}
-    >
+    <div className="min-h-dvh lg:grid lg:grid-cols-[208px_minmax(0,1fr)] xl:grid-cols-[264px_minmax(0,1fr)]">
       <aside
         className="sticky top-0 hidden h-dvh min-w-0 border-r border-line/60 bg-sidebar lg:block"
         aria-label="작업 사이드바"
@@ -231,12 +211,7 @@ export default function WorkspaceShell({
         <DialogBackdrop className="fixed inset-0 bg-overlay/70 backdrop-blur-sm" />
         <DialogPanel className="fixed inset-y-0 left-0 w-[min(310px,88vw)] bg-sidebar shadow-2xl">
           <DialogTitle className="sr-only">스튜디오 탐색</DialogTitle>
-          <ProductNavigation
-            {...nav}
-            collapsed={false}
-            mobile
-            onClose={() => setDrawer(false)}
-          />
+          <ProductNavigation {...nav} mobile onClose={() => setDrawer(false)} />
         </DialogPanel>
       </Dialog>
 

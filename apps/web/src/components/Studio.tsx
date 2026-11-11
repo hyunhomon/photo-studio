@@ -15,9 +15,6 @@ export default function Studio() {
     >
       {me && (
         <section className="mx-auto max-w-3xl py-10 sm:py-16">
-          <p className="mb-3 text-xs font-semibold text-primary">
-            YOUR NEXT SHOT
-          </p>
           <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
             어떤 옷을 촬영할까요?
           </h1>

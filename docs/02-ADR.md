@@ -190,3 +190,12 @@
 - generate는 draft/approved 계획 모두 허용하되 consent=true, 전체 Zod 검증, owner/원본/참조 검사를 통과해야 한다. 생성 job INSERT와 상품 분석/계획 저장은 D1 batch 트랜잭션에서 처리하고 성공 후 Workflow를 dispatch한다. 새 job이 실제 INSERT된 ID 조건으로만 업데이트해 active-job 충돌이나 idempotent replay가 저장값을 덮지 않는다. job에는 편집된 분석/계획 snapshot을 고정한다.
 - 내부 approved 상태 및 이전 PATCH 엔드포인트는 이력/구버전 호환으로 남기며 현재 UI의 선행 단계가 아니다. 과거 비용/원장은 보존하고 실패·불명확한 유료 호출은 자동 반복하지 않는다. 저장 실패 시 job/분석/계획을 함께 rollback하고 생성 요청/비용 동의 없이 쓰지 않는다. DB 스키마 변경은 없다.
 - 근거: https://developers.cloudflare.com/d1/worker-api/d1-database/#batch
+
+## ADR-025: 사진 중심 프레임과 장식 제거 — Accepted (사용자 지정, 2026-11-12)
+
+- 공통 모달/랜딩/기획/계정/프리셋/사용 기록의 영문 장식 kicker를 제거한다. 삭제 등 특수 버튼 variant는 제거하고 primary/secondary의 solid 스타일로 통일한다. 실제 비용/오류/Mock 고지와 의미 있는 필드 라벨은 유지한다.
+- 원본/결과의 별도 상단 썸네일 목록과 ORIGINAL/RESULT 헤더를 제거한다. 각 프레임 하단에 가로 스크롤 썸네일 목록을 두고 맨 오른쪽에 확대 버튼을 배치한다. 썸네일은 보는 이미지/다운로드/개선 대상을 바꾼다. 사진은 프레임 폭을 채우며 비율을 보존하고 필요한 경우 프레임 내부에서 스크롤한다. 이전 컷 비교/생성 대기 경계는 유지한다.
+- 확대는 viewport에 가까운 Headless UI Dialog다. 시각적 제목/설명 없이 사진과 닫기 버튼만 보이고, 클릭/키보드로 화면 맞춤과 원본 픽셀 크기를 전환한다. 스크린리더 제목은 sr-only로 제공하고 ESC/포커스 복귀를 유지한다.
+- 참조 삭제 버튼은 이미지 오른쪽 위 hover/focus overlay이며 터치에서는 항상 보인다. 확인 Dialog와 active 작업 중 변경 차단은 유지한다.
+- 사이드바 접기 및 브라우저 접힘 저장 기능/최근 날짜 그룹을 제거한다. ‘내 상품’ 제목 옆의 검색 아이콘과 기존 Ctrl/Command+K 검색을 유지한다. 모바일 메뉴 닫기는 유지한다.
+- 사용자 명시 요청으로 시각적인 focus ring은 텍스트 입력/textarea에만 적용한다. 기존 ADR의 전역 ring 정책을 대체하되 키보드 탭/선택 상태/입력 라벨/ARIA/Dialog 포커스 제어는 유지한다. trade-off는 버튼/링크의 ring 표시가 없어진다는 것이며, 색/선택/hover/focus 노출과 의미적 동작은 유지한다. 데이터/API/AI 호출 정책 변경은 없다.

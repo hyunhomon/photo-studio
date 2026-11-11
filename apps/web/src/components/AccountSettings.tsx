@@ -63,7 +63,6 @@ export default function AccountSettings() {
       section="계정과 데이터"
     >
       <div className="mx-auto max-w-3xl">
-        <p className="eyebrow mt-10 text-muted">YOUR ACCOUNT, YOUR CONTROL</p>
         <h1 className="mt-3 text-3xl">계정과 데이터</h1>
         {me && (
           <>
@@ -196,7 +195,7 @@ export default function AccountSettings() {
           </label>
           <Button
             className="mt-6 w-full"
-            variant="danger"
+            variant="primary"
             disabled={busy || confirmation !== "삭제"}
             onClick={() => void erase()}
           >

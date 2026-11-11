@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ArrowDownToLine, ImagePlus, RotateCcw, ZoomIn } from "lucide-react";
+import { ArrowDownToLine, ImagePlus, RotateCcw } from "lucide-react";
 import { Button, Modal, Select } from "@photo-studio/ui";
 import type {
   PipelineDto,
@@ -9,6 +9,8 @@ import type {
 } from "@photo-studio/schemas";
 import { apiBase, errorMessage, type Me, request } from "../lib/api";
 import WorkPending from "./WorkPending";
+import PhotoFrame from "./PhotoFrame";
+import ImageViewer from "./ImageViewer";
 import { Field, JobStatus } from "./PlanningPanel";
 export const reasons = [
   { value: "lighting_focus", label: "빛과 초점 · 배경과의 연결" },
@@ -169,219 +171,72 @@ export default function GenerationPanel({
           분석·기획 후 이미지를 생성할 수 있습니다.
         </p>
       )}
-      <div className="comparison-selectors">
-        {inputs.length > 1 && (
-          <fieldset
-            aria-label="원본 사진 선택"
-            className="flex items-center gap-2"
+      {result?.regenerationOf && (
+        <fieldset className="my-3 flex flex-wrap gap-2" aria-label="비교 기준">
+          <button
+            type="button"
+            aria-pressed={!comparePrevious}
+            onClick={() => setComparePrevious(false)}
+            className={`rounded-lg px-3 py-2 text-xs ${!comparePrevious ? "bg-elevated text-ink" : "text-muted"}`}
           >
-            <span className="mr-1 text-[10px] text-muted">원본</span>
-            {inputs.map((a, i) => (
-              <button
-                type="button"
-                key={a.id}
-                aria-pressed={source?.id === a.id}
-                aria-label={`원본 ${i + 1} 선택`}
-                onClick={() => setSourceId(a.id)}
-                className={`overflow-hidden rounded-lg border ${source?.id === a.id ? "border-primary" : "border-line"}`}
-              >
-                <img
-                  src={imageUrl(a.id)}
-                  alt=""
-                  className="h-10 w-8 object-contain"
-                />
-              </button>
-            ))}
-          </fieldset>
-        )}
-        {result && (
-          <fieldset
-            aria-label="생성 결과 선택"
-            className="flex min-w-0 items-center gap-2 overflow-x-auto"
+            원본 의류와 비교
+          </button>
+          <button
+            type="button"
+            aria-pressed={comparePrevious}
+            onClick={() => setComparePrevious(true)}
+            className={`rounded-lg px-3 py-2 text-xs ${comparePrevious ? "bg-elevated text-ink" : "text-muted"}`}
           >
-            <span className="mr-1 shrink-0 text-[10px] text-muted">결과</span>
-            {results.map((r, i) => (
-              <button
-                type="button"
-                key={r.asset.id}
-                aria-pressed={r.asset.id === result.asset.id}
-                aria-label={`결과 ${results.length - i} 선택`}
-                className={`shrink-0 overflow-hidden rounded-lg border ${r.asset.id === result.asset.id ? "border-primary" : "border-line"}`}
-                onClick={() => {
-                  setSelected(r.asset.id);
-                  setComparePrevious(false);
-                }}
-              >
-                <img
-                  src={imageUrl(r.asset.id)}
-                  alt={`생성 결과 ${results.length - i}`}
-                  className="h-10 w-8 bg-studio object-contain"
-                />
-              </button>
-            ))}
-          </fieldset>
-        )}
-      </div>
-      {!result ? (
-        <div className="comparison-stage">
-          <div className="comparison-grid">
-            <figure className="comparison-figure">
-              <figcaption>원본 참조</figcaption>
-              {source && (
-                <button
-                  type="button"
-                  aria-label="비교 기준 사진 확대"
-                  onClick={() => setZoom(source.id)}
-                >
-                  <img
-                    src={imageUrl(source.id)}
-                    alt={`${product.name} 원본 비교`}
-                  />
-                </button>
-              )}
-            </figure>
-            <figure className="comparison-figure result-frame">
-              <figcaption>새로운 컷</figcaption>
-              <div className="flex min-h-64 flex-1 flex-col items-center justify-center p-8 text-center">
-                <ImagePlus
-                  size={30}
-                  className="text-muted"
-                  aria-hidden="true"
-                />
-                <h3 className="mt-5 text-base">다음 컷을 기다리고 있어요</h3>
-                <p className="mt-3 text-xs leading-6 text-muted">
-                  촬영 설정에서 기획을 확인한 뒤<br />
-                  촬영을 시작해 주세요.
-                </p>
-              </div>
-              {activeJob && (
-                <WorkPending
-                  job={activeJob}
-                  onDispatch={() =>
-                    void action(() =>
-                      request(
-                        `/api/v1/jobs/${activeJob.id}/dispatch`,
-                        { method: "POST" },
-                        me.csrf,
-                      ),
-                    )
-                  }
-                />
-              )}
-            </figure>
-          </div>
-        </div>
-      ) : (
-        <>
-          {result.regenerationOf && (
-            <fieldset
-              className="mb-4 flex flex-wrap gap-2"
-              aria-label="비교 기준"
-            >
-              <button
-                type="button"
-                className={`rounded-lg border px-4 py-2 text-xs ${!comparePrevious ? "border-primary text-primary" : "border-line text-muted"}`}
-                aria-pressed={!comparePrevious}
-                onClick={() => setComparePrevious(false)}
-              >
-                원본 의류와 비교
-              </button>
-              <button
-                type="button"
-                className={`rounded-lg border px-4 py-2 text-xs ${comparePrevious ? "border-primary text-primary" : "border-line text-muted"}`}
-                aria-pressed={comparePrevious}
-                onClick={() => setComparePrevious(true)}
-              >
-                이전 컷과 비교
-              </button>
-            </fieldset>
-          )}
-          <div className="comparison-stage">
-            <div className="comparison-grid">
-              {source && (
-                <figure className="overflow-hidden rounded-panel border border-line bg-surface">
-                  <figcaption className="flex items-center justify-between border-b border-line px-5 py-3 text-xs">
-                    <span>
-                      {comparePrevious && result.regenerationOf
-                        ? "이전 컷 · 비교 기준"
-                        : "원본 참조"}
-                    </span>
-                    <span className="eyebrow text-muted">
-                      {comparePrevious ? "PREVIOUS" : "ORIGINAL"}
-                    </span>
-                  </figcaption>
-                  <button
-                    type="button"
-                    className="relative block w-full"
-                    aria-label="비교 기준 사진 확대"
-                    onClick={() =>
-                      setZoom(
-                        comparePrevious && result.regenerationOf
-                          ? result.regenerationOf
-                          : source.id,
-                      )
-                    }
-                  >
-                    <img
-                      src={imageUrl(
-                        comparePrevious && result.regenerationOf
-                          ? result.regenerationOf
-                          : source.id,
-                      )}
-                      alt={`${product.name} ${comparePrevious && result.regenerationOf ? "이전 컷" : "원본"} 비교`}
-                      className="aspect-[3/4] w-full bg-studio object-contain"
-                    />
-                    <ZoomIn
-                      size={18}
-                      className="absolute right-4 bottom-4"
-                      aria-hidden="true"
-                    />
-                  </button>
-                </figure>
-              )}
-              <figure className="result-frame overflow-hidden rounded-panel border border-line bg-surface">
-                <figcaption className="flex items-center justify-between border-b border-line px-5 py-3 text-xs">
-                  <span>
-                    {result.mock ? "Mock 결과 · 원본 복사" : "AI 생성 결과"}
-                  </span>
-                  <span className="eyebrow text-muted">RESULT</span>
-                </figcaption>
-                <button
-                  type="button"
-                  className="relative block w-full"
-                  aria-label="결과 사진 확대"
-                  onClick={() => setZoom(result.asset.id)}
-                >
-                  <img
-                    src={imageUrl(result.asset.id)}
-                    alt={`${product.name} 결과 비교`}
-                    className="aspect-[3/4] w-full bg-studio object-contain"
-                  />
-                  <ZoomIn
-                    size={18}
-                    className="absolute right-4 bottom-4"
-                    aria-hidden="true"
-                  />
-                </button>
-                {activeJob && (
-                  <WorkPending
-                    job={activeJob}
-                    onDispatch={() =>
-                      void action(() =>
-                        request(
-                          `/api/v1/jobs/${activeJob.id}/dispatch`,
-                          { method: "POST" },
-                          me.csrf,
-                        ),
-                      )
-                    }
-                  />
-                )}
-              </figure>
-            </div>
-          </div>
-        </>
+            이전 컷과 비교
+          </button>
+        </fieldset>
       )}
+      <div className="comparison-stage">
+        <div className="comparison-grid">
+          <PhotoFrame
+            side="original"
+            images={
+              comparePrevious && result?.regenerationOf
+                ? [{ id: result.regenerationOf }]
+                : inputs
+            }
+            selectedId={
+              (comparePrevious ? result?.regenerationOf : source?.id) ??
+              undefined
+            }
+            onSelect={setSourceId}
+            onZoom={setZoom}
+            alt={`${product.name} ${comparePrevious ? "이전 컷" : "원본"} 비교`}
+          />
+          <PhotoFrame
+            side="result"
+            images={results.map((r) => r.asset)}
+            selectedId={result?.asset.id}
+            onSelect={(id) => {
+              setSelected(id);
+              setComparePrevious(false);
+            }}
+            onZoom={setZoom}
+            alt={`${product.name} 결과 비교`}
+            mock={result?.mock}
+          >
+            {activeJob && (
+              <WorkPending
+                job={activeJob}
+                onDispatch={() =>
+                  void action(() =>
+                    request(
+                      `/api/v1/jobs/${activeJob.id}/dispatch`,
+                      { method: "POST" },
+                      me.csrf,
+                    ),
+                  )
+                }
+              />
+            )}
+          </PhotoFrame>
+        </div>
+      </div>
       <Modal
         open={open}
         onClose={() => setOpen(false)}
@@ -560,20 +415,11 @@ export default function GenerationPanel({
           동의하고 1장 생성
         </Button>
       </Modal>
-      <Modal
-        open={Boolean(zoom)}
+      <ImageViewer
+        key={zoom}
+        src={zoom ? imageUrl(zoom) : null}
         onClose={() => setZoom(null)}
-        title="디테일 확인"
-        description="확대된 사진에서 상품 디테일을 확인해 주세요."
-      >
-        {zoom && (
-          <img
-            src={imageUrl(zoom)}
-            alt="상품 디테일 확대"
-            className="mt-5 max-h-[65vh] w-full object-contain"
-          />
-        )}
-      </Modal>
+      />
     </section>
   );
 }

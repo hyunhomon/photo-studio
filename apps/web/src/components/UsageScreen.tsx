@@ -30,7 +30,6 @@ export default function UsageScreen() {
     >
       <div className="flex flex-wrap items-end justify-between gap-5">
         <div>
-          <p className="eyebrow text-muted">THE STUDIO, IN NUMBERS</p>
           <h1 className="mt-3 text-3xl">만들고, 고르고, 돌아보기.</h1>
           <p className="mt-4 text-sm text-muted">
             내 작업의 비용과 선택을 한곳에서 확인합니다.

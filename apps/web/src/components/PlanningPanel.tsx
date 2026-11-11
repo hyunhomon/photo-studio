@@ -165,9 +165,6 @@ export function AnalysisEditor({
       <fieldset disabled={busy} className="min-w-0">
         <div className="mb-5 flex items-center justify-between">
           <h2 className="text-lg">상품 이해</h2>
-          <span className="text-[10px] tracking-wider text-muted">
-            EDITABLE / AI + YOU
-          </span>
         </div>
         <fieldset disabled={busy} className="grid gap-4">
           <Field
@@ -480,7 +477,6 @@ export default function PlanningPanel({
         <TabPanels>
           <TabPanel unmount={false} className="space-y-5 p-5">
             <section className="space-y-4">
-              <p className="eyebrow text-muted">01 / UNDERSTAND & DIRECT</p>
               <div className="mt-4 flex items-center gap-3">
                 <ScanSearch size={22} aria-hidden="true" />
                 <h2 className="text-xl">한 벌을 위한 촬영 기획</h2>

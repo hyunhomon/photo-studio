@@ -252,3 +252,10 @@ production desktop/mobile 전체 Mock E2E **4/4 통과**: 저장된 분석 재�
 - [x] generate에서 editedAnalysis/editedPlan 검증, job+설정 D1 atomic batch 저장 후 dispatch, 조건부 신규 job ID로 replay/충돌 보호.
 - [x] format/lint/typecheck/build 통과, 단위 57/57: 미승인 계획 직접 생성, 수정 snapshot, 동의/검증/owner 거부 무저장, 중복 요청 후속값 보호, 저장 실패 시 job/분석 rollback을 검사했다. 최신 local/production desktop/mobile 각각 6/6, wrapper exit 0. 별도 저장/승인 버튼 없음·탭 전환 draft 유지·생성 시 editedAnalysis/editedPlan 전송/실제 저장·생성/개선/삭제를 검증하고 화면을 점검했다. df345fb commit/push 및 web/API/Workflow 배포, 공개 smoke 통과. DB 스키마/사용자 자료/연결 초기화와 추가 유료 AI 호출 없음.
 - [ ] 새 흐름의 실제 사용자 승인 유료 생성 검증. Mock 검사와 구분한다.
+
+### 사진 프레임과 장식 정리 — 2026-11-12 (ADR-025)
+
+- [x] 전역 장식 kicker 제거, solid 기본 버튼으로 통일, 텍스트 입력에만 focus ring.
+- [x] 각 이미지 하단 썸네일/확대 버튼, 폭을 채우는 사진, viewport 확대/원본 크기 전환 및 접근성 이름/ESC/포커스 복귀.
+- [x] 참조 이미지 hover/focus 삭제 overlay와 터치 노출, 내 상품+작은 검색 아이콘, 사이드바 접기 제거.
+- [ ] 최종 check/브라우저 검증, commit/push, 웹 배포 및 운영 회귀.
