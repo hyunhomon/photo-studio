@@ -53,7 +53,7 @@
 
 - 기본 slug: `openai/gpt-image-2` (이 모델을 유지; 다른 신모델로 임의 교체 금지).
 - 전용 API: `POST https://openrouter.ai/api/v1/images`.
-- `input_references`: 원본 의류 1–3장 뒤에 개선할 이전 생성 컷을 선택적으로 추가한다. `type: image_url` 형식의 data URL. 실제 참조 수 capability와 전체 12MB를 과금 전 검사한다. 원본은 의류 증거, 이전 컷은 가상 성인/구도 연속성만 담당한다.
+- `input_references`: 원본 의류 1–3장 뒤에 개선할 이전 생성 컷을 선택적으로 추가한다. `type: image_url` 형식의 data URL. 실제 참조 수 capability와 전체 12MB를 과금 전 검사한다. 원본은 의류 증거, 이전 컷은 가상 성인의 특징용이다. ADR-020부터 이전 crop/피부 보정/노출/blur까지 유지하라고 지시하지 않는다.
 - 응답 `data[].b64_json`을 바로 R2에 바이너리로 저장; `media_type`에 맞는 MIME/확장자 사용.
 - `usage.cost`는 있을 때만 확정 비용으로 저장; 없으면 null(또는 별도 가정치).
 - `n`, `quality`, `aspect_ratio`, 참조 이미지 제한 등 모델 capabilities를 런타임/부트스트랩 시 검증.

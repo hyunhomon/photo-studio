@@ -211,5 +211,5 @@ production desktop/mobile 전체 Mock E2E **4/4 통과**: 저장된 분석 재�
 - [x] `studio-v4-retail` / `photo-v2-retail`: 의류 전체·밑단·소매가 읽히는 기본 프레이밍, 전신/명시적 접사 존중, 근사 화각→촬영 거리 연결, 새 기본 gentle 배경 분리. 인체 비율로 얼굴 크기를 바꾸지 않는다.
 - [x] 이전 인물 특징과 crop/표정/보정/노출/blur 분리, 승인된 상품 분석/소재 불확실성 snapshot 전달, 자동 미형화/미소/기울임·모든 옷의 기모화·로고 선 굵기/채움 변형 억제. 비용 동의에서 구도 변경 가능성 고지.
 - [x] format/lint/typecheck/unit/build 통과: **39/39**, Astro 진단 0. native workerd HTTP의 OAuth/provider 계약과 합성 촬영 지시 4종 manifest 통과. local desktop/mobile **6/6** 통과. 프레이밍에 맞춘 거리/명시적 접사 보존/일반 portrait 해석/직전 피부 보정·crop 분리/소재 불확실성 전달을 검사했다. 최신 문서 format 및 diff check도 통과했다.
-- [ ] production 배포·공개/desktop/mobile Mock 회귀·정리 검증 기록.
+- [x] 앱 `1382f82`의 production web/API/Workflow 재배포 통과. 공개 HTTPS/CORS/PKCE/폰트/반응형 smoke 통과. production desktop/mobile **6/6**, wrapper exit 0. 실제 배포 D1/R2/Workflow의 개선 지시·원본/이전 컷 비교·다운로드/내보내기·타인 차단·삭제를 검증했다. 합성 계정 0과 실제 계정/연결/세션 보존을 독립 읽기 전용 집계로 재확인했다.
 - [ ] v2의 사람 승인 출력과 충분한 디테일 원본의 확대 비교. 자동 유료 호출은 하지 않는다.
