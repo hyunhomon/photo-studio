@@ -16,6 +16,7 @@ import {
 import { AppError } from "./errors";
 import { decrypt } from "./crypto";
 import { resourceRoutes, type ResourceDeps } from "./resources";
+import { cancelProducts, pipelineRoutes } from "./pipeline";
 
 export function createApp(deps: AuthDeps & ResourceDeps = {}) {
   const app = new Hono<AppContext>();
@@ -53,7 +54,7 @@ export function createApp(deps: AuthDeps & ResourceDeps = {}) {
       data: {
         status: "ok",
         service: "photo-studio-api",
-        phase: 1,
+        phase: 3,
         aiMode: c.env.AI_MODE,
       },
     }),
@@ -166,7 +167,11 @@ export function createApp(deps: AuthDeps & ResourceDeps = {}) {
       },
     });
   });
-  app.route("/api/v1", resourceRoutes(deps));
+  app.route(
+    "/api/v1",
+    resourceRoutes({ beforeDelete: cancelProducts, ...deps }),
+  );
+  app.route("/api/v1", pipelineRoutes());
   app.notFound((c) =>
     c.json(
       {

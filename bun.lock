@@ -59,6 +59,7 @@
       "version": "0.0.0",
       "dependencies": {
         "@photo-studio/schemas": "workspace:*",
+        "zod": "4.6.7",
       },
     },
     "packages/db": {

@@ -4,6 +4,7 @@ import {
   text,
   uniqueIndex,
   index,
+  real,
 } from "drizzle-orm/sqlite-core";
 
 export const users = sqliteTable("users", {
@@ -157,3 +158,76 @@ export const storageCleanup = sqliteTable("storage_cleanup", {
   key: text("key").primaryKey(),
   expiresAt: integer("expires_at").notNull(),
 });
+
+export const shootPlans = sqliteTable(
+  "shoot_plans",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    productId: text("product_id")
+      .notNull()
+      .references(() => products.id, { onDelete: "cascade" }),
+    version: integer("version").notNull(),
+    status: text("status").notNull().default("draft"),
+    specJson: text("spec_json").notNull(),
+    sourceIdsJson: text("source_ids_json").notNull(),
+    createdAt: integer("created_at").notNull(),
+  },
+  (t) => [index("plan_owner_product").on(t.userId, t.productId)],
+);
+export const jobs = sqliteTable(
+  "generation_jobs",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    productId: text("product_id")
+      .notNull()
+      .references(() => products.id, { onDelete: "cascade" }),
+    kind: text("kind").notNull(),
+    status: text("status").notNull(),
+    stage: text("stage").notNull(),
+    idempotencyKey: text("idempotency_key").notNull(),
+    requestHash: text("request_hash").notNull(),
+    requestJson: text("request_json").notNull(),
+    errorCode: text("error_code"),
+    createdAt: integer("created_at").notNull(),
+    finishedAt: integer("finished_at"),
+  },
+  (t) => [
+    uniqueIndex("job_idempotency").on(t.userId, t.idempotencyKey),
+    index("job_owner_product").on(t.userId, t.productId),
+  ],
+);
+export const attempts = sqliteTable(
+  "generation_attempts",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    jobId: text("job_id")
+      .notNull()
+      .references(() => jobs.id, { onDelete: "cascade" }),
+    stage: text("stage").notNull(),
+    model: text("model").notNull(),
+    status: text("status").notNull(),
+    requestHash: text("request_hash").notNull(),
+    promptVersion: text("prompt_version").notNull(),
+    providerRequestId: text("provider_request_id"),
+    outputJson: text("output_json"),
+    durationMs: integer("duration_ms"),
+    tokensIn: integer("tokens_in"),
+    tokensOut: integer("tokens_out"),
+    actualCostUsd: real("actual_cost_usd"),
+    estimatedCostUsd: real("estimated_cost_usd"),
+    createdAt: integer("created_at").notNull(),
+  },
+  (t) => [
+    uniqueIndex("attempt_job_stage").on(t.jobId, t.stage),
+    index("attempt_owner").on(t.userId),
+  ],
+);

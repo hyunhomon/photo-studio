@@ -62,13 +62,15 @@ Phase 2(2026-11-11): 서명·10MB·4MP/4096px 제한 후 jSquash WASM 실제 디
 
 ## Phase 3 — 분석/촬영 기획
 
-- [ ] ProductAnalyzer/Planner adapter, prompt versioning, validation.
-- [ ] 이미지/설명 기반 분석과 시즌·모델·무드 추천.
-- [ ] Cloudflare Workflow job 상태 저장/폴링 구현.
-- [ ] 분석 시작 전 고객 비용 안내/사용자 명시적 승인, 상품 분석 수정, 촬영 콘셉트 승인 화면.
-- [ ] AI 분석 단계 비용/지연/실패/모델 로그.
+- [x] ProductAnalyzer/Planner adapter, prompt versioning, validation.
+- [x] 이미지/설명 기반 분석과 시즌·모델·무드 추천.
+- [x] Cloudflare Workflow job 상태 저장/폴링 구현.
+- [x] 분석 시작 전 고객 비용 안내/사용자 명시적 승인, 상품 분석 수정, 촬영 콘셉트 승인 화면.
+- [x] AI 분석 단계 비용/지연/실패/모델 로그.
 
 **DoD:** 파일 1장 업로드 → mock analyzer → 수정 가능한 shoot plan 생성, 에러 재현.
+
+Phase 3 구현(2026-11-11): 분석/기획 별도 Workflow, 사용자 비용 동의, 프리셋 적용, 분석/콘셉트 수정·승인, stage 원장 및 사용자별 idempotency를 연결했다. 공식 모델 catalog 기능 확인 및 JSON Schema/Zod 검증, nullable 실제 비용을 적용했다. format/lint/typecheck/test/build 전체 통과. 단위 16개, workerd desktop/mobile E2E 4개 통과. 실제 OpenRouter OAuth/유료 분석 품질은 외부 계정 검증이 남아 있다.
 
 ## Phase 4 — 모델컷 생성/품질 검수
 
@@ -111,3 +113,5 @@ Phase 2(2026-11-11): 서명·10MB·4MP/4096px 제한 후 jSquash WASM 실제 디
 - [ ] 타인 프로젝트/이미지 접근 차단
 - [ ] 중복 유료 호출 방어
 - [ ] 고객의 실제 촬영비 및 절감액 기록 양식 준비
+
+

@@ -49,6 +49,28 @@ test("local Mock: connect, create project, secure upload, preset, delete and log
       () => document.documentElement.scrollWidth <= innerWidth,
     ),
   ).toBe(true);
+  await page.getByRole("button", { name: "분석 시작", exact: true }).click();
+  await expect(
+    page.getByRole("button", { name: "동의하고 분석·기획 시작" }),
+  ).toBeDisabled();
+  await page
+    .getByLabel("사진 전송과 분석·기획 비용 안내를 확인했습니다.")
+    .check();
+  await page.getByRole("button", { name: "동의하고 분석·기획 시작" }).click();
+  await expect(
+    page.getByRole("heading", { name: "촬영 콘셉트", exact: true }),
+  ).toBeVisible({ timeout: 60000 });
+  await page.getByLabel("의류 종류", { exact: true }).fill("수정한 셔츠");
+  await page.getByRole("button", { name: "분석 수정 저장" }).click();
+  await expect(page.getByLabel("의류 종류", { exact: true })).toHaveValue(
+    "수정한 셔츠",
+  );
+  await page.getByRole("button", { name: "촬영 방식", exact: true }).click();
+  await page
+    .getByRole("option", { name: "가상 로케이션컷", exact: true })
+    .click();
+  await page.getByRole("button", { name: "콘셉트 승인", exact: true }).click();
+  await expect(page.getByText("V1 · 승인됨", { exact: true })).toBeVisible();
   await page.goto("/studio/presets");
   await page.getByRole("button", { name: "새 프리셋" }).click();
   await page.getByLabel("프리셋 이름", { exact: true }).fill("Synthetic brand");

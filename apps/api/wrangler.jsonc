@@ -17,8 +17,8 @@
     "OPENROUTER_BASE_URL": "https://openrouter.ai/api/v1",
     "OPENROUTER_CALLBACK_URL": "http://localhost:8787/auth/openrouter/callback",
     "OPENROUTER_IMAGE_MODEL": "openai/gpt-image-2",
-    "OPENROUTER_ANALYSIS_MODEL": "",
-    "OPENROUTER_EVALUATION_MODEL": "",
+    "OPENROUTER_ANALYSIS_MODEL": "google/gemini-2.5-flash-lite",
+    "OPENROUTER_EVALUATION_MODEL": "google/gemini-2.5-flash",
   },
   "d1_databases": [
     {

@@ -369,6 +369,9 @@ export function resourceRoutes(deps: ResourceDeps = {}) {
   api.post("/products/:id/assets", async (c) => {
     const owner = c.get("identity").userId;
     const product = await ownedProduct(c.env, owner, c.req.param("id"));
+    await (
+      await import("./pipeline")
+    ).immutableSources(c.env, owner, product.id);
     await upload(c.env, owner, product.id, filesFrom(await c.req.formData()));
     return c.json({ data: await productDto(c.env, product) }, 201);
   });
@@ -433,6 +436,10 @@ export function resourceRoutes(deps: ResourceDeps = {}) {
   api.delete("/assets/:id", async (c) => {
     const owner = c.get("identity").userId,
       asset = await assetOwned(c.env, owner, c.req.param("id"));
+    if (asset.kind === "input")
+      await (
+        await import("./pipeline")
+      ).immutableSources(c.env, owner, asset.productId);
     await deps.beforeDelete?.(c.env, owner, [asset.productId]);
     await deleteObject(c.env, asset.r2Key);
     await createDb(c.env.DB)

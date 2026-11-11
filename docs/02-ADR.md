@@ -78,3 +78,10 @@
 ## ADR-012: 글꼴 — Accepted (사용자 지정, 2026-11-11)
 - 본문/UI는 Pretendard, 브랜드 및 주요 헤드라인은 Paperlogy를 사용한다.
 - 공식 저장소의 WOFF2를 자체 호스팅하고 OFL 라이선스를 함께 배포한다. 외부 폰트 CDN 요청을 만들지 않는다.
+
+## ADR-013: 분석 모델과 과금 호출 원장 — Accepted (2026-11-11)
+- 공식 `/models`의 이미지 입력·structured_outputs·response_format 메타데이터를 확인해 분석/기획 기본값은 `google/gemini-2.5-flash-lite`, 평가 기본값은 `google/gemini-2.5-flash`로 선택했다. 환경 변수로 교체 가능하며 실행 전 현재 capability를 다시 검사한다. 실제 의류 품질 및 실제 유료 호출 검증은 아직 남아 있다.
+- API 요청은 사용자별 idempotency key와 변경 불가능한 입력 snapshot을 저장한다. Workflow payload에는 작업 ID만 전달하고 step 결과에는 저장 완료 여부만 남긴다. 사진/프롬프트/키를 Workflow 결과나 로그에 남기지 않는다.
+- 과금 stage는 D1의 unique(job,stage) 원장을 원자적으로 선점한 뒤 호출한다. 기존 성공은 재사용하고 진행/실패/불확실 상태는 재호출하지 않는다. Workflow 유료 step 재시도는 0이다.
+- 분석에 사용한 원본은 고정한다. 사진을 교체하려면 새 상품을 등록한다. 수정 가능한 분석/촬영 콘셉트와 사용자가 승인한 생성 snapshot은 구분한다.
+- JSON Schema + Zod 검증을 함께 사용하며 실제 비용은 제공된 값만 저장한다. 응답 형식 실패에도 제공된 사용량/비용은 보존한다.

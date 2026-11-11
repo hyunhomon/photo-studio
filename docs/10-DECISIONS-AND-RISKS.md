@@ -51,3 +51,7 @@ Codex는 다음 항목에 대해 개발 중 문서/실험으로 결론을 제시
 - Astro adapter의 Windows 절대 configPath는 URL scheme 오류가 나므로 앱 기준 상대 경로를 전달한다. 로컬 build와 production build를 분리하고 공개 API URL을 production 빌드 시 주입한다.
 - Phase 0 Mock 상태만 배포했으며 초대 게이트/실제 고객 기능은 아직 없다. 실제 inference/사용자 키/미사용 암호화 secret은 추가하지 않았다. Phase 1 이후 migration/세션/CSRF/유료 호출 안전성은 별도 구현한다.
 - 기존 존이 Cloudflare Web Analytics beacon을 자동 주입하는 것을 production 브라우저 검사에서 확인했다. 존 전체 설정은 유지하고, 검사에서는 해당 beacon의 GET 및 `/cdn-cgi/rum` POST만 명시적으로 허용한다. 제공자 호출 또는 다른 외부 요청은 허용하지 않는다.
+
+## 2026-11-11 — 분석/기획
+
+ADR-013을 추가했다. 분석 이후 참조 이미지는 재현 가능한 snapshot을 위해 고정하며 교체는 새 상품으로 등록한다. 모델 기능은 무료 catalog로 확인하지만 실제 의류 정확도는 funded 계정의 사람 실행 검증 전에는 주장하지 않는다. JSON 응답 실패에도 제공된 비용을 보존하고, Workflow 전달 실패와 provider 응답 미확인은 구분한다.

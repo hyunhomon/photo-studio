@@ -93,3 +93,59 @@ export interface ProductDto {
   assets: AssetDto[];
 }
 export type PresetDto = PresetInput & { id: string; updatedAt: number };
+
+const shortText = z.string().min(1).max(500);
+export const shootPlanSchema = z
+  .object({
+    season: shortText,
+    mood: shortText,
+    shootType: z.enum(["model_studio", "model_location"]),
+    model: z.object({ style: shortText, pose: shortText }).strict(),
+    camera: z.object({ framing: shortText, angle: shortText }).strict(),
+    location: z.object({ type: shortText, time: shortText }).strict(),
+    lighting: shortText,
+    mustPreserve: z.array(shortText).min(1).max(20),
+    aspectRatio: z.literal("3:4"),
+  })
+  .strict();
+export type ShootPlan = z.infer<typeof shootPlanSchema>;
+export interface PlanDto {
+  id: string;
+  version: number;
+  status: string;
+  spec: ShootPlan;
+  createdAt: number;
+}
+export interface AttemptDto {
+  stage: string;
+  model: string;
+  status: string;
+  durationMs: number | null;
+  tokensIn: number | null;
+  tokensOut: number | null;
+  actualCostUsd: number | null;
+  promptVersion: string;
+}
+export interface JobDto {
+  id: string;
+  productId: string;
+  kind: string;
+  status: string;
+  stage: string;
+  errorCode: string | null;
+  createdAt: number;
+  finishedAt: number | null;
+  attempts: AttemptDto[];
+}
+export interface PipelineDto {
+  plans: PlanDto[];
+  jobs: JobDto[];
+}
+export const planRequestSchema = z
+  .object({
+    consent: z.literal(true),
+    idempotencyKey: z.uuid(),
+    presetId: z.uuid().nullable().default(null),
+    description: z.string().trim().max(1000).default(""),
+  })
+  .strict();
