@@ -1,15 +1,10 @@
 ---
 import Layout from "../layouts/Layout.astro";
 import Studio from "../components/Studio";
-const apiUrl = import.meta.env.PUBLIC_API_URL || "http://localhost:8787";
-const deployment =
-  import.meta.env.PUBLIC_DEPLOYMENT_ENV === "production"
-    ? "production"
-    : "local";
 ---
 
 <Layout title="스튜디오">
-  <Studio client:load apiUrl={apiUrl} deployment={deployment} />
+  <Studio client:load />
   <noscript>
     <p class="page-width py-5 text-sm">
       스튜디오의 상호작용에는 JavaScript가 필요합니다. 브라우저에서 JavaScript를

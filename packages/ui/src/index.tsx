@@ -4,6 +4,10 @@ import {
   DialogBackdrop,
   DialogPanel,
   DialogTitle,
+  Listbox,
+  ListboxButton,
+  ListboxOption,
+  ListboxOptions,
 } from "@headlessui/react";
 import { X } from "lucide-react";
 import type { ButtonHTMLAttributes, ReactNode } from "react";
@@ -22,6 +26,46 @@ export function Button({
       className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-full px-6 py-3 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${variant === "primary" ? "bg-ink text-paper hover:bg-ink/85" : "border border-line bg-transparent text-ink hover:bg-studio"} ${className}`}
       {...props}
     />
+  );
+}
+
+export function Select({
+  label,
+  value,
+  onChange,
+  options,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  options: { value: string; label: string }[];
+}) {
+  return (
+    <div className="relative">
+      <Listbox value={value} onChange={onChange}>
+        <ListboxButton
+          aria-label={label}
+          className="studio-input flex items-center justify-between text-left"
+        >
+          {options.find((option) => option.value === value)?.label ?? label}
+          <span aria-hidden="true">⌄</span>
+        </ListboxButton>
+        <ListboxOptions
+          anchor="bottom start"
+          className="z-[60] mt-2 w-[var(--button-width)] rounded-xl border border-line bg-surface p-1 shadow-lg outline-none"
+        >
+          {options.map((option) => (
+            <ListboxOption
+              key={option.value}
+              value={option.value}
+              className="cursor-pointer rounded-lg px-4 py-3 text-sm data-focus:bg-studio data-selected:font-semibold"
+            >
+              {option.label}
+            </ListboxOption>
+          ))}
+        </ListboxOptions>
+      </Listbox>
+    </div>
   );
 }
 

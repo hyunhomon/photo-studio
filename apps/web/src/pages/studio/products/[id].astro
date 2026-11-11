@@ -1,0 +1,9 @@
+---
+import Layout from "../../../layouts/Layout.astro";
+import ProductScreen from "../../../components/ProductScreen";
+const id = Astro.params.id ?? "";
+---
+
+<Layout title="상품 촬영">
+  <ProductScreen client:load id={id} />
+</Layout>

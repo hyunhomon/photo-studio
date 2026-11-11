@@ -1,0 +1,9 @@
+---
+import Layout from "../../../layouts/Layout.astro";
+import ProjectScreen from "../../../components/ProjectScreen";
+const id = Astro.params.id ?? "";
+---
+
+<Layout title="프로젝트">
+  <ProjectScreen client:load id={id} />
+</Layout>

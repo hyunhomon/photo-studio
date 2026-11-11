@@ -19,6 +19,9 @@
       "name": "@photo-studio/api",
       "version": "0.0.0",
       "dependencies": {
+        "@jsquash/jpeg": "1.6.0",
+        "@jsquash/png": "3.1.1",
+        "@jsquash/webp": "1.5.0",
         "@photo-studio/ai": "workspace:*",
         "@photo-studio/db": "workspace:*",
         "@photo-studio/schemas": "workspace:*",
@@ -373,6 +376,12 @@
     "@jridgewell/sourcemap-codec": ["@jridgewell/sourcemap-codec@1.6.0", "", {}, "sha512-T7jf+5zgsZHwNJ4lvQ7/aezbyk0nNX+zJVWpmHA7VYsEx7a7qr5Rg5IbtJFqkgze5Y2sruq1RUY8Q837Od7iFw=="],
 
     "@jridgewell/trace-mapping": ["@jridgewell/trace-mapping@0.3.9", "", { "dependencies": { "@jridgewell/resolve-uri": "^3.0.3", "@jridgewell/sourcemap-codec": "^1.4.10" } }, "sha512-3Belt6tdc8bPgAtbcmdtNJlirVoTmEb5e2gC94PnkwEW9jI6CAHUeoG85tjWP5WquqfavoMtMwiG4P926ZKKuQ=="],
+
+    "@jsquash/jpeg": ["@jsquash/jpeg@1.6.0", "", {}, "sha512-zwN46Awh1VM6gXlIcALwb5WzqK5H2e6+Awcs1QP8AvS8ohsK/sbE4esvmH4jhlhW7+CgiUUww66vg0aTnlSIMA=="],
+
+    "@jsquash/png": ["@jsquash/png@3.1.1", "", {}, "sha512-C10pc+0H6j0h8fENOfnGOvkXCmvpSQTDGlfGd0sHphZhPSGTyLjIrHba0FaZZdsKqA/wlmhYicUHb92vfZphaw=="],
+
+    "@jsquash/webp": ["@jsquash/webp@1.5.0", "", { "dependencies": { "wasm-feature-detect": "^1.2.11" } }, "sha512-KggLoj2MnRSfIqTeKe1EmbljTX2vuV7mh79k89PCL1pyqiDULcPM1L47twxXt0hkb68F70bXiL31MxsuoZtKFw=="],
 
     "@napi-rs/wasm-runtime": ["@napi-rs/wasm-runtime@1.2.4", "", { "dependencies": { "@tybys/wasm-util": "^0.10.3" }, "peerDependencies": { "@emnapi/core": "^1.7.1 || ^2.0.0-alpha.4", "@emnapi/runtime": "^1.7.1 || ^2.0.0-alpha.4" } }, "sha512-AJxoUD2/15ESHbvpcyjU274nsAPLuOtPHCk0vKJM5pj//Fg/B1FXNWjPnXTT9PymCYYiHo4zPj0ZomXBKhoy7g=="],
 
@@ -1035,6 +1044,8 @@
     "vscode-nls": ["vscode-nls@5.2.0", "", {}, "sha512-RAaHx7B14ZU04EU31pT+rKz2/zSl7xMsfIZuo8pd+KZO6PXtQmpevpq3vxvWNcrGbdmhM/rr5Uw5Mz+NBfhVng=="],
 
     "vscode-uri": ["vscode-uri@3.2.0", "", {}, "sha512-m2gXo3bn0G1kT9InzMf07fTbqMbGtyckj3bH5ktLO+1Ssv+yiATZ4dhwaQv9UZWxJh6E9IFGnQyjgWVDWVBDrg=="],
+
+    "wasm-feature-detect": ["wasm-feature-detect@1.10.0", "", {}, "sha512-u0tkTCCo8s7xa9UoE2rtZGRYXTSqYx3kRPJ2XkbyYl2AbnMggSFmYNiJIispzzCPz7SIFTBTPTk0nI8yXwJgvA=="],
 
     "workerd": ["workerd@1.20261109.1", "", { "optionalDependencies": { "@cloudflare/workerd-darwin-64": "1.20261109.1", "@cloudflare/workerd-darwin-arm64": "1.20261109.1", "@cloudflare/workerd-linux-64": "1.20261109.1", "@cloudflare/workerd-linux-arm64": "1.20261109.1", "@cloudflare/workerd-windows-64": "1.20261109.1" }, "bin": { "workerd": "bin/workerd" } }, "sha512-gEqHTBDsqn3fIYrlnGobonu57xGOP1TgvNN/7qKhuexn+lxA41kRqe8aq6f/4ZrK/ydiDjL8pl5De/yAJwFwxg=="],
 

@@ -83,3 +83,77 @@ export const rateLimits = sqliteTable("rate_limits", {
   hits: integer("hits").notNull(),
   expiresAt: integer("expires_at").notNull(),
 });
+
+export const projects = sqliteTable(
+  "projects",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    description: text("description").notNull().default(""),
+    status: text("status").notNull().default("active"),
+    createdAt: integer("created_at").notNull(),
+    updatedAt: integer("updated_at").notNull(),
+  },
+  (t) => [index("project_owner").on(t.userId)],
+);
+export const products = sqliteTable(
+  "products",
+  {
+    id: text("id").primaryKey(),
+    projectId: text("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    status: text("status").notNull().default("ready"),
+    analysisJson: text("analysis_json"),
+    analysisVersion: text("analysis_version"),
+    createdAt: integer("created_at").notNull(),
+  },
+  (t) => [index("product_project_owner").on(t.projectId, t.userId)],
+);
+export const assets = sqliteTable(
+  "assets",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    productId: text("product_id")
+      .notNull()
+      .references(() => products.id, { onDelete: "cascade" }),
+    jobId: text("job_id"),
+    kind: text("kind").notNull(),
+    r2Key: text("r2_key").notNull().unique(),
+    mimeType: text("mime_type").notNull(),
+    sizeBytes: integer("size_bytes").notNull(),
+    width: integer("width").notNull(),
+    height: integer("height").notNull(),
+    createdAt: integer("created_at").notNull(),
+  },
+  (t) => [index("asset_product_owner").on(t.productId, t.userId)],
+);
+export const presets = sqliteTable(
+  "brand_presets",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    specJson: text("spec_json").notNull(),
+    updatedAt: integer("updated_at").notNull(),
+  },
+  (t) => [index("preset_owner").on(t.userId)],
+);
+
+// Survives parent deletion so interrupted R2 writes/deletes can be reconciled.
+export const storageCleanup = sqliteTable("storage_cleanup", {
+  key: text("key").primaryKey(),
+  expiresAt: integer("expires_at").notNull(),
+});

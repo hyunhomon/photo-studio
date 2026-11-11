@@ -44,3 +44,52 @@ export const callMetricsSchema = z.object({
 export type ProductAnalysis = z.infer<typeof productAnalysisSchema>;
 export type CallMetrics = z.infer<typeof callMetricsSchema>;
 export type Health = z.infer<typeof healthSchema>;
+
+export const projectInputSchema = z
+  .object({
+    name: z.string().trim().min(1).max(120),
+    description: z.string().trim().max(1000).default(""),
+  })
+  .strict();
+export const presetInputSchema = z
+  .object({
+    name: z.string().trim().min(1).max(120),
+    season: z.string().trim().max(80).default("spring-summer"),
+    mood: z.string().trim().min(1).max(500),
+    modelStyle: z.string().trim().min(1).max(500),
+    location: z.string().trim().min(1).max(500),
+    lighting: z.string().trim().min(1).max(300),
+    shootType: z
+      .enum(["model_studio", "model_location"])
+      .default("model_studio"),
+  })
+  .strict();
+export type PresetInput = z.infer<typeof presetInputSchema>;
+export interface ProjectDto {
+  id: string;
+  name: string;
+  description: string;
+  status: string;
+  createdAt: number;
+  updatedAt: number;
+}
+export interface AssetDto {
+  id: string;
+  productId: string;
+  kind: string;
+  mimeType: string;
+  sizeBytes: number;
+  width: number;
+  height: number;
+  createdAt: number;
+}
+export interface ProductDto {
+  id: string;
+  projectId: string;
+  name: string;
+  status: string;
+  analysis: ProductAnalysis | null;
+  createdAt: number;
+  assets: AssetDto[];
+}
+export type PresetDto = PresetInput & { id: string; updatedAt: number };

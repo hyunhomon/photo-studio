@@ -15,8 +15,9 @@ import {
 } from "./auth";
 import { AppError } from "./errors";
 import { decrypt } from "./crypto";
+import { resourceRoutes, type ResourceDeps } from "./resources";
 
-export function createApp(deps: AuthDeps = {}) {
+export function createApp(deps: AuthDeps & ResourceDeps = {}) {
   const app = new Hono<AppContext>();
   app.use("*", secureHeaders());
   app.use("*", async (c, next) => {
@@ -165,6 +166,7 @@ export function createApp(deps: AuthDeps = {}) {
       },
     });
   });
+  app.route("/api/v1", resourceRoutes(deps));
   app.notFound((c) =>
     c.json(
       {

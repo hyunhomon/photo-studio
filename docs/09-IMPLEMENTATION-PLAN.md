@@ -51,12 +51,14 @@ Phase 1 구현(2026-11-11): SQLite/D1 계약 기반 Mock OAuth 성공·state 단
 
 ## Phase 2 — 프로젝트/상품 업로드
 
-- [ ] D1 migrations, data access layer, type-safe Zod DTO.
-- [ ] 프로젝트 CRUD, 브랜드 프리셋 CRUD.
-- [ ] jpeg/png/webp 업로드, signature+크기 검사, private R2 저장.
-- [ ] 원본 사진 조회/삭제 권한, 초대 베타 사용자 홈.
+- [x] D1 migrations, data access layer, type-safe Zod DTO.
+- [x] 프로젝트 CRUD, 브랜드 프리셋 CRUD.
+- [x] jpeg/png/webp 업로드, signature+크기 검사, private R2 저장.
+- [x] 원본 사진 조회/삭제 권한, 초대 베타 사용자 홈.
 
 **DoD:** 사용자 A 자료가 B에게 노출되지 않으며 파일 삭제 후 접근 불가.
+
+Phase 2(2026-11-11): 서명·10MB·4MP/4096px 제한 후 jSquash WASM 실제 디코딩/무손실 PNG 정규화로 메타데이터를 제거한다. 다른 사용자의 프로젝트/상품/이미지/프리셋 조회·삭제 차단 및 업로드 AI 미호출 테스트 통과. workerd 기반 desktop/mobile E2E에서 Mock 연결→프로젝트→실제 사진 저장→프리셋→삭제→로그아웃 4개 통과. R2 실패 시 삭제 중 상태 및 storage_cleanup tombstone으로 재시도/GC한다.
 
 ## Phase 3 — 분석/촬영 기획
 
