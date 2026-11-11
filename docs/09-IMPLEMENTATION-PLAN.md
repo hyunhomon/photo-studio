@@ -284,5 +284,5 @@ production desktop/mobile 전체 Mock E2E **4/4 통과**: 저장된 분석 재�
 - [x] 단일 로그아웃으로 키/전체 세션 해제·작업 취소, 이전 disconnect endpoint 호환 및 실패 rollback.
 - [x] photo-v5/studio-v9 분석·기획·생성/개선의 직물·접촉 그림자 지시, 고정 배경 거리 충돌 수정, 기존 snapshot 호환. 추가 유료 단계/평가 없음.
 - [x] 최종 format/lint/typecheck/test/build 통과(진단/린트 경고 0, 단위 66/66), local desktop/mobile Mock 6/6. 1440x1000·1024x768·1440x640에서 외부 문서 높이/스크롤 0·고정 탭·내부 스크롤·사진 위치 유지, SVG/간격/수평 행동·설명 제거·단일 계정 행동 검증. 합성 캡처 케이스 6개, provider 호출 0.
-- [ ] API/Workflow·웹 production 배포와 공개/Mock 브라우저 검증.
+- [x] 1fd2d12 commit/push, API/Workflow→웹 production 배포 및 인프라 read probe 완료. 공개 HTTPS/CORS/OAuth/폰트/반응형 smoke 및 운영 desktop/mobile Mock 6/6(wrapper exit0) 통과. 운영 캡처/합성 계정·사진 정리 확인, 실제 사용자/연결/세션 보존. DB/실사용 자료 초기화·secret 변경·유료 AI 호출 없음.
 - [ ] 동일 실제 입력의 사용자 실행으로 v5 질감/그림자 비교. Mock 성공을 실제 품질 합격으로 표시하지 않는다.
