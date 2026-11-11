@@ -1,6 +1,4 @@
 import { useCallback, useEffect, useState } from "react";
-import { Plus } from "lucide-react";
-import { Button } from "@photo-studio/ui";
 import type {
   ProductDto,
   PipelineDto,
@@ -58,18 +56,9 @@ export default function ProductWorkbench({ id }: { id: string }) {
         <div className="studio-workbench">
           <div className="workbench-canvas">
             <h1 className="sr-only">{product.name}</h1>
-            <div className="flex shrink-0 items-center gap-3 empty:hidden">
-              {!product.analysis &&
-                pipeline.jobs.length === 0 &&
-                inputs.length < 3 && (
-                  <Button variant="secondary" onClick={() => setUpload(true)}>
-                    <Plus size={14} />
-                    원본 추가
-                  </Button>
-                )}
-            </div>
             <GenerationPanel
               product={product}
+              onAddOriginal={() => setUpload(true)}
               me={me}
               pipeline={pipeline}
               draft={effectiveDraft}

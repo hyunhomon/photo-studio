@@ -303,3 +303,9 @@ production desktop/mobile 전체 Mock E2E **4/4 통과**: 저장된 분석 재�
 - [x] 기획 실행 범위 라벨과 2px 선택 썸네일, 사진/구성은 유지하는 앱 다크 DS 토큰 랜딩.
 - [x] 최종 format/lint/typecheck/test/build 통과(진단/린트 경고0, 단위66/66), local desktop/mobile 8/8. 긴 직접 입력/선택지와 같은 값/320~1440px·화면 축소·포커스·탭 왕복/내부 스크롤/2px/공통 다크 CTA를 검증했다. 상대 위치 해제→document690, 복원→640 인과 재현 확인.
 - [x] ebbcd99 commit/push 및 웹 전용 production 배포. 공개 HTTPS/CORS/OAuth/폰트/반응형 smoke·운영 desktop/mobile 8/8(wrapper exit0) 통과. 실제 서버의 직접 입력/resize/포커스·320~1440px·2px 선택 표시·다크 랜딩/CTA를 확인했다. 합성 계정/사진 정리, 실제 계정/연결/세션 보존. API/Workflow/D1/secret 변경·자료 초기화·유료 OpenRouter 호출 없음.
+
+### 원본 추가·진행 상태 정리 — 2026-11-12 (ADR-031)
+
+- [x] 원본 썸네일 줄의 + 아이콘, 기획 이후에도 총 3장까지 추가. 작업 중 차단과 업로드 잠금, 기존 snapshot 보존 및 새 분석에 반영.
+- [x] 박스 없는 스피너와 제목 아래 텍스트 단계. 완료/진행 중 초록색, 칩/경과 시간 제거.
+- [ ] format/lint/typecheck/unit/build, local/production desktop/mobile Mock 흐름과 공개 smoke 검증 및 배포.

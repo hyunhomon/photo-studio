@@ -34,8 +34,10 @@ export default function GenerationPanel({
   onRefresh,
   onBusy,
   onQueued,
+  onAddOriginal,
 }: {
   product: ProductDto;
+  onAddOriginal: () => void;
   me: Me;
   pipeline: PipelineDto;
   draft: StudioDraft;
@@ -266,6 +268,15 @@ export default function GenerationPanel({
         <div className="comparison-grid">
           <PhotoFrame
             side="original"
+            onAdd={onAddOriginal}
+            addDisabled={busy || active || inputs.length >= 3}
+            addTitle={
+              inputs.length >= 3
+                ? "원본은 최대 3장까지 등록할 수 있어요"
+                : busy || active
+                  ? "작업 완료 후 원본 추가"
+                  : "원본 사진 추가"
+            }
             images={
               comparePrevious && result?.regenerationOf
                 ? [{ id: result.regenerationOf }]

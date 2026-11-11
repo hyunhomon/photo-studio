@@ -1,5 +1,4 @@
-import { useEffect, useState } from "react";
-import { LoaderCircle, Check } from "lucide-react";
+import { LoaderCircle, ChevronRight } from "lucide-react";
 import type { JobDto } from "@photo-studio/schemas";
 import { Button } from "@photo-studio/ui";
 export default function WorkPending({
@@ -9,11 +8,6 @@ export default function WorkPending({
   job: JobDto;
   onDispatch: () => void;
 }) {
-  const [now, setNow] = useState(Date.now());
-  useEffect(() => {
-    const timer = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(timer);
-  }, []);
   const stages =
     job.kind === "generate"
       ? [["generation", "이미지 생성"]]
@@ -33,37 +27,50 @@ export default function WorkPending({
       aria-busy="true"
     >
       <div className="relative mx-auto flex max-w-xs flex-col items-center px-2 py-3 text-center">
-        <div className="mb-4 grid size-14 place-items-center rounded-3xl border border-primary/20 bg-primary/10 text-primary">
-          <LoaderCircle
-            size={33}
-            strokeWidth={1.5}
-            className="motion-safe:animate-spin"
-            aria-hidden="true"
-          />
-        </div>
+        <LoaderCircle
+          size={34}
+          strokeWidth={1.5}
+          className="mb-5 text-primary motion-safe:animate-spin"
+          aria-hidden="true"
+        />
         <h3 className="text-lg font-semibold">
           {job.kind === "generate"
             ? "다음 컷을 촬영하고 있어요"
             : "옷에 맞는 장면을 찾고 있어요"}
         </h3>
-        <ol className="mt-4 flex flex-wrap justify-center gap-2">
-          {stages.map(([key, label]) => (
-            <li
-              key={key}
-              className={`flex items-center gap-2 rounded-full border px-3 py-2 text-xs ${job.stage === key ? "border-primary/40 text-primary" : "border-line text-muted"}`}
-            >
-              {job.attempts.find((a) => a.stage === key)?.status ===
-                "succeeded" && <Check size={12} aria-hidden="true" />}
-              {label}
-            </li>
-          ))}
-        </ol>
-        <span
-          className="mt-5 text-xs tabular-nums text-muted"
-          aria-hidden="true"
+        <ol
+          className="mt-4 flex flex-wrap items-center justify-center gap-2 text-sm"
+          aria-label="진행 단계"
         >
-          {Math.max(0, Math.floor((now - job.createdAt) / 1000))}초 경과
-        </span>
+          {stages.map(([key, label], index) => {
+            const completed =
+              stages.findIndex(([stage]) => stage === job.stage) > index ||
+              job.attempts.some(
+                (attempt) =>
+                  attempt.stage === key && attempt.status === "succeeded",
+              );
+            const current = job.stage === key;
+            return (
+              <li key={key} className="flex items-center gap-2">
+                {index > 0 && (
+                  <ChevronRight
+                    size={13}
+                    className="text-muted"
+                    aria-hidden="true"
+                  />
+                )}
+                <span
+                  className={
+                    completed || current ? "text-primary" : "text-muted"
+                  }
+                  aria-current={current ? "step" : undefined}
+                >
+                  {label}
+                </span>
+              </li>
+            );
+          })}
+        </ol>
         {job.errorCode === "DISPATCH_PENDING" && (
           <Button className="mt-5" variant="secondary" onClick={onDispatch}>
             작업 연결 재확인

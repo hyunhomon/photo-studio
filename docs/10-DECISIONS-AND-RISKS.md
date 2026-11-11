@@ -189,3 +189,7 @@ ADR-030에서 직접 입력 동시 조건을 회귀에 추가하고 min-content 
 
 
 ebbcd99 commit/push 및 웹 전용 배포 완료. 최종 format/lint/typecheck/test/build 통과(진단/린트 경고0, 단위66/66), local/production desktop/mobile 각각8/8과 공개 smoke 통과. 두 직접 입력/긴 무공백 값/선택지와 같은 값도 수동 유지/resize·focus·tab 왕복/320~1440px 경계/문서 스크롤 없음/내부 스크롤/2px/다크 DS를 검증했다. 신규 회귀가 원래 690px 문서 높이를 실패로 검출했고, 실제 label 위치 static 해제/relative 복원으로 fixed640→unanchored690→restored640을 확인했다. 실패를 무시하거나 검사 기준을 완화하지 않고 배치 원인을 수정했다. 운영 합성 계정/사진 정리와 실제 연결·세션 보존도 재확인했다. API/Workflow/D1/secret/사용자 자료 변경 및 유료 OpenRouter 호출은 없다.
+
+## 2026-11-12 — 기획 후 원본 append와 진행 단계
+
+ADR-031은 이력이 있으면 원본 추가를 막던 정책을 제한적으로 변경한다. 총 3장 한도로 기존 파일은 유지하고 원본 프레임 +에서 추가한다. 기존 기획/생성 sourceIds를 소급 변경하지 않으며 새 사진은 다음 상품 재분석·기획에서 반영한다. 업로드만으로 AI 호출은 없다. 조건부 uploading 상태와 enqueue의 ready 조건으로 작업 시작 경합을 막고, 정상/검증 실패 시 복구한다. 정리 실패는 기존 안전 정책대로 미완료 상태와 cleanup queue를 유지한다. 진행 UI는 완료·현재 단계의 색과 실제 job 상태만 표시하며 경과 시간/칩/스피너 박스를 제거한다. 실제 고객 자료/연결을 초기화하지 않으며 DB migration/추가 유료 API 호출은 필요 없다.

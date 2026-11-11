@@ -269,8 +269,9 @@ export async function sourceSnapshot(
   env: Env,
   userId: string,
   productId: string,
+  plannedIds?: string[],
 ) {
-  const rows = await createDb(env.DB)
+  const available = await createDb(env.DB)
     .select()
     .from(assets)
     .where(
@@ -282,6 +283,19 @@ export async function sourceSnapshot(
     )
     .orderBy(assets.createdAt, assets.id)
     .all();
+  // Existing plans keep their originals when more photos are appended later.
+  const rows = plannedIds
+    ? available.filter((row) => plannedIds.includes(row.id))
+    : available;
+  if (
+    plannedIds &&
+    JSON.stringify(rows.map((row) => row.id)) !== JSON.stringify(plannedIds)
+  )
+    throw new AppError(
+      "PLAN_STALE",
+      "기획에 사용한 원본을 확인할 수 없습니다. 다시 기획해 주세요.",
+      409,
+    );
   if (!rows.length)
     throw new AppError(
       "SOURCE_REQUIRED",

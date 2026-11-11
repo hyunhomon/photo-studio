@@ -21,7 +21,9 @@ export default function UploadDialog({
       open={open}
       onClose={onClose}
       title={productId ? "상품 사진 추가" : "새 상품 등록"}
-      description=""
+      description={
+        productId ? "추가한 사진은 상품 재분석·기획 실행 시 반영됩니다." : ""
+      }
     >
       <div className="mt-5">
         <ProductUploadForm

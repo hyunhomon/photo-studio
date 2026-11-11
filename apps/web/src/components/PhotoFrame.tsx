@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import type { AssetDto } from "@photo-studio/schemas";
-import { ZoomIn, Image } from "lucide-react";
+import { ZoomIn, Image, Plus } from "lucide-react";
 import { apiBase } from "../lib/api";
 export default function PhotoFrame({
   images,
@@ -11,6 +11,9 @@ export default function PhotoFrame({
   side,
   children,
   mock = false,
+  onAdd,
+  addDisabled,
+  addTitle,
 }: {
   images: Pick<AssetDto, "id">[];
   selectedId?: string;
@@ -20,6 +23,9 @@ export default function PhotoFrame({
   side: "original" | "result";
   children?: ReactNode;
   mock?: boolean;
+  onAdd?: () => void;
+  addDisabled?: boolean;
+  addTitle?: string;
 }) {
   const selected = images.find((a) => a.id === selectedId) ?? images[0];
   const url = (id: string) => `${apiBase}/api/v1/assets/${id}/content`;
@@ -66,6 +72,18 @@ export default function PhotoFrame({
               <img src={url(a.id)} alt="" />
             </button>
           ))}
+          {onAdd && (
+            <button
+              type="button"
+              aria-label="원본 사진 추가"
+              title={addTitle}
+              disabled={addDisabled}
+              onClick={onAdd}
+              className="photo-add grid place-items-center text-muted hover:bg-elevated hover:text-ink disabled:cursor-not-allowed disabled:opacity-35"
+            >
+              <Plus size={17} aria-hidden="true" />
+            </button>
+          )}
         </fieldset>
         <button
           type="button"

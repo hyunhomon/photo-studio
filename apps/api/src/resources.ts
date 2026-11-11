@@ -207,7 +207,7 @@ export function resourceRoutes(deps: ResourceDeps = {}) {
           httpMetadata: { contentType: image.mimeType },
         });
         const result = await env.DB.prepare(
-          "INSERT INTO assets (id,user_id,product_id,kind,r2_key,mime_type,size_bytes,width,height,created_at) SELECT ?,?,p.id,?,?,?,?,?,?,? FROM products p WHERE p.id=? AND p.user_id=? AND p.status!='deleting' AND EXISTS (SELECT 1 FROM users u WHERE u.id=p.user_id AND u.status='active') AND NOT EXISTS (SELECT 1 FROM generation_jobs j WHERE j.product_id=p.id AND j.user_id=p.user_id) AND (SELECT count(*) FROM assets WHERE product_id=p.id AND kind=?)<?",
+          "INSERT INTO assets (id,user_id,product_id,kind,r2_key,mime_type,size_bytes,width,height,created_at) SELECT ?,?,p.id,?,?,?,?,?,?,? FROM products p WHERE p.id=? AND p.user_id=? AND p.status!='deleting' AND EXISTS (SELECT 1 FROM users u WHERE u.id=p.user_id AND u.status='active') AND NOT EXISTS (SELECT 1 FROM generation_jobs j WHERE j.product_id=p.id AND j.user_id=p.user_id AND j.status IN ('queued','running')) AND (SELECT count(*) FROM assets WHERE product_id=p.id AND kind=?)<?",
         )
           .bind(
             id,
@@ -382,18 +382,38 @@ export function resourceRoutes(deps: ResourceDeps = {}) {
   api.post("/products/:id/assets", async (c) => {
     const owner = c.get("identity").userId;
     const product = await ownedProduct(c.env, owner, c.req.param("id"));
-    await (
-      await import("./pipeline")
-    ).immutableSources(c.env, owner, product.id);
-    await upload(
-      c.env,
-      owner,
-      product.id,
-      filesFrom(await c.req.formData()).map((file) => ({
-        file,
-        kind: "input",
-      })),
-    );
+    const files = filesFrom(await c.req.formData());
+    const lock = await c.env.DB.prepare(
+      "UPDATE products SET status='uploading' WHERE id=? AND user_id=? AND status='ready' AND NOT EXISTS(SELECT 1 FROM generation_jobs WHERE product_id=? AND user_id=? AND status IN ('queued','running'))",
+    )
+      .bind(product.id, owner, product.id, owner)
+      .run();
+    if (!lock.meta.changes)
+      throw new AppError(
+        "JOB_ACTIVE",
+        "작업 완료 후 원본을 추가해 주세요.",
+        409,
+      );
+    let restore = true;
+    try {
+      await upload(
+        c.env,
+        owner,
+        product.id,
+        files.map((file) => ({ file, kind: "input" as const })),
+      );
+    } catch (error) {
+      if (error instanceof AppError && error.code === "STORAGE_CLEANUP_PENDING")
+        restore = false;
+      throw error;
+    } finally {
+      if (restore)
+        await c.env.DB.prepare(
+          "UPDATE products SET status='ready' WHERE id=? AND user_id=? AND status='uploading'",
+        )
+          .bind(product.id, owner)
+          .run();
+    }
     return c.json({ data: await productDto(c.env, product) }, 201);
   });
   api.get("/products/:id", async (c) =>

@@ -324,8 +324,7 @@ test("Mock: direct multi-photo upload, reference planning, compare, revise, expo
   await expect(
     form.getByRole("img", { name: "상품 사진 미리보기 2", exact: true }),
   ).toHaveJSProperty("naturalWidth", 80);
-  await upload.setInputFiles(fixture("synthetic-back.png", 72));
-  await expect(form.getByRole("status")).toHaveText("3 / 3");
+  await expect(form.getByRole("status")).toHaveText("2 / 2");
   await form
     .getByLabel("촬영 레퍼런스 (선택)", { exact: true })
     .setInputFiles(fixture("synthetic-look.png", 40));
@@ -394,8 +393,14 @@ test("Mock: direct multi-photo upload, reference planning, compare, revise, expo
   await expect(
     page
       .getByRole("group", { name: "원본 사진 선택", exact: true })
-      .getByRole("button"),
-  ).toHaveCount(3);
+      .locator("button[aria-pressed]"),
+  ).toHaveCount(2);
+  await expect(
+    page.getByRole("button", { name: "원본 사진 추가", exact: true }),
+  ).toBeEnabled();
+  await expect(
+    page.getByRole("button", { name: "원본 추가", exact: true }),
+  ).toHaveCount(0);
   const original = page.getByRole("img", {
     name: "Synthetic shirt 원본 비교",
     exact: true,
@@ -411,7 +416,7 @@ test("Mock: direct multi-photo upload, reference planning, compare, revise, expo
   const product = await data<ProductDto>(page, `/products/${productId}`),
     look = product.assets.find((asset) => asset.kind === "look_reference");
   expect(product.assets.filter((asset) => asset.kind === "input")).toHaveLength(
-    3,
+    2,
   );
   expect(look).toBeDefined();
   if (!look) throw new Error("Missing initial photographic reference");
@@ -575,6 +580,35 @@ test("Mock: direct multi-photo upload, reference planning, compare, revise, expo
     (await data<ProductDto>(page, `/products/${productId}`)).analysis
       ?.garmentType,
   ).not.toBe("수정한 셔츠");
+  // Append after completed planning without starting AI or changing old plans.
+  await page
+    .getByRole("button", { name: "원본 사진 추가", exact: true })
+    .click();
+  const appendDialog = page.getByRole("dialog", {
+    name: "상품 사진 추가",
+    exact: true,
+  });
+  await appendDialog
+    .getByLabel("상품 사진", { exact: true })
+    .setInputFiles(fixture("synthetic-back.png", 72));
+  await appendDialog
+    .getByRole("button", { name: "사진 추가", exact: true })
+    .click();
+  await expect(appendDialog).toHaveCount(0);
+  await expect(
+    page
+      .getByRole("group", { name: "원본 사진 선택", exact: true })
+      .locator("button[aria-pressed]"),
+  ).toHaveCount(3);
+  await expect(
+    page.getByRole("button", { name: "원본 사진 추가", exact: true }),
+  ).toBeDisabled();
+  expect(
+    (await data<PipelineDto>(page, `/products/${productId}/pipeline`)).jobs,
+  ).toHaveLength(2);
+  await page.getByRole("button", { name: "원본 3 선택", exact: true }).click();
+  await expect(original).toHaveJSProperty("naturalWidth", 72);
+  await page.getByRole("button", { name: "원본 1 선택", exact: true }).click();
   await verifyCustomChoices(page);
   await page.getByRole("button", { name: "프레이밍", exact: true }).click();
   await page
@@ -685,6 +719,12 @@ test("Mock: direct multi-photo upload, reference planning, compare, revise, expo
   try {
     await expect(pending).toBeVisible();
     await expect(pending).toHaveAttribute("aria-busy", "true");
+    await expect(pending.getByText(/초 경과/)).toHaveCount(0);
+    await expect(
+      pending.locator('ol[aria-label="진행 단계"] [aria-current="step"]'),
+    ).toHaveCSS("color", "rgb(0, 245, 155)");
+    await expect(pending.locator("li.rounded-full")).toHaveCount(0);
+
     await expect(
       page.getByRole("button", { name: "이미지 생성", exact: true }),
     ).toBeDisabled();

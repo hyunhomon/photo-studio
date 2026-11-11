@@ -240,13 +240,12 @@ export function generationRoutes() {
         .get();
       if (!reference) throw notFound();
     }
-    const sourceIds = await sourceSnapshot(c.env, userId, p.id);
-    if (JSON.stringify(sourceIds) !== plan.sourceIdsJson)
-      throw new AppError(
-        "PLAN_STALE",
-        "원본이 변경됐습니다. 다시 기획해 주세요.",
-        409,
-      );
+    const sourceIds = await sourceSnapshot(
+      c.env,
+      userId,
+      p.id,
+      JSON.parse(plan.sourceIdsJson) as string[],
+    );
     const spec = shootPlanSchema.parse(
       input.editedPlan ?? JSON.parse(plan.specJson),
     );
