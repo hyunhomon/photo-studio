@@ -19,7 +19,7 @@ bun run dev
 
 `/studio`에서 **로컬 Mock 스튜디오 열기** → 새 프로젝트 → 사진 1장 업로드 → 비용 안내 동의 후 분석 → 분석/콘셉트 수정·승인 → 별도 동의 후 생성 → 비교·컷 개선·다운로드 순서로 실행합니다. Mock 분석/기획은 합성 fixture이고 Mock 생성 이미지는 원본 복사입니다. 외부 AI를 호출하지 않으며 실제 비용이나 품질을 측정한 결과가 아닙니다. AI 점수·채택/폐기 피드백과 스튜디오/가상 로케이션 모드 선택은 제거했습니다.
 
-JPEG/PNG/WebP, 사진당 10MB·4MP·최대 변 4096px, 상품당 원본 참조 3장을 지원합니다. 실제 디코딩 후 PNG로 정규화합니다. 재생성의 이전 컷을 포함한 AI 참조 사진 전체는 12MB 이하여야 합니다. 분석에 사용한 사진은 고정되며 교체하려면 새 상품으로 등록합니다. 로고·원단의 근거를 위해 충분한 해상도와 디테일 사진을 권장하며 작은 사진을 임의로 고해상도 근거로 취급하지 않습니다.
+JPEG/PNG/WebP, 사진당 10MB·4MP·최대 변 4096px, 상품당 의류 원본 3장과 선택적 인물/촬영감 참조 각 1장을 지원합니다. 실제 디코딩 후 PNG로 정규화합니다. 재생성의 이전 컷을 포함한 선택 참조 전체는 최대 6장·12MB 이하여야 합니다. 분석에는 의류 원본만 사용하며 분석한 원본을 바꾸려면 새 상품으로 등록합니다. 인물/촬영감 참조는 작업 중이 아닐 때 추가·삭제할 수 있습니다. 로고·원단의 근거를 위해 충분한 해상도와 디테일 사진을 권장합니다.
 
 ## 검증
 
@@ -32,7 +32,7 @@ bunx playwright install chromium
 bun run test:e2e
 ```
 
-`check`는 format/lint/typecheck/unit/build를 실행합니다. `test:local`은 격리된 workerd에서 D1/R2/Workflow binding을 확인합니다. `test:oauth`는 실제 workerd native HTTP와 로컬 합성 provider로 초대 없는 OAuth 콜백·키 상태·모델 목록·AI 어댑터·암호화·세션·재사용 거부·redirect 차단을 확인합니다. `test:photography`는 합성 촬영 지시 4종과 버전·해시·근사 심도를 ignored `.tmp/photography-benchmark/manifest.json`으로 생성하며 AI 호출/품질 평가는 하지 않습니다. `test:e2e`는 desktop/mobile에서 업로드부터 분석·생성·원본/이전 컷 비교·개선 지시·다운로드·내보내기·삭제까지 실제 Mock Workflow를 검증합니다. 유료 테스트는 자동 실행하지 않습니다.
+`check`는 format/lint/typecheck/unit/build를 실행합니다. `test:local`은 격리된 workerd에서 D1/R2/Workflow binding을 확인합니다. `test:oauth`는 실제 workerd native HTTP와 로컬 합성 provider로 초대 없는 OAuth 콜백·키 상태·모델 목록·AI 어댑터·암호화·세션·재사용 거부·redirect 차단을 확인합니다. `test:photography`는 합성 촬영 지시/참조 역할 6종과 버전·해시·근사 심도를 ignored `.tmp/photography-benchmark/manifest.json`으로 생성하며 AI 호출/품질 평가는 하지 않습니다. `test:e2e`는 desktop/mobile에서 의류/인물/촬영감 업로드·사용 선택·분석·생성·원본/이전 컷 비교·개선 지시·다운로드·내보내기·삭제까지 실제 Mock Workflow를 검증합니다. 유료 테스트는 자동 실행하지 않습니다.
 
 ## production
 
@@ -56,7 +56,7 @@ bun run test:production:e2e
 
 각 호출의 모델·단계·프롬프트 버전·지연·사용량·실제 비용, 촬영 프로토콜 버전·개선 항목/지시·이전 컷 연결을 비공개 저장합니다. 비용이 제공되지 않으면 미확인으로 남기며 추정이나 Mock 0달러와 혼합하지 않습니다. 불확실한 유료 응답은 자동 재전송하지 않습니다. `generation_attempts`의 unique(job,stage) 원장과 Workflow retry=0으로 재실행을 막습니다.
 
-실제 OAuth·분석/기획 성공과 기존 유료 생성 5건을 확인했습니다. 기존 점수의 realism 값은 5건 모두 0.9로 구분력이 없었으며 실측 품질로 해석하지 않습니다. `studio-v3-photography` / `photo-v1`도 사용자 실행의 컷 개선 1건이 이미지 1회·평가 0회로 성공했고 사용자는 일부 개선을 확인했지만 AI 인상은 남는다고 답했습니다. 공식 쇼핑몰 사진 비교 후 현재 `studio-v4-retail` / `photo-v2-retail`에서 상품 중심 프레이밍·새 기본 gentle 배경 분리·승인된 분석 snapshot·이전 인물 특징과 피부 보정/crop의 분리를 구현했습니다. v2의 실제 출력 개선은 별도 검증 대상입니다. 모델 외모 묘사는 지원하지만 얼굴 사진 전용 업로드/웹 얼굴 수집은 구현하지 않았습니다. [리서치와 검증 루프](docs/14-REALISM-RESEARCH.md), [실제 계정 검증 절차](docs/13-BETA-OPERATIONS.md)를 확인하세요.
+실제 OAuth·분석/기획 및 기존 유료 생성 5건, photo-v1 개선 1건, photo-v2 신규 생성 1건이 성공했습니다. 기존 점수의 realism=0.9 편중은 실측 품질로 해석하지 않습니다. 사용자는 v1의 일부 개선을 느꼈지만 v2에서도 얼굴/표정/피부의 AI 인상이 남는다고 확인했습니다. 현재 `studio-v5-reference` / `photo-v3-reference`는 인물 사진과 촬영감 사진을 별도 시각 참조로 전달합니다. 상품 화면 ‘촬영 참조’에 권한 있는 사진을 등록하고 생성 창에서 사용할 사진을 선택·외부 처리와 비용에 동의합니다. 인물은 생김새, 촬영감은 톤/명암/선예도/질감의 기준이며 의류 원본이 우선입니다. 업로드만으로 AI는 실행되지 않고 웹 얼굴 자동 수집은 없습니다. v3 참조 기반 품질 효과는 실제 사용자 실행 전까지 미검증입니다. [리서치와 검증 루프](docs/14-REALISM-RESEARCH.md), [실제 계정 검증 절차](docs/13-BETA-OPERATIONS.md)를 확인하세요.
 
 프로젝트 삭제 시 관련 사진·기획·작업·피드백을 삭제하며 계정 삭제는 키와 모든 세션도 삭제합니다. 삭제 중 늦은 저장을 정리하기 위한 비공개 경로 tombstone은 24시간 보관합니다. `/studio/usage`는 내 기록만 집계하고 `/studio/settings`에서 JSON 내보내기·연결 해제·계정 삭제를 제공합니다. 이미지·프롬프트·키·개인 식별자를 소스나 console/CI에 기록하지 않습니다.
 

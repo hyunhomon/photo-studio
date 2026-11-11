@@ -1,9 +1,11 @@
 import { expect, test, spyOn } from "bun:test";
-import { mockAdapter } from "@photo-studio/ai";
+import { mockAdapter, CAPTURE_PROTOCOL_VERSION } from "@photo-studio/ai";
 import type { PipelineDto, ResultDto, JobDto } from "@photo-studio/schemas";
 import { studioFixture } from "../test/studio";
 import { runPlanStage } from "./pipeline";
 import { runGenerationStage } from "./generation";
+import { referenceForm } from "../test/references";
+import type { ProductDto } from "@photo-studio/schemas";
 async function ready() {
   const s = await studioFixture(),
     j = await s.startPlan();
@@ -66,7 +68,7 @@ test("approved generation, nullable costs, retired feedback and directed regener
   if (!result) throw new Error("Missing fixture result");
   expect(result).not.toHaveProperty("quality");
   expect(result).not.toHaveProperty("feedback");
-  expect(result.captureVersion).toBe("photo-v2-retail");
+  expect(result.captureVersion).toBe(CAPTURE_PROTOCOL_VERSION);
   expect(
     s.sqlite
       .query("SELECT status FROM generation_jobs WHERE kind='generate'")
@@ -169,6 +171,131 @@ test("R2 failure after paid response retains reported cost and never repeats gen
       .query("SELECT status FROM generation_jobs WHERE kind='generate'")
       .get(),
   ).toEqual({ status: "outcome_unknown" });
+});
+test("selected person and look references are owner-scoped, consented, pinned and passed separately from garment evidence", async () => {
+  const s = await ready();
+  await s.approve();
+  const uploaded = await s.call<ProductDto>(
+    `/products/${s.product.id}/references`,
+    "POST",
+    referenceForm(),
+  );
+  const person = uploaded.data.assets.find(
+    (a) => a.kind === "person_reference",
+  );
+  const lookUpload = await s.call<ProductDto>(
+    `/products/${s.product.id}/references`,
+    "POST",
+    referenceForm("look_reference"),
+  );
+  const look = lookUpload.data.assets.find((a) => a.kind === "look_reference");
+  if (!person || !look) throw Error("Missing synthetic reference");
+  const body = {
+    ...s.input,
+    personReferenceId: person.id,
+    lookReferenceId: look.id,
+    referenceConsent: true,
+  };
+  expect(
+    (
+      await s.call(`/products/${s.product.id}/generate`, "POST", {
+        ...body,
+        referenceConsent: false,
+      })
+    ).status,
+  ).toBe(400);
+  expect(
+    (
+      await s.call(`/products/${s.product.id}/generate`, "POST", {
+        ...body,
+        personReferenceId: look.id,
+      })
+    ).status,
+  ).toBe(404);
+  const job = (
+    await s.call<JobDto>(`/products/${s.product.id}/generate`, "POST", body)
+  ).data;
+  expect((await s.call(`/assets/${person.id}`, "DELETE")).status).toBe(409);
+  expect(
+    (
+      await s.call(
+        `/products/${s.product.id}/references`,
+        "POST",
+        referenceForm(),
+      )
+    ).status,
+  ).toBe(409);
+  const adapter = mockAdapter(),
+    original = adapter.generate;
+  let calls = 0;
+  adapter.preflight = async (_model, stage, _quality, count) => {
+    expect(stage).toBe("generation");
+    expect(count).toBe(3);
+  };
+  adapter.generate = async (...args) => {
+    calls++;
+    expect(args[1]).toHaveLength(1);
+    expect(args[4]?.personImage).toStartWith("data:image/png;base64,");
+    expect(args[4]?.lookImage).toStartWith("data:image/png;base64,");
+    expect(args[4]?.previousImage).toBeUndefined();
+    return original(...args);
+  };
+  await runGenerationStage(s.env, job.id, "generation", {
+    adapter: async () => adapter,
+  });
+  expect(calls).toBe(1);
+  const result = (
+    await s.call<ResultDto[]>(`/products/${s.product.id}/results`)
+  ).data[0];
+  expect(result?.personReferenceUsed).toBe(true);
+  expect(result?.lookReferenceUsed).toBe(true);
+  expect((await s.call(`/assets/${person.id}`, "DELETE")).status).toBe(200);
+  expect(
+    (
+      await s.call(`/products/${s.product.id}/generate`, "POST", {
+        ...body,
+        idempotencyKey: crypto.randomUUID(),
+      })
+    ).status,
+  ).toBe(404);
+});
+test("a reference snapshot without processing consent fails before provider resolution or any paid claim", async () => {
+  const s = await ready();
+  await s.approve();
+  const uploaded = await s.call<ProductDto>(
+    `/products/${s.product.id}/references`,
+    "POST",
+    referenceForm(),
+  );
+  const ref = uploaded.data.assets.find((a) => a.kind === "person_reference");
+  if (!ref) throw Error("Missing reference");
+  const job = (
+    await s.call<JobDto>(`/products/${s.product.id}/generate`, "POST", {
+      ...s.input,
+      personReferenceId: ref.id,
+      referenceConsent: true,
+    })
+  ).data;
+  s.sqlite.run(
+    "UPDATE generation_jobs SET request_json=json_set(request_json,'$.referenceConsent',json('false')) WHERE id=?",
+    [job.id],
+  );
+  let calls = 0;
+  await runGenerationStage(s.env, job.id, "generation", {
+    adapter: async () => {
+      calls++;
+      return mockAdapter();
+    },
+  });
+  expect(calls).toBe(0);
+  expect(
+    s.sqlite
+      .query("SELECT count(*) n FROM generation_attempts WHERE job_id=?")
+      .get(job.id),
+  ).toEqual({ n: 0 });
+  expect((await s.call<JobDto>(`/jobs/${job.id}`)).data.errorCode).toBe(
+    "REFERENCE_CONSENT_REQUIRED",
+  );
 });
 test("retired evaluation stages never invoke an adapter or create a paid evaluation", async () => {
   const s = await ready();

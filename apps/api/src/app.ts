@@ -18,6 +18,7 @@ import { decrypt } from "./crypto";
 import { resourceRoutes, type ResourceDeps } from "./resources";
 import { cancelProducts, pipelineRoutes } from "./pipeline";
 import { generationRoutes } from "./generation";
+import { referenceRoutes } from "./references";
 import { operationsRoutes } from "./operations";
 
 export function createApp(deps: AuthDeps & ResourceDeps = {}) {
@@ -187,6 +188,7 @@ export function createApp(deps: AuthDeps & ResourceDeps = {}) {
     "/api/v1",
     resourceRoutes({ beforeDelete: cancelProducts, ...deps }),
   );
+  app.route("/api/v1", referenceRoutes(deps));
   app.route("/api/v1", pipelineRoutes());
   app.route("/api/v1", generationRoutes());
   app.route("/api/v1", operationsRoutes());

@@ -42,6 +42,11 @@ export const callMetricsSchema = z.object({
 });
 
 export type ProductAnalysis = z.infer<typeof productAnalysisSchema>;
+export const referenceRoleSchema = z.enum([
+  "person_reference",
+  "look_reference",
+]);
+export type ReferenceRole = z.infer<typeof referenceRoleSchema>;
 export type CallMetrics = z.infer<typeof callMetricsSchema>;
 export type Health = z.infer<typeof healthSchema>;
 
@@ -214,11 +219,21 @@ export const generateRequestSchema = z
     regenerationOf: z.uuid().nullable().default(null),
     regenerationReason: rejectionReasonSchema.nullable().default(null),
     adjustments: z.string().trim().max(1000).default(""),
+    personReferenceId: z.uuid().nullable().default(null),
+    lookReferenceId: z.uuid().nullable().default(null),
+    referenceConsent: z.boolean().default(false),
   })
   .strict()
   .refine((v) => Boolean(v.regenerationOf) === Boolean(v.regenerationReason), {
     message: "Regeneration requires a source and reason",
-  });
+  })
+  .refine(
+    (v) => !(v.personReferenceId || v.lookReferenceId) || v.referenceConsent,
+    {
+      message:
+        "Selected person/look references require explicit processing consent",
+    },
+  );
 export const feedbackSchema = z
   .object({
     decision: z.enum(["accepted", "rejected"]),
@@ -236,6 +251,8 @@ export interface ResultDto {
   regenerationReason: string | null;
   adjustments: string;
   captureVersion: string | null;
+  personReferenceUsed: boolean;
+  lookReferenceUsed: boolean;
   mock: boolean;
 }
 export interface UsageDto {

@@ -27,6 +27,8 @@ ADR-019: `evaluations`와 `asset_feedback`는 과거 이력 보존/내보내기�
 
 ADR-020: generation snapshot의 선택적 `analysisSnapshot`에 승인 시점 상품 분석/소재 추정/불확실성을 보관한다. 이후 상품 변경이 이미 요청된 촬영의 근거를 바꾸지 않게 하며 이전 분석이 없는 legacy snapshot도 지원한다. 새 배경 분리 기본은 gentle이고 이미 저장된 명시적 값은 변경하지 않는다.
 
+ADR-021: assets.kind에 `person_reference`/`look_reference` 용도를 사용한다. 기존 text kind와 owner/product/R2 정책을 유지하며 새 테이블/migration은 없다. 조건부 INSERT로 용도당 1장과 작업 중 변경 차단을 원자적으로 검사한다. 선택한 ID와 `referenceConsent`를 generation snapshot에 고정한다. 의류 sourceSnapshot은 `kind=input`만 포함한다. 참조 원본 삭제 후 결과 사용 여부 이력은 남지만 원본 파일/asset row는 삭제한다. 프로젝트/계정 삭제는 모든 kind를 정리한다.
+
 - JSON은 `packages/schemas`의 Zod로 parse + validation. 구조 변경 시 `schema_version` 또는 version 필드.
 - `analysis_json`: garment_type, colors, material_guess, pattern, silhouette, season_guess, preservation_points[], uncertainty[]; **시각적 추정과 실제 소재 정보는 구분**.
 - `model_spec_json`: 성인 모델의 스타일, 포즈, 카메라 앵글 등의 비식별 설정. 실제 개인 신원 추정/보존 금지.

@@ -27,6 +27,20 @@ base.materialDirection =
 const variants = [
   { id: "baseline", axis: "baseline", reason: null, adjustments: "" },
   {
+    id: "person-reference",
+    axis: "identity_evidence",
+    reason: null,
+    adjustments:
+      "Preserve the selected adult's natural individual facial features.",
+  },
+  {
+    id: "look-reference",
+    axis: "photographic_response",
+    reason: null,
+    adjustments:
+      "Use the selected reference's restrained tonal and edge response in this scene.",
+  },
+  {
     id: "light-focus",
     axis: "lighting_focus",
     reason: "lighting_focus",
@@ -54,6 +68,10 @@ const cases = await Promise.all(
       reason: v.reason,
       adjustments: v.adjustments,
       previousImage: v.reason ? "synthetic-continuity-reference" : undefined,
+      personImage:
+        v.id === "person-reference" ? "synthetic-person-reference" : undefined,
+      lookImage:
+        v.id === "look-reference" ? "synthetic-look-reference" : undefined,
     });
     const bytes = await crypto.subtle.digest(
       "SHA-256",

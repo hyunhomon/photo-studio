@@ -50,6 +50,9 @@ export interface GenerationSnapshot extends PlanSnapshot {
   adjustments?: string;
   captureVersion?: string;
   reviewMode?: "manual";
+  personReferenceId?: string | null;
+  lookReferenceId?: string | null;
+  referenceConsent?: boolean;
 }
 export const generatedKey = (job: JobRow) =>
   `${job.userId}/${job.productId}/generated/${job.id}.png`;
@@ -83,19 +86,36 @@ export async function runGenerationStage(
   if (!job) return;
   try {
     await jobActive(env, job);
-    const input = JSON.parse(job.requestJson) as GenerationSnapshot,
-      adapter = await (deps.adapter ?? resolveAdapter)(env, job);
+    const input = JSON.parse(job.requestJson) as GenerationSnapshot;
+    if (
+      (input.personReferenceId || input.lookReferenceId) &&
+      !input.referenceConsent
+    )
+      throw new ProviderError("REFERENCE_CONSENT_REQUIRED");
+    const adapter = await (deps.adapter ?? resolveAdapter)(env, job);
     await adapter.preflight(
       input.imageModel,
       stage,
       input.quality,
-      input.sourceIds.length + (input.regenerationOf ? 1 : 0),
+      input.sourceIds.length +
+        Number(Boolean(input.personReferenceId)) +
+        Number(Boolean(input.lookReferenceId)) +
+        Number(Boolean(input.regenerationOf)),
     );
     const references = await imageData(env, job, [
       ...input.sourceIds,
+      ...(input.personReferenceId ? [input.personReferenceId] : []),
+      ...(input.lookReferenceId ? [input.lookReferenceId] : []),
       ...(input.regenerationOf ? [input.regenerationOf] : []),
     ]);
     const sources = references.slice(0, input.sourceIds.length);
+    let referenceIndex = input.sourceIds.length;
+    const personImage = input.personReferenceId
+      ? references[referenceIndex++]
+      : undefined;
+    const lookImage = input.lookReferenceId
+      ? references[referenceIndex++]
+      : undefined;
     const previousImage = input.regenerationOf ? references.at(-1) : undefined;
     if (stage === "generation") {
       await paidStage(env, job, stage, input.imageModel, async () => {
@@ -110,6 +130,8 @@ export async function runGenerationStage(
             adjustments: input.adjustments,
             previousImage,
             garmentAnalysis: input.analysisSnapshot,
+            personImage,
+            lookImage,
           },
         );
         await recordUsage(env, job, stage, result.usage);
@@ -202,6 +224,25 @@ export function generationRoutes() {
       const asset = await ownedGenerated(c.env, userId, input.regenerationOf);
       if (asset.productId !== p.id) throw notFound();
     }
+    for (const [id, kind] of [
+      [input.personReferenceId, "person_reference"],
+      [input.lookReferenceId, "look_reference"],
+    ] as const) {
+      if (!id) continue;
+      const reference = await createDb(c.env.DB)
+        .select({ id: assets.id })
+        .from(assets)
+        .where(
+          and(
+            eq(assets.id, id),
+            eq(assets.userId, userId),
+            eq(assets.productId, p.id),
+            eq(assets.kind, kind),
+          ),
+        )
+        .get();
+      if (!reference) throw notFound();
+    }
     const sourceIds = await sourceSnapshot(c.env, userId, p.id);
     if (JSON.stringify(sourceIds) !== plan.sourceIdsJson)
       throw new AppError(
@@ -232,6 +273,9 @@ export function generationRoutes() {
       adjustments: input.adjustments,
       captureVersion: CAPTURE_PROTOCOL_VERSION,
       reviewMode: "manual",
+      personReferenceId: input.personReferenceId,
+      lookReferenceId: input.lookReferenceId,
+      referenceConsent: input.referenceConsent,
       analysisModel: c.env.OPENROUTER_ANALYSIS_MODEL,
       imageModel: identity.isTest
         ? "mock/reference-copy-v1"
@@ -288,6 +332,8 @@ export function generationRoutes() {
         regenerationReason: snapshot?.regenerationReason ?? null,
         adjustments: snapshot?.adjustments ?? "",
         captureVersion: snapshot?.captureVersion ?? null,
+        personReferenceUsed: Boolean(snapshot?.personReferenceId),
+        lookReferenceUsed: Boolean(snapshot?.lookReferenceId),
         mock: c.get("identity").isTest,
       });
     }

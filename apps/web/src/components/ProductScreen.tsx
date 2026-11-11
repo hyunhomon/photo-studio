@@ -10,6 +10,7 @@ import { navigate } from "astro:transitions/client";
 import UploadDialog from "./UploadDialog";
 import PlanningPanel from "./PlanningPanel";
 import GenerationPanel from "./GenerationPanel";
+import PhotoReferences from "./PhotoReferences";
 
 export default function ProductScreen({ id }: { id: string }) {
   const { me, error, setError, state, retry } = useAccount();
@@ -129,6 +130,16 @@ export default function ProductScreen({ id }: { id: string }) {
               />
             )}
           </div>
+          {me && (
+            <PhotoReferences
+              product={product}
+              csrf={me.csrf}
+              active={pipeline.jobs.some((j) =>
+                ["queued", "running"].includes(j.status),
+              )}
+              onRefresh={refresh}
+            />
+          )}
           {me && (
             <GenerationPanel
               product={product}

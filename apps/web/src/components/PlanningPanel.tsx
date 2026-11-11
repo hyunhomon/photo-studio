@@ -53,7 +53,9 @@ const failureLabels: Record<string, string> = {
   PROVIDER_OUTPUT_BLOCKED:
     "AI 제공자가 응답을 제한했습니다. 상품 설명과 사진을 확인해 주세요. 자동 재호출하지 않습니다.",
   SOURCE_TOO_LARGE:
-    "원본과 이전 컷을 합친 참조가 12MB를 넘습니다. 참조 크기를 줄여 새 상품에서 시작해 주세요. AI는 호출하지 않았습니다.",
+    "의류·인물·촬영감·이전 컷의 참조 용량이 합계 12MB를 초과했습니다. 선택한 참조를 줄이거나 더 작은 파일로 등록해 주세요. AI는 호출하지 않았습니다.",
+  REFERENCE_CONSENT_REQUIRED:
+    "선택한 인물·촬영감 사진의 외부 처리 동의를 확인해 주세요. AI는 호출하지 않았습니다.",
   DISPATCH_PENDING:
     "실행 요청 전달을 확인하지 못했습니다. 안전하게 연결을 다시 확인할 수 있습니다.",
   PROVIDER_RATE_LIMITED: "OpenRouter 요청 한도에 도달했습니다.",

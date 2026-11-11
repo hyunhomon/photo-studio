@@ -156,3 +156,47 @@ test("one image request binds garment then continuity references and rejects ins
   expect(imageCalls).toBe(1);
   expect(image.usage.actualCostUsd).toBe(0.01);
 });
+test("person identity and photographic look are distinct reference roles in one paid image request", async () => {
+  let calls = 0;
+  const transport = Object.assign(
+    async (_input: unknown, init?: RequestInit) => {
+      calls++;
+      const body = JSON.parse(String(init?.body));
+      expect(
+        body.input_references.map(
+          (r: { image_url: { url: string } }) => r.image_url.url,
+        ),
+      ).toEqual(["garment", "person", "look", "previous"]);
+      expect(body.prompt).toContain(
+        "Reference 2 is the consented adult person reference",
+      );
+      expect(body.prompt).toContain("Reference 3 supplies tonal response");
+      expect(body.prompt).toContain("Reference 4 is the prior generated frame");
+      expect(body.prompt).toContain(
+        "selected person reference overrides its face",
+      );
+      expect(body.prompt).toContain(
+        "Do NOT copy its person's identity, clothing",
+      );
+      expect(body.n).toBe(1);
+      return Response.json({
+        data: [{ b64_json: btoa("synthetic"), media_type: "image/png" }],
+        usage: { cost: 0.01 },
+      });
+    },
+    { preconnect: fetch.preconnect },
+  ) as typeof fetch;
+  const adapter = openRouterAdapter(
+    "synthetic-key",
+    "https://synthetic.invalid",
+    transport,
+  );
+  await adapter.generate(
+    "synthetic",
+    ["garment"],
+    mockPlan(mockAnalysisFixture),
+    "medium",
+    { personImage: "person", lookImage: "look", previousImage: "previous" },
+  );
+  expect(calls).toBe(1);
+});

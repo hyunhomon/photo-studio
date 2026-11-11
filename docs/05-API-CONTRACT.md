@@ -17,6 +17,7 @@ Base path: `/api/v1` (auth callback routes are `/auth/*`). JSON envelope: `{ dat
 | POST | `/api/v1/projects/:id/products` | 의류 파일 업로드 (multipart) | owner |
 | GET | `/api/v1/products/:id` | 상품/분석 상태 | owner |
 | POST | `/api/v1/products/:id/plan` | 상품 분석 + 콘셉트 추천 작업 시작 | owner |
+| POST | `/api/v1/products/:id/references` | 인물/촬영감 참조 1장 저장, AI 미실행 | owner, Origin/CSRF |
 | PATCH | `/api/v1/shoot-plans/:id` | 사람이 촬영 계획 수정 | owner |
 | POST | `/api/v1/products/:id/generate` | **비용 확인 후** 승인된 기획으로 1장 생성/컷 개선 | owner |
 | GET | `/api/v1/jobs/:id` | 작업 상태/단계/결과 요약 | owner |
@@ -58,6 +59,13 @@ Base path: `/api/v1` (auth callback routes are `/auth/*`). JSON envelope: `{ dat
 - `202 Accepted` + `data: JobDto`. 비율은 승인된 기획의 3:4, 호출은 1장 생성만 하며 AI 평가를 호출하지 않는다.
 - 기획/프리셋의 `model.appearance`/`modelAppearance`, `camera.backgroundSeparation`/`backgroundSeparation` (`gentle|balanced|separated`), `materialDirection`을 지원한다. 과거 `shootType`은 읽기 호환이며 새 provider 입력에는 사용하지 않는다.
 - ADR-020: 새/누락된 배경 분리는 gentle이며 명시적 기존 값은 유지한다. 승인 시점의 상품 분석은 서버가 generation snapshot에 고정한다. 이전 컷은 인물 특징 참조로 사용하며 피부 보정·crop·노출·blur를 그대로 유지하지 않는다. 상품 가시성과 요청된 교정을 위해 구도가 바뀔 수 있다.
+- ADR-021: 선택적 `personReferenceId`, `lookReferenceId`는 기본 null. 선택 시 `referenceConsent:true`가 필요하다(없으면 400). ID는 현재 owner/상품/정확한 용도의 asset이어야 하며 위반은 404다. 순서는 의류→인물→촬영감→이전 컷, 총 12MB/최대 6장의 실제 수를 과금 전에 확인한다. 참조 수/크기에 따라 비용이 달라지며 이미지 호출은 여전히 1회다.
+
+### `POST /api/v1/products/:id/references`
+
+multipart `image`(JPEG/PNG/WebP 1장), `role`(`person_reference|look_reference`), `rightsConfirmed`(`"true"`)를 받는다. 사용 권한 및 인물 동의 확인을 요구한다. 기존 signature/decode/10MB·4MP·4096px 검사로 정규화하고 private R2에 저장한다. 용도별 상품당 1장/진행 중 작업 없음/owner 및 active user/project/product 조건을 원자적 INSERT에서 검사한다. 201 ProductDto, 중복/작업 경합 409. 업로드로 분석/생성을 호출하지 않는다. 삭제는 기존 `DELETE /api/v1/assets/:id`를 사용하며 진행 중에는 409다. 참조 원본 삭제 후 기존 생성 결과는 유지한다.
+
+결과 DTO의 `personReferenceUsed`/`lookReferenceUsed`는 해당 생성 snapshot의 사용 여부이며 인물 보존/촬영감 합격 판정이 아니다.
 
 ### `GET /api/v1/jobs/:id`
 
@@ -85,7 +93,7 @@ ADR-019로 종료했다. 인증·owner 검사 후 HTTP 410 `FEATURE_RETIRED`, �
 - `UNAUTHENTICATED`, `INVITE_REQUIRED`, `OAUTH_STATE_INVALID`, `OAUTH_CONNECT_FAILED`
 - `FORBIDDEN`, `NOT_FOUND`, `INVALID_IMAGE`, `IMAGE_TOO_LARGE`, `VALIDATION_ERROR`
 - `INSUFFICIENT_PROVIDER_CREDIT`, `PROVIDER_RATE_LIMITED`, `PROVIDER_UNAVAILABLE`
-- `GENERATION_OUTCOME_UNKNOWN`, `GENERATION_FAILED`, `JOB_CONFLICT`, `SOURCE_TOO_LARGE`, `FEATURE_RETIRED`
+- `GENERATION_OUTCOME_UNKNOWN`, `GENERATION_FAILED`, `JOB_CONFLICT`, `SOURCE_TOO_LARGE`, `FEATURE_RETIRED`, `REFERENCE_CONSENT_REQUIRED`, `REFERENCE_CONFLICT`
 
 ## 안전·성능
 

@@ -497,6 +497,24 @@ export function resourceRoutes(deps: ResourceDeps = {}) {
       await (
         await import("./pipeline")
       ).immutableSources(c.env, owner, asset.productId);
+    if (asset.kind === "person_reference" || asset.kind === "look_reference") {
+      await (
+        await import("./pipeline")
+      ).assertIdle(c.env, owner, asset.productId);
+      const deleted = await c.env.DB.prepare(
+        "DELETE FROM assets WHERE id=? AND user_id=? AND NOT EXISTS(SELECT 1 FROM generation_jobs j WHERE j.product_id=? AND j.user_id=? AND j.status IN ('queued','running'))",
+      )
+        .bind(asset.id, owner, asset.productId, owner)
+        .run();
+      if (!deleted.meta.changes)
+        throw new AppError(
+          "JOB_CONFLICT",
+          "작업이 진행 중입니다. 완료된 뒤 참조 사진을 삭제해 주세요.",
+          409,
+        );
+      await deleteObject(c.env, asset.r2Key);
+      return c.json({ data: { deleted: true } });
+    }
     await deps.beforeDelete?.(c.env, owner, [asset.productId]);
     await deleteObject(c.env, asset.r2Key);
     await createDb(c.env.DB)

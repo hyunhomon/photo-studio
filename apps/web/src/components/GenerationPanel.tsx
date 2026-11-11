@@ -41,6 +41,12 @@ export default function GenerationPanel({
     [error, setError] = useState("");
   const requestId = useRef(crypto.randomUUID());
   const [comparePrevious, setComparePrevious] = useState(false);
+  const [usePerson, setUsePerson] = useState(false),
+    [useLook, setUseLook] = useState(false);
+  const personReference = product.assets.find(
+      (a) => a.kind === "person_reference",
+    ),
+    lookReference = product.assets.find((a) => a.kind === "look_reference");
   const refresh = useCallback(async () => {
     const d = await request<ResultDto[]>(
       `/api/v1/products/${product.id}/results`,
@@ -77,6 +83,8 @@ export default function GenerationPanel({
     setReason("lighting_focus");
     setNote("");
     setConsent(false);
+    setUsePerson(Boolean(personReference));
+    setUseLook(Boolean(lookReference));
     requestId.current = crypto.randomUUID();
     setOpen(true);
   }
@@ -323,6 +331,17 @@ export default function GenerationPanel({
                     ?.label ?? result.regenerationReason}
                 </p>
               )}
+              {(result.personReferenceUsed || result.lookReferenceUsed) && (
+                <p className="mt-3 text-[11px] leading-6 text-muted">
+                  사용한 촬영 참조 ·{" "}
+                  {[
+                    result.personReferenceUsed ? "인물" : null,
+                    result.lookReferenceUsed ? "촬영감" : null,
+                  ]
+                    .filter(Boolean)
+                    .join(" / ")}
+                </p>
+              )}
             </aside>
           </div>
         </>
@@ -379,16 +398,65 @@ export default function GenerationPanel({
             multiline
           />
         </div>
+        {(personReference || lookReference) && (
+          <fieldset className="mt-5 space-y-3 rounded-xl border border-line bg-studio p-4">
+            <legend className="px-1 text-xs font-semibold">
+              이번 생성에 사용할 촬영 참조
+            </legend>
+            {personReference && (
+              <label className="flex items-start gap-3 text-sm">
+                <input
+                  type="checkbox"
+                  className="mt-1 size-4 accent-primary"
+                  checked={usePerson}
+                  onChange={(e) => setUsePerson(e.target.checked)}
+                />
+                <img
+                  src={imageUrl(personReference.id)}
+                  alt=""
+                  aria-hidden="true"
+                  className="h-14 w-12 rounded-md bg-surface object-contain"
+                />
+                인물 참조 사진 사용
+              </label>
+            )}
+            {lookReference && (
+              <label className="flex items-start gap-3 text-sm">
+                <input
+                  type="checkbox"
+                  className="mt-1 size-4 accent-primary"
+                  checked={useLook}
+                  onChange={(e) => setUseLook(e.target.checked)}
+                />
+                <img
+                  src={imageUrl(lookReference.id)}
+                  alt=""
+                  aria-hidden="true"
+                  className="h-14 w-12 rounded-md bg-surface object-contain"
+                />
+                촬영감 참조 사진 사용
+              </label>
+            )}
+            <p className="text-xs leading-6 text-muted">
+              선택한 사진이 OpenRouter와 모델 제공사에 전달됩니다. 인물은
+              생김새, 촬영감은 톤·명암·선예도의 기준이며 의류 원본이 항상
+              우선입니다. 결과의 얼굴·질감 보존은 보장되지 않습니다.
+            </p>
+          </fieldset>
+        )}
         {regenerate && (
           <p className="mt-3 text-xs leading-6 text-muted">
-            이전 컷의 인물 특징을 참조하되 빛·초점·피부 표현은 다시 구성합니다.
-            의류가 충분히 보이도록 구도가 달라질 수 있으며, 원본 의류가 보존
-            기준입니다.
+            {usePerson && personReference
+              ? "선택한 인물 사진을 얼굴 기준으로 우선합니다."
+              : "이전 컷의 인물 특징을 참조합니다."}{" "}
+            빛·초점·피부 표현은 다시 구성합니다. 의류가 충분히 보이도록 구도가
+            달라질 수 있으며, 원본 의류가 보존 기준입니다.
           </p>
         )}
         <p className="mt-4 text-xs leading-6 text-muted">
           이미지 모델: {me.models.image}. 예상 호출: 이미지 1회. 정확한 비용은
-          사전 확정할 수 없습니다. 응답이 불확실하면 자동 재생성을 멈춥니다.{" "}
+          사전 확정할 수 없으며 참조 사진의 수·크기에 따라 달라질 수 있습니다.
+          응답이 불확실하면 자동 재생성을 멈춥니다.{" "}
           <a
             href="https://openrouter.ai/models/openai/gpt-image-2"
             target="_blank"
@@ -425,6 +493,16 @@ export default function GenerationPanel({
                     count: 1,
                     regenerationOf: regenerate,
                     regenerationReason: regenerate ? reason : null,
+                    personReferenceId: usePerson
+                      ? (personReference?.id ?? null)
+                      : null,
+                    lookReferenceId: useLook
+                      ? (lookReference?.id ?? null)
+                      : null,
+                    referenceConsent: Boolean(
+                      (usePerson && personReference) ||
+                      (useLook && lookReference),
+                    ),
                   }),
                 },
                 me.csrf,

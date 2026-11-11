@@ -248,12 +248,62 @@ test("Mock: connect, upload, plan, generate, review, export and delete", async (
     .click();
   await page.getByRole("button", { name: "콘셉트 승인", exact: true }).click();
   await expect(page.getByText("V2 · 승인됨", { exact: true })).toBeVisible();
+  for (const [button, label, consent, width] of [
+    [
+      "인물 사진 등록",
+      "인물 참조 사진 선택",
+      "사진의 사용 권한과 성인 모델의 사용 동의를 확인했습니다.",
+      32,
+    ],
+    [
+      "촬영감 사진 등록",
+      "촬영감 참조 사진 선택",
+      "AI 참조로 사용할 권한이 있는 사진임을 확인했습니다.",
+      40,
+    ],
+  ] as const) {
+    await page.getByRole("button", { name: button, exact: true }).click();
+    await page.getByLabel(label, { exact: true }).setInputFiles({
+      name: "synthetic-reference.png",
+      mimeType: "image/png",
+      buffer: Buffer.from(syntheticPng(width, width + 16)),
+    });
+    await expect(
+      page.getByRole("button", { name: "비공개로 사진 저장", exact: true }),
+    ).toBeDisabled();
+    await page.getByLabel(consent, { exact: true }).check();
+    await page
+      .getByRole("button", { name: "비공개로 사진 저장", exact: true })
+      .click();
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+  }
+  await expect(
+    page.getByRole("img", { name: "인물 참조 사진", exact: true }),
+  ).toHaveJSProperty("naturalWidth", 32);
+  await expect(
+    page.getByRole("img", { name: "촬영감 참조 사진", exact: true }),
+  ).toHaveJSProperty("naturalWidth", 40);
+  await page
+    .getByRole("region", { name: "촬영 참조", exact: true })
+    .screenshot({
+      path: `.tmp/${productionOrigin ? "production-" : ""}photo-references-${test.info().project.name}.png`,
+    });
   await page
     .getByRole("button", { name: "승인된 콘셉트로 생성", exact: true })
     .click();
   await expect(
     page.getByRole("button", { name: "동의하고 1장 생성" }),
   ).toBeDisabled();
+  await expect(
+    page.getByLabel("인물 참조 사진 사용", { exact: true }),
+  ).toBeChecked();
+  await expect(
+    page.getByLabel("촬영감 참조 사진 사용", { exact: true }),
+  ).toBeChecked();
+  await page.getByLabel("촬영감 참조 사진 사용", { exact: true }).uncheck();
+  await page.getByRole("dialog").screenshot({
+    path: `.tmp/${productionOrigin ? "production-" : ""}reference-consent-${test.info().project.name}.png`,
+  });
   await page
     .getByLabel("이미지 생성 비용과 승인된 촬영 지시를 확인했습니다.")
     .check();
@@ -268,6 +318,17 @@ test("Mock: connect, upload, plan, generate, review, export and delete", async (
     page.getByRole("button", { name: "채택", exact: true }),
   ).toHaveCount(0);
   await expect(page.getByText("상품 충실도", { exact: true })).toHaveCount(0);
+  const resultsPath =
+    new URL(page.url()).pathname.replace(
+      "/studio/products/",
+      "/api/v1/products/",
+    ) + "/results";
+  const firstResults = await page.request.get(
+    `${productionOrigin || "http://localhost:8787"}${resultsPath}`,
+  );
+  const firstReferenceUsage = (await firstResults.json()).data[0];
+  expect(firstReferenceUsage.personReferenceUsed).toBe(true);
+  expect(firstReferenceUsage.lookReferenceUsed).toBe(false);
   const downloadEvent = page.waitForEvent("download");
   await page.getByRole("link", { name: "PNG 다운로드" }).click();
   const download = await downloadEvent;
@@ -294,6 +355,12 @@ test("Mock: connect, upload, plan, generate, review, export and delete", async (
     2,
     { timeout: 60000 },
   );
+  const revisedResults = await page.request.get(
+    `${productionOrigin || "http://localhost:8787"}${resultsPath}`,
+  );
+  const revisedReferenceUsage = (await revisedResults.json()).data[0];
+  expect(revisedReferenceUsage.personReferenceUsed).toBe(true);
+  expect(revisedReferenceUsage.lookReferenceUsed).toBe(true);
   await page
     .getByRole("button", { name: "이전 컷과 비교", exact: true })
     .click();
