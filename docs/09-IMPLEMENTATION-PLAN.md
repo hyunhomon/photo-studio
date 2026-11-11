@@ -132,3 +132,11 @@ Phase 5 구현(2026-11-11): 내 사용자별 비용 부분합/미확인 수·단
 - 삭제 중 세션 만료 시에도 cron이 계정·키를 마무리 삭제하도록 회귀 테스트를 추가하고 재배포했다. production 최종 코드 commit: `72f0643`.
 - UI는 Pretendard + Paperlogy 자체 호스팅, Headless UI Dialog/Listbox 및 Tailwind 토큰을 사용한다. 로컬 포트 분리에 따른 CORP 차단을 실제 브라우저 캡처로 발견·수정했으며 production same-origin 정책은 유지한다.
 - 실제 외부 계정/유료 이미지 테스트는 자동 실행하지 않았다. 관련 준비와 사람 검증 체크리스트는 `docs/13-BETA-OPERATIONS.md`에 남긴다.
+
+### 다크 네온 UI refine 검증 — 2026-11-11
+
+- 사용자 첨부 레퍼런스에 따라 다크 전용 팔레트와 primary #00F59B, P/셔터 심볼·기울어진 Paperlogy 워드마크·favicon·outline SVG 3종을 추가했다(ADR-015). Pretendard 및 Headless UI를 유지한다.
+- format/lint/typecheck/test/build 전체 통과: 단위 25 pass. desktop/mobile local E2E 4 pass, production Mock E2E 4 pass. OS light에서도 dark 유지, Dialog ESC/포커스 복귀와 실제 이미지 디코딩을 확인했다.
+- 본문/보조 텍스트·primary/상태 대비 및 입력 경계 대비를 계산·확인했다. 사진 원본/결과에는 색상 필터를 적용하지 않았다.
+- 웹 코드 88b1e05를 검증된 production 웹 Worker에만 게시했다. API/Workflow 재배포·D1 migration·secret 변경·유료 AI 호출 없음. 공개 UI/폰트/반응형 검사와 SVG 3종 HTTP 200, 합성 계정/사진 정리까지 확인했다.
+- 유료 OpenRouter 및 실제 고객 품질 검증 항목은 앞서 기록한 상태를 유지한다.
