@@ -147,3 +147,5 @@ ADR-024에 따라 생성 확인/비용 동의를 유일한 촬영 실행 승인�
 ADR-025는 사용자 요청의 라벨/버튼/사진 탐색/포커스/사이드바 변경이다. 전역 장식 kicker와 특수 danger 버튼 variant를 제거하고 solid 기본 스타일을 사용한다. 각 원본/결과 프레임의 하단 가로 filmstrip이 표시 사진을 선택하며 확대 버튼은 오른쪽에 둔다. 프레임 폭을 채우되 사진 비율을 보존하고, 큰 사진은 내부 스크롤한다. 확대는 viewport 크기에 가까우며 sr-only 접근성 이름, ESC/닫기·포커스 복귀, 화면 맞춤/원본 픽셀 크기를 제공한다. 실제 Mock 결과 고지와 비용/오류/필드 라벨은 유지한다.
 
 사용자 지정으로 전역 버튼/링크 focus ring을 없애고 텍스트 입력에만 남긴다. 이는 시각 스타일의 명시적 변경이며 키보드/ARIA/선택 상태 제어는 유지한다. 참조 이미지 삭제는 hover/focus overlay, 터치는 상시 노출이다. 사이드바 접기와 최근 날짜 구분을 없애고 내 상품/작은 검색 아이콘을 사용한다. API/DB/AI 요청 변경이나 사용자 자료 초기화는 없다.
+
+6174d28 commit/push 후 웹 Worker만 production에 배포했다. 최종 format/lint/typecheck/build와 단위57/57, local/production 브라우저 각6/6 및 wrapper exit0, 공개 smoke를 통과했다. 모달 접근성 루트가 fixed viewport를 차지하도록 보완했고, 참조 삭제 검사는 초기 계획 로딩 완료 후 탭을 선택해 비동기 탭 전환과의 경합을 제거했다. 확대/썸네일 전환·입력만 ring·solid 확인 버튼·hover 삭제를 실제 운영 Mock 흐름에서 검증했다. 합성 계정/사진을 정리했고 실제 연결/자료를 유지한다. API/Workflow 배포나 D1 migration, secret 변경, 유료 AI 호출은 없다.

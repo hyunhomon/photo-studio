@@ -258,4 +258,4 @@ production desktop/mobile 전체 Mock E2E **4/4 통과**: 저장된 분석 재�
 - [x] 전역 장식 kicker 제거, solid 기본 버튼으로 통일, 텍스트 입력에만 focus ring.
 - [x] 각 이미지 하단 썸네일/확대 버튼, 폭을 채우는 사진, viewport 확대/원본 크기 전환 및 접근성 이름/ESC/포커스 복귀.
 - [x] 참조 이미지 hover/focus 삭제 overlay와 터치 노출, 내 상품+작은 검색 아이콘, 사이드바 접기 제거.
-- [ ] 최종 check/브라우저 검증, commit/push, 웹 배포 및 운영 회귀.
+- [x] format/lint/typecheck/build 및 단위 57/57 통과, 진단/린트 경고 0. local/production desktop/mobile 각각 6/6, 운영 wrapper exit 0. 하단 썸네일 선택·이미지 URL 교체·뷰포트 90% 이상 확대창·원본 크기 전환·ESC/포커스 복귀·입력/버튼 ring 구분·호버 참조 삭제·solid 색상·접기 없음·부모 안의 대기/독립 스크롤을 검증했다. desktop/mobile/확대 캡처를 점검했다. 6174d28 commit/push 및 웹 전용 production 배포, 공개 HTTPS/CORS/OAuth/폰트/반응형 smoke 통과. 합성 계정/사진 정리 완료. API/Workflow/D1/secret/실사용 자료 변경과 유료 AI 호출 없음.
