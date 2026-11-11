@@ -101,14 +101,10 @@ export function ProductSearch({
                 <p className="px-4 py-10 text-center text-sm text-muted">
                   {products.length
                     ? "일치하는 상품이 없습니다."
-                    : "새 상품으로 첫 촬영을 시작해 보세요."}
+                    : "아직 상품이 없어요."}
                 </p>
               )}
             </ComboboxOptions>
-            <p className="border-t border-line px-5 py-3 text-[10px] text-muted">
-              ↑ ↓ 선택 <span className="mx-2">·</span> Enter 열기{" "}
-              <span className="mx-2">·</span> Esc 닫기
-            </p>
           </Combobox>
         </DialogPanel>
       </div>
@@ -334,11 +330,6 @@ export function ProductNavigation({
         ) : (
           <div className="px-3 text-xs leading-6 text-muted/80">
             <p>아직 상품이 없어요.</p>
-            <p className="mt-1">
-              새 촬영을 시작하면
-              <br />
-              이곳에서 이어갈 수 있습니다.
-            </p>
           </div>
         )}
       </nav>
@@ -414,7 +405,7 @@ export function ProductNavigation({
         description={
           action?.kind === "delete"
             ? "의류와 참조 사진, 생성 결과와 작업 기록을 모두 삭제합니다."
-            : "사이드바에 표시할 이름을 정해 주세요."
+            : ""
         }
       >
         <form

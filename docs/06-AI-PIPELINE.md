@@ -125,3 +125,6 @@ PlanDto.lookReferenceId는 사용한 사진의 연결이며 새 generation에 �
 
 
 현재 ADR-026은 이전 tone-only/pose 금지/전체 의류 강제 정책을 대체한다. 얼굴은 인물 참조, 의류는 원본, 구도는 촬영감 참조, 편집/최신 지시는 해당 축에서 최우선이다. 바스트/버드아이 선택을 넓히거나 눈높이로 되돌리지 않는다. match는 구도/포즈/배경 배치를 재현하고 inspire는 빛·톤만 참고한다. 기획은 인물→촬영감 두 이미지를 사용하고 의류 분석은 계속 의류만 받는다. native identity-lock 기능이나 결과 품질 보장이 아니며 합성 요청 검사와 실제 품질 검증을 분리한다.
+
+
+현재 ADR-028은 `studio-v9-material-light` / `photo-v5-material-light`다. 원단의 관찰된 구조/질감과 원본 조명을 분석에서 분리하고 기존 기획 요청에 garment-specific 소재/광원/접촉 지시를 포함한다. 생성·개선은 큰 드레이프/중간 주름·봉제 relief/미세 직물 결의 구분, 같은 주광·반사광과 국소 접촉/자체 그림자를 지시한다. 지지하는 계단/벽/의자를 수치 배경 거리로 떼어내지 않는다. 같은 호출 수/참조 순서·우선순위/무자동재시도를 유지한다. 신규 성공 attempt outputJson은 실제 captureVersion을 기록하고 결과 DTO는 그 값을 읽는다. 구버전 snapshot/hash는 불변, 이미 성공한 paid claim은 재실행/재작성하지 않으며 과거 provenance 누락은 null이다. 실제 품질 비교는 미검증이다.

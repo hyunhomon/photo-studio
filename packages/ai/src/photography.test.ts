@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test";
 import {
+  CAPTURE_PROTOCOL_VERSION,
   captureProfiles,
   compilePhotographicPrompt,
   focusEnvelope,
@@ -227,4 +228,58 @@ test("explicit bust and bird-eye edits override generic garment crops and compos
   expect(compilePhotographicPrompt(plan, 1, { lookImage: "look" })).toContain(
     "Borrow lighting and tonal rendering only",
   );
+});
+
+test("existing capture snapshots remain readable while new material-light corrections retain explicit shot choices", () => {
+  const plan = mockPlan(mockAnalysisFixture);
+  plan.model.pose = "Synthetic seated pose with lap against a step";
+  plan.lighting =
+    "Synthetic hard sunlight from upper left with weak wall bounce";
+  plan.materialDirection = "Synthetic smooth coated textile; no invented weave";
+  for (const captureVersion of [
+    undefined,
+    "photo-v3-reference",
+    "photo-v4-directed-composition",
+    CAPTURE_PROTOCOL_VERSION,
+  ]) {
+    const prompt = compilePhotographicPrompt(plan, 1, {
+      captureVersion,
+      garmentAnalysis: {
+        ...mockAnalysisFixture,
+        materialGuess: {
+          value: "Synthetic uncertain composition",
+          confidence: 0.1,
+        },
+      },
+      reason: "material_rendering",
+      previousImage: "synthetic-prior",
+      adjustments:
+        "Synthetic preserve smooth finish and seated crop; repair only contact shading",
+    });
+    expect(prompt).toContain(`CAPTURE PROTOCOL ${CAPTURE_PROTOCOL_VERSION}`);
+    expect(prompt).toContain(plan.model.pose);
+    expect(prompt).toContain(plan.lighting);
+    expect(prompt).toContain(plan.materialDirection);
+    expect(prompt).toContain('"confidence":0.1');
+    // A nearby support cannot simultaneously be required to sit 1.5m behind the adult.
+    expect(prompt).toContain("freely separated background only");
+    expect(prompt).toContain("actual body/cloth contact distance");
+    expect(prompt).toContain("never float the subject away from a support");
+    // Material correction must rebuild geometry/light, not blindly intensify grain/AO.
+    expect(prompt).toContain("a uniform ambient-occlusion pass");
+    expect(prompt).toContain("do not merely add grain");
+    expect(prompt).toContain("Do not bake flat-lay/hanger shadows");
+    expect(prompt).toContain("microscopic fibers merge with distance");
+    expect(prompt).toContain(
+      "do not turn uncertain material guesses into new visible fibers",
+    );
+    expect(prompt).toContain("Preserve hard sunlight when requested");
+    expect(prompt).toContain(
+      "never substitute a generic kangaroo/patch pocket",
+    );
+    expect(prompt).toContain("repair only contact shading");
+    expect(prompt.indexOf("LATEST USER REVISION")).toBeGreaterThan(
+      prompt.indexOf("MATERIALS AT THREE SCALES"),
+    );
+  }
 });

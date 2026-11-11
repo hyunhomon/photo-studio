@@ -220,3 +220,15 @@
 - 사용자 명시 요청으로 **입력을 포함한 모든 시각적 focus ring과 모든 scrollbar 표시를 숨긴다**. ADR-025의 입력 ring 예외를 대체한다. overflow/스크롤 동작, Tab/버튼/라벨/ARIA, Headless UI의 포커스 관리/ESC/닫기 복귀는 유지한다. trade-off: 키보드 초점 위치를 표시하는 outline이 없어지고 스크롤 가능한 영역의 시각적 단서가 줄어든다. 기능 자체를 막는 overflow:hidden/blur는 사용하지 않는다.
 - 랜딩은 Chainly 레퍼런스의 중앙 헤드라인/CTA·주변 비스듬한 카드·큰 외곽 보드 레이아웃을 기존 다크/네온 톤으로 구성한다. 제3자 이미지·로고를 서비스 자산으로 복사하지 않고 자체 벡터를 사용하며 설명용 일러스트임을 명시한다. 근거: https://dribbble.com/shots/27724117-Chainly-Crypto-Payments-Landing-Page
 - API/Workflow/DB/권한/비용·실행 동의 정책은 변경하지 않는다. 실사용 데이터·연결 초기화나 자동 유료 추론을 수행하지 않는다.
+
+
+## ADR-028: 실행 화면 설명 정리·통합 로그아웃·직물과 접촉 그림자 — Accepted (사용자 지정, 2026-11-12)
+
+- 반복 사용법/권장 문구와 생성·기획 버튼 주변의 OpenRouter 전송/비용 고지를 제거한다. ADR-026의 실행 옆 안내 조건을 사용자 지시로 대체한다. 사용자가 시작/생성을 눌렀을 때만 기존 consent/referenceConsent snapshot으로 실행하며 업로드/편집/탭 전환은 AI를 호출하지 않는다. 비용·전송 정보는 privacy와 사용 기록에 남긴다. trade-off: 실행 지점의 비용 안내가 사라진다. Mock 식별, 실패/결과 불명확·무재시도 복구, 삭제 결과 설명은 유지한다.
+- 공통 Select는 문자 화살표 대신 고정 크기 SVG chevron과 줄임 처리한 선택 텍스트를 쓴다. 조명/레퍼런스 반영 사이 간격을 유지한다. 분석이 있으면 ‘처음부터 다시’와 ‘기획만 다시’를 같은 위계/같은 행에 둔다.
+- desktop 작업대는 viewport 높이의 minmax(0,1fr) grid이며, 오른쪽은 고정 탭 바와 하나의 내부 패널 스크롤만 사용한다. 긴 콘셉트/드롭다운/탭 전환으로 문서 전체 높이가 늘어나거나 원본·결과가 이동하지 않는다. 모바일 문서 스크롤은 유지한다.
+- 계정 화면은 ‘로그아웃’ 한 동작으로 정리한다. /auth/logout과 이전 /auth/disconnect는 동일하게 소유 작업을 취소하고 서버 저장 키 및 해당 사용자의 모든 앱 세션을 제거한 뒤 쿠키를 지운다. 다른 사용자와 상품·비용 기록은 보존한다. OpenRouter 발급 키의 원격 폐기를 주장하지 않으며 providerRevocationRequired를 유지한다. DB 실패 시 세션/키 삭제는 atomic rollback되고 재시도 가능하다.
+- photo-v5-material-light / studio-v9-material-light: 기존 분석에서 직물·리브·봉제 두께/관찰된 결을 정적인 촬영 그림자와 구별한다. 같은 기획 호출에서 의류별 소재·광원/접촉 지시를 작성한다. 생성/개선은 큰 처짐→압축/당김 주름·봉제 입체감→거리/초점에 맞는 직물 결을 구분하며, 같은 주광/반사광 아래 포즈에 따른 국소 접촉·자체 그림자를 재구성한다. 모든 표면에 노이즈/콘트라스트/검은 선을 더하거나 평면 원본의 그림자를 붙이지 않는다. 사용자 프레이밍/인물/참조 우선순위는 유지한다.
+- 고정 배경거리 기본값은 접촉하지 않는 먼 배경에만 적용한다. 계단/의자/벽은 몸·옷의 실제 지지점에 둬야 하며 억지 배경 분리로 몸을 띄우지 않는다. 기존 v3/v4 snapshot을 읽으며 추가 AI 단계/자동 재생성/평가/점수/스키마 migration은 없다. 실제 질감·그림자 개선 효과는 같은 입력의 사용자 실행 비교 전까지 미검증이다.
+- 실제 생성 성공 attempt의 outputJson에 실행된 captureVersion을 기록한다. 요청 snapshot/hash는 불변이며 구버전 큐 요청이 새 컴파일러로 실행될 경우 실제 결과 버전을 별도로 읽는다. 과거 기록에 버전이 없으면 null로 두고 현재 버전으로 소급 추측하지 않는다. paid claim/replay/이미 성공한 output은 재작성하지 않는다.
+- 공식 근거: https://headlessui.com/react/listbox ; https://headlessui.com/react/tabs ; https://pbr-book.org/4ed/Reflection_Models/Roughness_Using_Microfacet_Theory ; https://pbr-book.org/4ed/Light_Sources/Area_Lights ; https://openrouter.ai/docs/guides/overview/multimodal/image-generation#image-to-image-reference-images

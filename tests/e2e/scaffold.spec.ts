@@ -50,24 +50,39 @@ async function verifyComparisonLayout(page: Page) {
     exact: true,
   });
   if (test.info().project.name === "desktop-chromium") {
-    for (const width of [1440, 1024]) {
-      await page.setViewportSize({ width, height: 1000 });
+    for (const [width, height] of [
+      [1440, 1000],
+      [1024, 768],
+      [1440, 640],
+    ] as const) {
+      await page.setViewportSize({ width, height });
       await inspector
         .getByRole("tab", { name: "촬영 콘셉트", exact: true })
         .click();
-      await inspector.evaluate((element) => element.scrollTo(0, 0));
+      const scroller = inspector.locator(".planning-scroll");
+      await scroller.evaluate((element) => element.scrollTo(0, 0));
+      const tabsBefore = await inspector.getByRole("tablist").boundingBox();
       const before = await original.boundingBox();
-      await inspector.evaluate((element) =>
+      await scroller.evaluate((element) =>
         element.scrollTo(0, element.scrollHeight),
       );
       await expect
-        .poll(() => inspector.evaluate((element) => element.scrollTop))
+        .poll(() => scroller.evaluate((element) => element.scrollTop))
         .toBeGreaterThan(0);
       const after = await original.boundingBox(),
         panel = await inspector.boundingBox(),
         generated = await result.boundingBox();
       if (!before || !after || !panel || !generated)
         throw new Error("Missing comparison layout");
+      const tabsAfter = await inspector.getByRole("tablist").boundingBox();
+      expect(tabsAfter?.y).toBe(tabsBefore?.y);
+      const outer = await page.evaluate(() => ({
+        scroll: scrollY,
+        height: document.documentElement.scrollHeight,
+        viewport: innerHeight,
+      }));
+      expect(outer.scroll).toBe(0);
+      expect(outer.height).toBeLessThanOrEqual(outer.viewport + 1);
       expect(Math.abs(before.y - after.y)).toBeLessThan(1);
       expect(Math.abs(before.x - after.x)).toBeLessThan(1);
       expect(after.x + after.width).toBeLessThan(panel.x);
@@ -228,6 +243,9 @@ test("Mock: direct multi-photo upload, reference planning, compare, revise, expo
   await form
     .getByRole("button", { name: "인물 참조 (선택) 1번 삭제", exact: true })
     .click();
+  await expect(
+    form.getByRole("img", { name: "인물 참조 (선택) 미리보기 1", exact: true }),
+  ).toHaveCount(0);
   for (const image of await form.getByRole("img").all()) {
     const photo = await image.boundingBox(),
       slot = await image
@@ -421,14 +439,24 @@ test("Mock: direct multi-photo upload, reference planning, compare, revise, expo
     "수정한 셔츠",
   );
   await inspector.getByRole("tab", { name: "기획", exact: true }).click();
+  const actions = inspector.getByRole("group", {
+    name: "기획 실행",
+    exact: true,
+  });
+  const restart = await actions
+    .getByRole("button", { name: "처음부터 다시", exact: true })
+    .boundingBox();
+  const replan = await actions
+    .getByRole("button", { name: "기획만 다시", exact: true })
+    .boundingBox();
+  if (!restart || !replan) throw new Error("Missing grouped planning actions");
+  expect(Math.abs(restart.y - replan.y)).toBeLessThan(1);
   const planningOnlyResponse = page.waitForResponse(
     (response) =>
       response.request().method() === "POST" &&
       new URL(response.url()).pathname.endsWith("/plan"),
   );
-  await page
-    .getByRole("button", { name: "이 분석으로 기획 다시 만들기", exact: true })
-    .click();
+  await page.getByRole("button", { name: "기획만 다시", exact: true }).click();
   const planningOnly = (
     (await (await planningOnlyResponse).json()) as { data: { id: string } }
   ).data;
@@ -452,6 +480,24 @@ test("Mock: direct multi-photo upload, reference planning, compare, revise, expo
       exact: true,
     })
     .click();
+  const light = await page.getByLabel("조명", { exact: true }).boundingBox();
+  const referenceMode = await page
+    .getByRole("button", { name: "레퍼런스 반영", exact: true })
+    .boundingBox();
+  if (!light || !referenceMode) throw new Error("Missing adjacent controls");
+  expect(referenceMode.y - (light.y + light.height)).toBeGreaterThanOrEqual(16);
+  await expect(
+    page
+      .getByRole("button", { name: "레퍼런스 반영", exact: true })
+      .locator("svg"),
+  ).toHaveAttribute("width", "16");
+  await expect(page.getByText(/원본의 보존 포인트를 확인하고/)).toHaveCount(0);
+  await expect(
+    page.getByText(/인물 참조가 있으면 해당 얼굴을 우선/),
+  ).toHaveCount(0);
+  await expect(
+    page.getByText("생성 1회 · OpenRouter 사용료 발생", { exact: true }),
+  ).toHaveCount(0);
   await page.getByRole("button", { name: "배경 분리", exact: true }).click();
   await page
     .getByRole("option", { name: "분리감 있게 · 멀리 있는 배경", exact: true })
@@ -470,9 +516,7 @@ test("Mock: direct multi-photo upload, reference planning, compare, revise, expo
   await page
     .getByLabel("인물 참조 사진 선택", { exact: true })
     .setInputFiles(fixture("synthetic-person.png", 32));
-  await page
-    .getByRole("button", { name: "비공개로 사진 저장", exact: true })
-    .click();
+  await page.getByRole("button", { name: "사진 저장", exact: true }).click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(
     page.getByRole("img", { name: "인물 참조 사진", exact: true }),
@@ -728,9 +772,7 @@ test("Mock: direct multi-photo upload, reference planning, compare, revise, expo
   } finally {
     releaseSession();
   }
-  await expect(
-    page.getByRole("heading", { name: "만들고, 고르고, 돌아보기." }),
-  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: "사용 기록" })).toBeVisible();
   expect(await page.evaluate(() => performance.timeOrigin)).toBe(
     documentOrigin,
   );
@@ -780,7 +822,7 @@ test("Mock: direct multi-photo upload, reference planning, compare, revise, expo
     deletionModal.getByText("PHOTO STUDIO / YOUR NEXT SHOT"),
   ).toHaveCount(0);
   const confirmDelete = deletionModal.getByRole("button", {
-    name: "참조 사진 영구 삭제",
+    name: "삭제",
     exact: true,
   });
   await expect(confirmDelete).toHaveCSS("background-color", "rgb(0, 245, 155)");
@@ -848,6 +890,13 @@ test("Mock: direct multi-photo upload, reference planning, compare, revise, expo
       .getByRole("link", { name: "Synthetic shirt", exact: true }),
   ).toHaveCount(0);
   await page.goto("/studio/settings");
+  for (const name of ["연결 해제", "연결 상태 확인", "OpenRouter 다시 연결"])
+    await expect(page.getByRole("button", { name, exact: true })).toHaveCount(
+      0,
+    );
+  await expect(
+    page.getByRole("button", { name: "로그아웃", exact: true }),
+  ).toHaveCount(1);
   await page.getByRole("button", { name: "계정과 모든 데이터 삭제" }).click();
   await page.getByLabel("계속하려면 ‘삭제’를 입력하세요.").fill("삭제");
   await page

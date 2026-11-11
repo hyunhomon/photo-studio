@@ -13,15 +13,11 @@ const roles = [
     value: "person_reference",
     title: "인물 참조",
     button: "인물 사진 등록",
-    description:
-      "사용 동의를 받은 성인 모델의 얼굴·인상을 참조합니다. 의상과 배경은 따라 하지 않습니다.",
   },
   {
     value: "look_reference",
     title: "촬영감 참조",
     button: "촬영감 사진 등록",
-    description:
-      "구도·포즈·카메라 시점·배경 배치의 기준입니다. 인물과 의상은 내 참조를 사용합니다.",
   },
 ] as const;
 export default function PhotoReferences({
@@ -88,9 +84,6 @@ export default function PhotoReferences({
         촬영 참조{" "}
         <span className="ml-2 text-xs font-normal text-muted">선택 사항</span>
       </h2>
-      <p className="mt-3 text-xs text-muted">
-        인물은 얼굴 기준, 촬영감은 구도 기준으로 사용합니다.
-      </p>
       {error && (
         <p
           role="alert"
@@ -108,9 +101,6 @@ export default function PhotoReferences({
               className="rounded-xl border border-line bg-studio p-4"
             >
               <h3 className="font-semibold">{r.title}</h3>
-              <p className="mt-2 text-xs leading-6 text-muted">
-                {r.description}
-              </p>
               {asset ? (
                 <div className="group relative mt-4 w-fit">
                   <img
@@ -153,7 +143,7 @@ export default function PhotoReferences({
           if (!busy) setRole(null);
         }}
         title={info?.button ?? "참조 사진 등록"}
-        description={info?.description ?? ""}
+        description=""
       >
         <form
           className="mt-5 space-y-5"
@@ -177,13 +167,6 @@ export default function PhotoReferences({
               onChange={(e) => setFile(e.target.files?.[0] ?? null)}
             />
           </label>
-          <p className="text-xs leading-6 text-muted">
-            JPEG/PNG/WebP 한 장 · 10MB · 400만 픽셀 · 긴 변 4096px 이하. 사진은
-            비공개 저장됩니다.
-          </p>
-          <p className="text-xs text-muted">
-            사용 권한이 있는 사진과 동의받은 성인 인물만 등록해 주세요.
-          </p>
           {error && (
             <p role="alert" className="text-sm text-danger">
               {error}
@@ -194,7 +177,7 @@ export default function PhotoReferences({
             className="w-full"
             disabled={!file || busy || active}
           >
-            {busy ? "사진을 저장하고 있습니다" : "비공개로 사진 저장"}
+            {busy ? "사진을 저장하고 있습니다" : "사진 저장"}
           </Button>
         </form>
       </Modal>
@@ -219,7 +202,7 @@ export default function PhotoReferences({
             onClick={() => void drop()}
             disabled={busy || active}
           >
-            참조 사진 영구 삭제
+            삭제
           </Button>
         </div>
       </Modal>

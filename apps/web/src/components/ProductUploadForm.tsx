@@ -299,14 +299,6 @@ export default function ProductUploadForm({
           </>
         )}
       </div>
-      <p className="text-center text-[11px] leading-5 text-muted">
-        JPEG·PNG·WebP · 사진당 10MB · 상품 사진 최대 {remaining}장
-      </p>
-      {hasReference && (
-        <p className="text-center text-xs text-muted">
-          사용 권한이 있는 사진과 동의받은 성인 인물만 등록해 주세요.
-        </p>
-      )}
       {error && (
         <p
           role="alert"
@@ -332,9 +324,6 @@ export default function ProductUploadForm({
             ? "사진 추가"
             : "추가"}
       </Button>
-      <p className="text-center text-[11px] leading-5 text-muted">
-        비공개로 저장해요. 등록만으로 AI를 호출하거나 비용을 청구하지 않아요.
-      </p>
     </form>
   );
 }

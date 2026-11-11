@@ -95,7 +95,9 @@ export default function WorkspaceShell({
   };
   const pending = accountState === "pending" || accountState === "redirecting";
   return (
-    <div className="min-h-dvh lg:grid lg:grid-cols-[208px_minmax(0,1fr)] xl:grid-cols-[264px_minmax(0,1fr)]">
+    <div
+      className={`min-h-dvh lg:grid lg:grid-cols-[208px_minmax(0,1fr)] xl:grid-cols-[264px_minmax(0,1fr)] ${workbench ? "workbench-shell" : ""}`}
+    >
       <aside
         className="sticky top-0 hidden h-dvh min-w-0 border-r border-line/60 bg-sidebar lg:block"
         aria-label="작업 사이드바"

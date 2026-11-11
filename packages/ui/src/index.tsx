@@ -9,7 +9,7 @@ import {
   ListboxOption,
   ListboxOptions,
 } from "@headlessui/react";
-import { X } from "lucide-react";
+import { X, ChevronDown } from "lucide-react";
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 export { BrandLockup, BrandMark } from "./brand";
 
@@ -52,10 +52,17 @@ export function Select({
       <Listbox value={value} onChange={onChange}>
         <ListboxButton
           aria-label={label}
-          className="studio-input flex items-center justify-between text-left"
+          className="studio-input group flex items-center justify-between gap-3 text-left"
         >
-          {options.find((option) => option.value === value)?.label ?? label}
-          <span aria-hidden="true">⌄</span>
+          <span className="min-w-0 truncate">
+            {options.find((option) => option.value === value)?.label ?? label}
+          </span>
+          <ChevronDown
+            size={16}
+            strokeWidth={1.75}
+            aria-hidden="true"
+            className="shrink-0 text-muted transition-transform group-data-open:rotate-180"
+          />
         </ListboxButton>
         <ListboxOptions
           anchor="bottom start"
@@ -86,7 +93,7 @@ export function Modal({
   open: boolean;
   onClose: () => void;
   title: string;
-  description: string;
+  description?: string;
   children: ReactNode;
 }) {
   return (
@@ -106,9 +113,11 @@ export function Modal({
           <DialogTitle className="pr-5 text-2xl font-semibold tracking-tight">
             {title}
           </DialogTitle>
-          <Description className="mt-4 text-sm leading-7 text-muted">
-            {description}
-          </Description>
+          {description && (
+            <Description className="mt-4 text-sm leading-7 text-muted">
+              {description}
+            </Description>
+          )}
           {children}
         </DialogPanel>
       </div>

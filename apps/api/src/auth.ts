@@ -84,6 +84,7 @@ export async function requireIdentity(c: C) {
       "/api/v1/account",
       "/api/v1/me",
       "/auth/logout",
+      "/auth/disconnect",
       "/auth/refresh",
     ].includes(c.req.path)
   )
@@ -457,18 +458,6 @@ export function authRoutes(deps: AuthDeps = {}) {
     const csrf = await issueSession(c, userId);
     return c.json({ data: { csrf } });
   });
-  auth.post("/logout", async (c) => {
-    const identity = await requireIdentity(c);
-    requireCsrf(c, identity);
-    await createDb(c.env.DB)
-      .delete(sessions)
-      .where(eq(sessions.id, identity.sessionId));
-    deleteCookie(c, sessionName(c.env), {
-      path: "/",
-      secure: production(c.env),
-    });
-    return c.json({ data: { loggedOut: true } });
-  });
   auth.post("/refresh", async (c) => {
     const identity = await requireIdentity(c);
     requireCsrf(c, identity);
@@ -478,7 +467,7 @@ export function authRoutes(deps: AuthDeps = {}) {
       .where(eq(sessions.id, identity.sessionId));
     return c.json({ data: { csrf } });
   });
-  auth.post("/disconnect", async (c) => {
+  const disconnectAndLogout = async (c: C) => {
     const identity = await requireIdentity(c);
     requireCsrf(c, identity);
     const list = await c.env.DB.prepare(
@@ -506,9 +495,17 @@ export function authRoutes(deps: AuthDeps = {}) {
       secure: production(c.env),
     });
     return c.json({
-      data: { disconnected: true, providerRevocationRequired: true },
+      data: {
+        loggedOut: true,
+        disconnected: true,
+        providerRevocationRequired: true,
+      },
     });
-  });
+  };
+  // Keep the previous disconnect endpoint compatible with open older clients.
+  // Both actions remove this account's encrypted key and every app session.
+  auth.post("/logout", disconnectAndLogout);
+  auth.post("/disconnect", disconnectAndLogout);
   return auth;
 }
 export async function cleanupIdentity(env: Env) {

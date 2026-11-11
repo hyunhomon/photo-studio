@@ -46,11 +46,6 @@ export default function WorkPending({
             ? "다음 컷을 촬영하고 있어요"
             : "옷에 맞는 장면을 찾고 있어요"}
         </h3>
-        <p className="mt-3 text-sm leading-7 text-muted">
-          {job.kind === "generate"
-            ? "선택한 사진과 현재 콘셉트를 반영하고 있어요."
-            : "사진을 살펴보고 빛과 구도, 분위기를 기획해요."}
-        </p>
         <ol className="mt-4 flex flex-wrap justify-center gap-2">
           {stages.map(([key, label]) => (
             <li
@@ -69,11 +64,6 @@ export default function WorkPending({
         >
           {Math.max(0, Math.floor((now - job.createdAt) / 1000))}초 경과
         </span>
-        <p className="mt-4 text-[11px] leading-5 text-muted">
-          이동해도 작업은 이어집니다.
-          <br />
-          결과가 불확실하면 자동으로 다시 생성하지 않아요.
-        </p>
         {job.errorCode === "DISPATCH_PENDING" && (
           <Button className="mt-5" variant="secondary" onClick={onDispatch}>
             작업 연결 재확인

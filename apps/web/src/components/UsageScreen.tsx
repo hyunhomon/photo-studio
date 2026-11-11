@@ -30,10 +30,7 @@ export default function UsageScreen() {
     >
       <div className="flex flex-wrap items-end justify-between gap-5">
         <div>
-          <h1 className="mt-3 text-3xl">만들고, 고르고, 돌아보기.</h1>
-          <p className="mt-4 text-sm text-muted">
-            내 작업의 비용과 선택을 한곳에서 확인합니다.
-          </p>
+          <h1 className="mt-3 text-3xl">사용 기록</h1>
         </div>
         <a
           href={`${apiBase}/api/v1/account/export`}
@@ -86,9 +83,8 @@ export default function UsageScreen() {
           </div>
           <p className="mt-4 text-xs leading-7 text-muted">
             {data.mock
-              ? "Mock 합성 기록입니다. 실제 AI 호출·청구·의류 품질을 측정한 값이 아닙니다."
-              : "OpenRouter가 제공한 실제 비용만 집계합니다. 미확인 비용은 합계에 포함되지 않으므로 총 청구액과 다를 수 있습니다. 실제 청구는 OpenRouter에서 확인해 주세요."}{" "}
-            상품·결과 삭제 시 관련 기록도 삭제되어 집계가 달라집니다.
+              ? "Mock 기록 · 실제 비용 없음"
+              : "확인된 비용만 집계하며, 미확인 비용은 합계에서 제외합니다."}
           </p>
           <div className="mt-8 grid gap-6">
             <section className="rounded-panel border border-line bg-surface p-6">
@@ -137,14 +133,10 @@ export default function UsageScreen() {
           <section className="mt-8 overflow-hidden rounded-panel border border-line bg-surface">
             <div className="border-b border-line p-6">
               <h2 className="text-lg">최근 작업</h2>
-              <p className="mt-2 text-xs text-muted">
-                최근 50개 작업 · 각 호출의 모델·시간·실제 비용은 작업 화면에서
-                확인할 수 있습니다.
-              </p>
             </div>
             {!data.history.length ? (
               <p className="p-10 text-sm text-muted">
-                첫 번째 상품을 등록하고 촬영을 기획해 보세요.
+                아직 작업 기록이 없어요.
               </p>
             ) : (
               data.history.map((job) => (

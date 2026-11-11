@@ -221,11 +221,11 @@ export default function GenerationPanel({
           이미지 생성
         </Button>
       </div>
-      <p className="mt-2 text-right text-[11px] text-muted">
-        {me.mode === "mock"
-          ? "Mock · 외부 비용 없음"
-          : "생성 1회 · OpenRouter 사용료 발생"}
-      </p>
+      {me.mode === "mock" && (
+        <p className="mt-2 text-right text-[11px] text-muted">
+          Mock · 외부 비용 없음
+        </p>
+      )}
       {generationJob?.errorCode && !activeJob && (
         <div className="mt-5">
           <JobStatus
@@ -241,11 +241,6 @@ export default function GenerationPanel({
             }
           />
         </div>
-      )}
-      {!plan && (
-        <p className="mt-4 text-xs text-muted">
-          분석·기획 후 이미지를 생성할 수 있습니다.
-        </p>
       )}
       {result?.regenerationOf && (
         <fieldset className="my-3 flex flex-wrap gap-2" aria-label="비교 기준">
@@ -313,12 +308,7 @@ export default function GenerationPanel({
           </PhotoFrame>
         </div>
       </div>
-      <Modal
-        open={open}
-        onClose={() => setOpen(false)}
-        title="이 컷 개선"
-        description="바꿀 부분을 지정해 주세요. 현재 기획과 수정 지시로 새 이미지 1장을 생성합니다."
-      >
+      <Modal open={open} onClose={() => setOpen(false)} title="이 컷 개선">
         {error && (
           <p role="alert" className="mt-4 text-sm text-danger">
             {error}
@@ -359,11 +349,9 @@ export default function GenerationPanel({
               ]}
             />
           )}
-          <p className="text-xs text-muted">
-            {me.mode === "mock"
-              ? "Mock · 외부 비용 없음"
-              : "생성 1회 · 사진과 요청을 OpenRouter에 전송하며 사용료가 발생합니다."}
-          </p>
+          {me.mode === "mock" && (
+            <p className="text-xs text-muted">Mock · 외부 비용 없음</p>
+          )}
           <Button
             className="w-full"
             disabled={busy || active}

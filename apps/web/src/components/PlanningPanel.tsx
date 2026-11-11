@@ -84,8 +84,7 @@ export function JobStatus({
       )}
       {job.status === "failed" && job.stage === "planning" && (
         <p className="mt-2 text-xs leading-6 text-muted">
-          완료된 상품 분석은 보존했습니다. ‘이 분석으로 기획 다시 만들기’에서
-          기획 1회 비용을 확인한 뒤 다시 요청할 수 있습니다.
+          완료된 상품 분석은 보존했습니다. ‘기획만 다시’로 이어갈 수 있습니다.
         </p>
       )}
       {job.status === "queued" && job.errorCode === "DISPATCH_PENDING" && (
@@ -224,11 +223,6 @@ export function AnalysisEditor({
             }
           />
         </div>
-        <p className="mt-4 text-xs leading-6 text-muted">
-          소재 추정 신뢰도 {Math.round(value.materialGuess.confidence * 100)}%.
-          사진 분석은 실제 소재·치수를 보증하지 않습니다. 수정 내용은 이미지
-          생성 시 저장됩니다.
-        </p>
       </fieldset>
     </section>
   );
@@ -254,16 +248,15 @@ export function PlanEditor({
           </span>
         </div>
         {plan.spec.referenceNotes && (
-          <div className="my-4 rounded-xl bg-accent-soft p-3 text-xs leading-6 text-muted">
-            <strong className="block text-primary">레퍼런스 관찰</strong>
+          <div className="my-5 border-l-2 border-line pl-3 text-xs leading-6 text-muted">
+            <strong className="mb-1 block font-medium text-ink">
+              레퍼런스 관찰
+            </strong>
             {plan.spec.referenceNotes}
           </div>
         )}
-        <p className="my-4 text-xs leading-6 text-muted">
-          원본의 보존 포인트를 확인하고 무드·모델·장소를 조정해 주세요. 상품
-          사진은 얼굴보다 의류 전체와 밑단·소매가 보이는 구도를 권장합니다.
-        </p>
-        <fieldset disabled={busy} className="grid gap-4">
+
+        <fieldset disabled={busy} className="mt-5 grid gap-4">
           <Field
             label="시즌"
             value={v.season}
@@ -317,23 +310,26 @@ export function PlanEditor({
           />
         </fieldset>
         {plan.lookReferenceId && (
-          <Select
-            label="레퍼런스 반영"
-            value={v.camera.referenceComposition}
-            onChange={(mode) =>
-              set({
-                ...v,
-                camera: {
-                  ...v.camera,
-                  referenceComposition: mode as "match" | "inspire",
-                },
-              })
-            }
-            options={[
-              { value: "match", label: "구도·포즈·배경 배치 그대로" },
-              { value: "inspire", label: "빛·톤만 참고" },
-            ]}
-          />
+          <div className="mt-4">
+            <p className="mb-2 text-xs font-medium text-muted">레퍼런스 반영</p>
+            <Select
+              label="레퍼런스 반영"
+              value={v.camera.referenceComposition}
+              onChange={(mode) =>
+                set({
+                  ...v,
+                  camera: {
+                    ...v.camera,
+                    referenceComposition: mode as "match" | "inspire",
+                  },
+                })
+              }
+              options={[
+                { value: "match", label: "구도·포즈·배경 배치 그대로" },
+                { value: "inspire", label: "빛·톤만 참고" },
+              ]}
+            />
+          </div>
         )}
         <div className="mt-5 grid gap-4">
           <div>
@@ -366,10 +362,7 @@ export function PlanEditor({
             }
             multiline
           />
-          <p className="text-[11px] leading-6 text-muted">
-            인물 참조가 있으면 해당 얼굴을 우선합니다. 여기에서는 표정과 스타일
-            등 추가 요청을 조정해 주세요.
-          </p>
+
           <Field
             label="소재 표현 지시 (선택)"
             value={v.materialDirection}
@@ -385,9 +378,6 @@ export function PlanEditor({
             onChange={(s) => set({ ...v, mustPreserve: s.split("\n") })}
           />
         </div>
-        <p className="mt-4 text-xs text-muted">
-          수정 내용은 이미지 생성 시 함께 저장됩니다.
-        </p>
       </fieldset>
     </section>
   );
@@ -412,6 +402,7 @@ export default function PlanningPanel({
   onDraft: (value: StudioDraft) => void;
 }) {
   const requestId = useRef(crypto.randomUUID());
+  const scroll = useRef<HTMLDivElement>(null);
   const [tab, setTab] = useState(0),
     [useLook, setUseLook] = useState(true);
   const lookReference = product.assets.find((a) => a.kind === "look_reference");
@@ -491,6 +482,11 @@ export default function PlanningPanel({
   useEffect(() => {
     if (plan?.id) setTab(2);
   }, [plan?.id]);
+  useEffect(() => {
+    // Start a selected or newly generated concept at its beginning, without moving the document.
+    if (tab === 2 && !plan?.id) return;
+    if (scroll.current) scroll.current.scrollTop = 0;
+  }, [tab, plan?.id]);
   return (
     <div className="planning-panel">
       {error && (
@@ -501,8 +497,8 @@ export default function PlanningPanel({
           {error}
         </p>
       )}
-      <TabGroup selectedIndex={tab} onChange={setTab}>
-        <TabList className="sticky top-0 z-10 grid grid-cols-3 gap-1 border-b border-line bg-surface p-3">
+      <TabGroup selectedIndex={tab} onChange={setTab} className="planning-tabs">
+        <TabList className="sticky top-[76px] z-10 grid shrink-0 grid-cols-3 lg:top-0 gap-1 border-b border-line bg-surface p-3">
           {["기획", "상품 이해", "촬영 콘셉트"].map((label, index) => (
             <Tab
               key={label}
@@ -515,17 +511,14 @@ export default function PlanningPanel({
             </Tab>
           ))}
         </TabList>
-        <TabPanels>
+        <TabPanels ref={scroll} className="planning-scroll">
           <TabPanel unmount={false} className="space-y-5 p-5">
             <section className="space-y-4">
               <div className="mt-4 flex items-center gap-3">
                 <ScanSearch size={22} aria-hidden="true" />
                 <h2 className="text-xl">한 벌을 위한 촬영 기획</h2>
               </div>
-              <p className="mt-3 text-sm leading-7 text-muted">
-                사진 속 디테일을 분석하고, 브랜드에 어울리는 촬영 콘셉트를
-                제안합니다. 업로드만으로 AI가 실행되지는 않습니다.
-              </p>
+
               <div className="mt-5 grid gap-4">
                 {lookReference && (
                   <Select
@@ -554,35 +547,37 @@ export default function PlanningPanel({
                   multiline
                 />
               </div>
-              <Button
-                className="mt-5"
-                disabled={busy || active}
-                onClick={() => {
-                  start(false);
-                }}
+              <fieldset
+                className="planning-actions mt-5 flex gap-2"
+                aria-label="기획 실행"
               >
-                <SlidersHorizontal size={15} aria-hidden="true" />
-                {product.analysis ? "새로 분석·기획" : "분석 시작"}
-              </Button>
-              {product.analysis && (
-                <div className="mt-4 border-t border-line pt-4">
+                <Button
+                  className={
+                    product.analysis ? "min-w-0 flex-1 px-3" : "w-full"
+                  }
+                  variant={product.analysis ? "secondary" : "primary"}
+                  disabled={busy || active}
+                  onClick={() => start(false)}
+                >
+                  {!product.analysis && (
+                    <SlidersHorizontal size={15} aria-hidden="true" />
+                  )}
+                  {product.analysis ? "처음부터 다시" : "분석 시작"}
+                </Button>
+                {product.analysis && (
                   <Button
-                    className="mt-3"
+                    className="min-w-0 flex-1 px-3"
                     variant="secondary"
                     disabled={busy || active}
-                    onClick={() => {
-                      start(true);
-                    }}
+                    onClick={() => start(true)}
                   >
-                    이 분석으로 기획 다시 만들기
+                    기획만 다시
                   </Button>
-                </div>
+                )}
+              </fieldset>
+              {me.mode === "mock" && (
+                <p className="text-xs text-muted">Mock · 외부 비용 없음</p>
               )}
-              <p className="text-xs text-muted">
-                {me.mode === "mock"
-                  ? "Mock · 외부 비용 없음"
-                  : "실행 시 사진·요청을 OpenRouter에 전송하며 AI 사용료가 발생합니다."}
-              </p>
             </section>
             {referencesPanel}
           </TabPanel>

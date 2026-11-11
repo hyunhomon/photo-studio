@@ -79,9 +79,6 @@ export default function PresetScreen() {
       <div className="flex flex-wrap items-end justify-between gap-5">
         <div>
           <h1 className="mt-3 text-3xl sm:text-4xl">브랜드 프리셋</h1>
-          <p className="mt-4 text-sm leading-7 text-muted">
-            모델의 스타일, 무드, 빛과 장소를 저장해 다음 촬영에서도 이어가세요.
-          </p>
         </div>
         <Button
           onClick={() => {
@@ -149,10 +146,7 @@ export default function PresetScreen() {
               className="mx-auto"
               aria-hidden="true"
             />
-            <h2 className="mt-5 text-xl">브랜드의 시선을 기록하세요.</h2>
-            <p className="mt-3 text-sm leading-7 text-muted">
-              촬영을 반복할수록 일관된 무드가 쌓입니다.
-            </p>
+            <h2 className="mt-5 text-xl">아직 프리셋이 없어요.</h2>
           </div>
         </div>
       )}
@@ -160,7 +154,7 @@ export default function PresetScreen() {
         open={open}
         onClose={() => setOpen(false)}
         title={editing ? "프리셋 수정" : "새 브랜드 프리셋"}
-        description="사진 속 의류를 바꾸지 않고, 주변 장면과 연출을 일관되게 만듭니다."
+        description=""
       >
         <form
           className="mt-6 space-y-4"

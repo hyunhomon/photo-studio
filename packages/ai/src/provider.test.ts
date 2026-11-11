@@ -383,3 +383,125 @@ test("Images API capability checks, one reference request, provider cost and unc
   }
   expect(paid).toBe(2);
 });
+
+test("observed textile evidence survives the existing analysis-plan-image sequence with one call per stage", async () => {
+  const analysis = {
+    ...mockAnalysisFixture,
+    materialGuess: {
+      value: "Synthetic uncertain textile composition",
+      confidence: 0.1,
+    },
+    preservationPoints: [
+      "Synthetic fine heather yarn, smoother seam tape and vertical ribbed cuffs",
+    ],
+    uncertainties: [
+      "Synthetic fiber composition and underside construction unresolved",
+    ],
+  };
+  const plan = mockPlan(analysis);
+  plan.model.pose = "Synthetic seated pose on a step";
+  plan.materialDirection =
+    "Synthetic retain fine yarn scale with compression at the lap and sleeve contact";
+  const stages: string[] = [];
+  const transport = Object.assign(
+    async (input: unknown, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body));
+      if (String(input).endsWith("/images")) {
+        stages.push("generation");
+        expect(body.n).toBe(1);
+        expect(
+          body.input_references.map(
+            (r: { image_url: { url: string } }) => r.image_url.url,
+          ),
+        ).toEqual([
+          "synthetic-garment",
+          "synthetic-person",
+          "synthetic-composition",
+          "synthetic-previous",
+        ]);
+        expect(body.prompt).toContain(JSON.stringify(analysis));
+        expect(body.prompt).toContain(plan.materialDirection);
+        expect(body.prompt).toContain("CLOTH CONTACT AND SHADOWS");
+        expect(body.prompt).toContain("SOURCE MATERIAL VS SOURCE LIGHT");
+        expect(body.prompt).toContain(
+          "Synthetic keep frame unchanged; strengthen lap contact, not all shadows",
+        );
+        return Response.json({
+          data: [
+            { b64_json: btoa("synthetic-image"), media_type: "image/png" },
+          ],
+          usage: { cost: 0.01 },
+        });
+      }
+      const stage = body.response_format.json_schema.name;
+      stages.push(stage);
+      const content = body.messages[1].content;
+      const task = JSON.parse(content[0].text);
+      if (stage === "product_analysis") {
+        expect(task.task).toContain("visible textile evidence");
+        expect(task.task).toContain(
+          "unresolvable weave, nap or thickness belongs in uncertainties",
+        );
+        expect(content[1].image_url.url).toBe("synthetic-garment");
+      } else {
+        expect(stage).toBe("shoot_plan");
+        expect(task.analysis).toEqual(analysis);
+        expect(task.materialTask).toContain(
+          "where the chosen pose creates compression or tension",
+        );
+        expect(task.lightingTask).toContain(
+          "actual contact with its seat/step/wall",
+        );
+      }
+      return Response.json({
+        choices: [
+          {
+            finish_reason: "stop",
+            message: {
+              content: JSON.stringify(
+                stage === "product_analysis" ? analysis : plan,
+              ),
+            },
+          },
+        ],
+        usage: { cost: 0.0001 },
+      });
+    },
+    { preconnect: fetch.preconnect },
+  ) as typeof fetch;
+  const adapter = openRouterAdapter(
+    "synthetic-key",
+    "https://synthetic.invalid/material-contract",
+    transport,
+  );
+  const observed = await adapter.analyze(
+    "synthetic-vision",
+    ["synthetic-garment"],
+    "synthetic",
+  );
+  const planned = await adapter.plan(
+    "synthetic-vision",
+    observed.value,
+    null,
+    "synthetic",
+    { personImage: "synthetic-person", lookImage: "synthetic-composition" },
+  );
+  const result = await adapter.generate(
+    "synthetic-image",
+    ["synthetic-garment"],
+    planned.value,
+    "medium",
+    {
+      garmentAnalysis: observed.value,
+      personImage: "synthetic-person",
+      lookImage: "synthetic-composition",
+      previousImage: "synthetic-previous",
+      reason: "material_rendering",
+      adjustments:
+        "Synthetic keep frame unchanged; strengthen lap contact, not all shadows",
+    },
+  );
+  expect(stages).toEqual(["product_analysis", "shoot_plan", "generation"]);
+  expect(result.usage.actualCostUsd).toBe(0.01);
+  expect(observed.value.materialGuess.confidence).toBe(0.1);
+});

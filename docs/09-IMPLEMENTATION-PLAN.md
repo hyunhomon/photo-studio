@@ -276,3 +276,13 @@ production desktop/mobile 전체 Mock E2E **4/4 통과**: 저장된 분석 재�
 - [x] 실제 Chainly 레퍼런스 카드 배치 확인 후 중앙 헤드라인/CTA·주변 카드·보드 레이아웃을 자체 벡터/기존 다크·네온 폰트로 구현. 일러스트는 실제 생성 결과로 표시하지 않는다.
 - [x] 최종 format/lint/typecheck/test/build 통과(진단/린트 경고 0, 단위 59/59), local desktop/mobile Mock 6/6. 이름 없는 등록·3종 입력 배치·박스 내 미리보기·캐러셀 append/삭제·인물 입력·헤더 없음·입력 ring 없음·독립 스크롤·생성/개선/삭제 검증. 360~1440px 랜딩 가로 넘침/모바일 CTA 줄바꿈 없음, 화면 캡처 점검.
 - [x] c62ef8d commit/push 및 웹 전용 production 배포 완료. 운영 desktop/mobile Mock 6/6, wrapper exit 0 및 공개 HTTPS/CORS/OAuth/폰트/반응형 smoke 통과. 운영 캡처 점검, 합성 계정/사진 정리 완료. 실제 계정/연결/세션 유지(읽기 전용 집계). API/Workflow/D1 migration/실사용 자료 초기화·secret 변경·유료 AI 호출 없음.
+
+
+### 실행 UI 정리·직물/접촉 그림자 — 2026-11-12 (ADR-028)
+
+- [x] 공통 dropdown SVG/간격, 반복 설명·실행 비용 문구 제거, 수평 재기획 행동, 고정 작업대/단일 inspector 스크롤.
+- [x] 단일 로그아웃으로 키/전체 세션 해제·작업 취소, 이전 disconnect endpoint 호환 및 실패 rollback.
+- [x] photo-v5/studio-v9 분석·기획·생성/개선의 직물·접촉 그림자 지시, 고정 배경 거리 충돌 수정, 기존 snapshot 호환. 추가 유료 단계/평가 없음.
+- [x] 최종 format/lint/typecheck/test/build 통과(진단/린트 경고 0, 단위 66/66), local desktop/mobile Mock 6/6. 1440x1000·1024x768·1440x640에서 외부 문서 높이/스크롤 0·고정 탭·내부 스크롤·사진 위치 유지, SVG/간격/수평 행동·설명 제거·단일 계정 행동 검증. 합성 캡처 케이스 6개, provider 호출 0.
+- [ ] API/Workflow·웹 production 배포와 공개/Mock 브라우저 검증.
+- [ ] 동일 실제 입력의 사용자 실행으로 v5 질감/그림자 비교. Mock 성공을 실제 품질 합격으로 표시하지 않는다.

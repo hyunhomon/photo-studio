@@ -19,7 +19,7 @@ Build the smallest reliable web MVP that turns clothing photos into AI-planned f
 4. Prefer small, functional vertical slices with tests and explicit commands, rather than broad placeholder scaffolding.
 5. Before claiming completion, run lint/format/typecheck/test/build that are applicable and report failures honestly.
 6. Keep secrets, images, identifiers, API keys and user prompts out of console/CI logs and git.
-7. Any external cost-incurring call requires a user action **and visible notice**: upload alone must not trigger AI; analysis/planning and generation each require an explicit execution click with a compact cost/processing notice. ADR-026 treats that click as consent and removes redundant consent checkboxes/confirmation screens. Tests must use mocked AI adapters and fake provider responses.
+7. Any external cost-incurring call requires an explicit user execution click: upload alone must not trigger AI. ADR-028, by explicit user instruction, removes repeated cost/processing notices at execution; keep privacy/usage information and ADR-026 consent snapshots without redundant checkboxes/confirmation screens. Tests must use mocked AI adapters and fake provider responses.
 8. Use supported, latest compatible versions **at scaffold time**, verify current official docs; avoid guessed flags/SDK APIs.
 
 ## Design & UX

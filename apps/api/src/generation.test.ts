@@ -1,9 +1,15 @@
 import { expect, test, spyOn } from "bun:test";
-import { mockAdapter, CAPTURE_PROTOCOL_VERSION } from "@photo-studio/ai";
+import {
+  mockAdapter,
+  CAPTURE_PROTOCOL_VERSION,
+  PROMPT_VERSION,
+  compilePhotographicPrompt,
+} from "@photo-studio/ai";
 import type { PipelineDto, ResultDto, JobDto } from "@photo-studio/schemas";
 import { studioFixture } from "../test/studio";
 import { runPlanStage } from "./pipeline";
 import { runGenerationStage } from "./generation";
+import { hash } from "./crypto";
 import { referenceForm } from "../test/references";
 import type { ProductDto } from "@photo-studio/schemas";
 async function ready() {
@@ -493,4 +499,167 @@ test("failure while saving generation settings rolls back the job and analysis t
       .get(),
   ).toEqual({ n: 0 });
   expect(s.workflows).toHaveLength(1);
+});
+
+test("legacy queued generation keeps its immutable snapshot but records the actual compiler; replay never invokes or relabels a paid call", async () => {
+  const s = await ready();
+  const job = (await s.generate()).data;
+  const current = s.sqlite
+    .query("SELECT request_json FROM generation_jobs WHERE id=?")
+    .get(job.id) as { request_json: string };
+  // Emulate an honestly hashed pre-release queued request, not a new API request.
+  const legacyJson = JSON.stringify({
+    ...JSON.parse(current.request_json),
+    captureVersion: "photo-v4-directed-composition",
+  });
+  const legacyHash = await hash(`${s.product.id}:generate:${legacyJson}`);
+  s.sqlite.run(
+    "UPDATE generation_jobs SET request_json=?,request_hash=? WHERE id=?",
+    [legacyJson, legacyHash, job.id],
+  );
+  const adapter = mockAdapter(),
+    original = adapter.generate;
+  let calls = 0;
+  adapter.generate = async (...args) => {
+    calls++;
+    expect(args[4]?.captureVersion).toBe("photo-v4-directed-composition");
+    expect(
+      compilePhotographicPrompt(args[2], args[1].length, args[4]),
+    ).toContain(`CAPTURE PROTOCOL ${CAPTURE_PROTOCOL_VERSION}`);
+    const result = await original(...args);
+    // Upstream output metadata must never control our execution provenance.
+    return {
+      ...result,
+      value: { ...result.value, captureVersion: "synthetic-spoofed" },
+    };
+  };
+  const deps = { adapter: async () => adapter };
+  await runGenerationStage(s.env, job.id, "generation", deps);
+  const attempt = s.sqlite
+    .query(
+      "SELECT output_json,prompt_version,request_hash FROM generation_attempts WHERE job_id=? AND stage='generation'",
+    )
+    .get(job.id) as {
+    output_json: string;
+    prompt_version: string;
+    request_hash: string;
+  };
+  expect(JSON.parse(attempt.output_json)).toEqual({
+    assetId: job.id,
+    captureVersion: CAPTURE_PROTOCOL_VERSION,
+  });
+  expect(attempt.prompt_version).toBe(PROMPT_VERSION);
+  expect(attempt.request_hash).toBe(legacyHash);
+  // Simulate interruption after the successful paid claim, before workflow finalization.
+  s.sqlite.run("UPDATE generation_jobs SET status='running' WHERE id=?", [
+    job.id,
+  ]);
+  await runGenerationStage(s.env, job.id, "generation", deps);
+  expect(calls).toBe(1);
+  expect(
+    s.sqlite
+      .query("SELECT request_json,request_hash FROM generation_jobs WHERE id=?")
+      .get(job.id),
+  ).toEqual({ request_json: legacyJson, request_hash: legacyHash });
+  expect(
+    s.sqlite
+      .query(
+        "SELECT output_json,prompt_version,request_hash FROM generation_attempts WHERE job_id=? AND stage='generation'",
+      )
+      .get(job.id),
+  ).toEqual(attempt);
+  expect(
+    (await s.call<ResultDto[]>(`/products/${s.product.id}/results`)).data[0]
+      ?.captureVersion,
+  ).toBe(CAPTURE_PROTOCOL_VERSION);
+});
+
+test("successful historical attempts without actual capture provenance remain unknown and are never rerun or rewritten", async () => {
+  const s = await ready();
+  const job = (await s.generate()).data;
+  await runGenerationStage(s.env, job.id, "generation");
+  // Seed an already successful legacy claim with the old asset-only result shape.
+  const legacyOutput = JSON.stringify({ assetId: job.id });
+  s.sqlite.run(
+    "UPDATE generation_attempts SET output_json=?,prompt_version=? WHERE job_id=? AND stage='generation'",
+    [legacyOutput, "studio-v8-reference-priority", job.id],
+  );
+  const snapshot = s.sqlite
+    .query("SELECT request_json,request_hash FROM generation_jobs WHERE id=?")
+    .get(job.id);
+  s.sqlite.run("UPDATE generation_jobs SET status='running' WHERE id=?", [
+    job.id,
+  ]);
+  let calls = 0;
+  const adapter = mockAdapter();
+  adapter.generate = async () => {
+    calls++;
+    throw new Error("Successful legacy claim must not call provider");
+  };
+  await runGenerationStage(s.env, job.id, "generation", {
+    adapter: async () => adapter,
+  });
+  expect(calls).toBe(0);
+  expect(
+    s.sqlite
+      .query("SELECT request_json,request_hash FROM generation_jobs WHERE id=?")
+      .get(job.id),
+  ).toEqual(snapshot);
+  expect(
+    s.sqlite
+      .query(
+        "SELECT output_json,prompt_version FROM generation_attempts WHERE job_id=? AND stage='generation'",
+      )
+      .get(job.id),
+  ).toEqual({
+    output_json: legacyOutput,
+    prompt_version: "studio-v8-reference-priority",
+  });
+  const results = await s.call<ResultDto[]>(
+    `/products/${s.product.id}/results`,
+  );
+  expect(results.status).toBe(200);
+  expect(results.data[0]?.captureVersion).toBeNull();
+  const recordedLegacyVersion = "photo-v4-directed-composition";
+  const recordedLegacyOutput = JSON.stringify({
+    assetId: job.id,
+    captureVersion: recordedLegacyVersion,
+  });
+  s.sqlite.run(
+    "UPDATE generation_attempts SET output_json=? WHERE job_id=? AND stage='generation'",
+    [recordedLegacyOutput, job.id],
+  );
+  s.sqlite.run("UPDATE generation_jobs SET status='running' WHERE id=?", [
+    job.id,
+  ]);
+  await runGenerationStage(s.env, job.id, "generation", {
+    adapter: async () => adapter,
+  });
+  expect(calls).toBe(0);
+  expect(
+    (await s.call<ResultDto[]>(`/products/${s.product.id}/results`)).data[0]
+      ?.captureVersion,
+  ).toBe(recordedLegacyVersion);
+  expect(
+    s.sqlite
+      .query(
+        "SELECT output_json FROM generation_attempts WHERE job_id=? AND stage='generation'",
+      )
+      .get(job.id),
+  ).toEqual({ output_json: recordedLegacyOutput });
+  // Missing or malformed metadata cannot fall back to the requested version either.
+  for (const output of [
+    null,
+    "synthetic-invalid-json",
+    JSON.stringify({ captureVersion: 42 }),
+  ]) {
+    s.sqlite.run(
+      "UPDATE generation_attempts SET output_json=? WHERE job_id=? AND stage='generation'",
+      [output, job.id],
+    );
+    expect(
+      (await s.call<ResultDto[]>(`/products/${s.product.id}/results`)).data[0]
+        ?.captureVersion,
+    ).toBeNull();
+  }
 });

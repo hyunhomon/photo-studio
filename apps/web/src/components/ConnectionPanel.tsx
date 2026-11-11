@@ -28,10 +28,6 @@ export default function ConnectionPanel() {
         <LockKeyhole size={20} className="text-primary" aria-hidden="true" />
         <h1 className="text-2xl">OpenRouter로 스튜디오 연결</h1>
       </div>
-      <p className="mt-4 text-sm leading-7 text-muted">
-        내 OpenRouter 계정으로 시작합니다. 분석·생성 실행 시 사진과 요청이
-        전송되고 사용료는 내 크레딧에서 청구됩니다.
-      </p>
       {error && (
         <p role="alert" className="mt-4 text-sm text-danger">
           {error}

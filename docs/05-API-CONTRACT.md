@@ -122,3 +122,6 @@ ADR-024: 현재 생성 요청은 editedAnalysis/editedPlan(선택)을 포함할 
 
 
 현재 ADR-026: plan은 personReferenceId 및 editedAnalysis(재기획 시)를 추가로 받는다. owner/용도/참조 12MB를 검사하고 같은 planning에 인물과 촬영 구도를 함께 전달한다. consent/referenceConsent/rightsConfirmed는 체크박스가 아니라 고지된 실행 클릭의 의사로 전송된다. generate는 현재 사진을 기본 사용하며 camera.referenceComposition=match|inspire(default match)를 snapshot에 고정한다. 명시적 클릭 없이 실행하지 않는다.
+
+
+ADR-028: POST `/auth/logout`와 이전 `/auth/disconnect`는 같은 동작이다. 소유 작업을 취소하고 stored OpenRouter 연결과 모든 앱 세션을 제거한 뒤 쿠키를 지운다. `{loggedOut:true,disconnected:true,providerRevocationRequired:true}`를 반환한다. 원격 발급 키 폐기를 주장하지 않는다. 상품/다른 사용자/비용 이력은 보존하고 세션/연결 삭제는 DB batch로 atomic하다. 결과 `captureVersion`은 성공 attempt output의 실제 실행 버전이며 과거 누락은 null이다. 요청 snapshot의 버전으로 추측하지 않는다.

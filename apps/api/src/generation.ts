@@ -166,7 +166,10 @@ export async function runGenerationStage(
           throw new ProviderError("JOB_CANCELLED");
         }
         await clearObjectQueue(env, key);
-        return { value: { assetId: job.id }, usage: result.usage };
+        return {
+          value: { assetId: job.id, captureVersion: CAPTURE_PROTOCOL_VERSION },
+          usage: result.usage,
+        };
       });
     }
     await db
@@ -331,8 +334,20 @@ export function generationRoutes() {
     if (!images.length) return c.json({ data: [] });
     const jQueries = images.map((image) =>
       db
-        .select()
+        .select({
+          requestJson: jobs.requestJson,
+          outputJson: attempts.outputJson,
+        })
         .from(jobs)
+        .leftJoin(
+          attempts,
+          and(
+            eq(attempts.jobId, jobs.id),
+            eq(attempts.userId, userId),
+            eq(attempts.stage, "generation"),
+            eq(attempts.status, "succeeded"),
+          ),
+        )
         .where(and(eq(jobs.id, image.jobId ?? ""), eq(jobs.userId, userId)))
         .limit(1),
     );
@@ -350,7 +365,9 @@ export function generationRoutes() {
         regenerationOf: snapshot?.regenerationOf ?? null,
         regenerationReason: snapshot?.regenerationReason ?? null,
         adjustments: snapshot?.adjustments ?? "",
-        captureVersion: snapshot?.captureVersion ?? null,
+        // The snapshot is the requested version, not proof of which compiler
+        // executed a resumed job. Historical attempts without provenance stay unknown.
+        captureVersion: recordedCaptureVersion(job?.outputJson),
         personReferenceUsed: Boolean(snapshot?.personReferenceId),
         lookReferenceUsed: Boolean(snapshot?.lookReferenceId),
         mock: c.get("identity").isTest,
@@ -367,4 +384,21 @@ export function generationRoutes() {
     );
   });
   return api;
+}
+
+function recordedCaptureVersion(outputJson: string | null | undefined) {
+  if (!outputJson) return null;
+  try {
+    const output: unknown = JSON.parse(outputJson);
+    if (
+      output &&
+      typeof output === "object" &&
+      "captureVersion" in output &&
+      typeof output.captureVersion === "string"
+    )
+      return output.captureVersion;
+  } catch {
+    // Invalid legacy metadata must not invent a version or hide the image.
+  }
+  return null;
 }

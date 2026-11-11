@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import type { AssetDto } from "@photo-studio/schemas";
-import { ZoomIn } from "lucide-react";
+import { ZoomIn, Image } from "lucide-react";
 import { apiBase } from "../lib/api";
 export default function PhotoFrame({
   images,
@@ -32,9 +32,12 @@ export default function PhotoFrame({
         {selected ? (
           <img src={url(selected.id)} alt={alt} />
         ) : (
-          <p className="p-5 text-center text-xs text-muted">
-            기획이 준비되면 이미지를 생성해 보세요.
-          </p>
+          <Image
+            size={28}
+            strokeWidth={1}
+            className="text-muted"
+            aria-label="생성 결과 없음"
+          />
         )}
         {mock && (
           <span className="absolute top-2 left-2 rounded bg-surface px-2 py-1 text-[10px] text-muted">
