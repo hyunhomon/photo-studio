@@ -86,6 +86,27 @@ export default function ProductScreen({ id }: { id: string }) {
                     </Button>
                   )}
               </div>
+              {me?.mode !== "mock" &&
+                product.assets.some(
+                  (a) =>
+                    a.kind === "input" && Math.max(a.width, a.height) < 640,
+                ) && (
+                  <div className="mt-4 rounded-lg border border-warning/30 bg-warning-surface p-3 text-xs leading-6 text-warning">
+                    <p>
+                      작은 참조 사진이 포함되어 있습니다. 작은 로고·봉제·원단
+                      조직은 생성 과정에서 추정될 수 있으므로 더 큰 원본과 상세
+                      사진을 권장합니다.
+                    </p>
+                    {product.analysis && (
+                      <a
+                        href={`/studio/projects/${product.projectId}`}
+                        className="mt-2 inline-block underline"
+                      >
+                        프로젝트에서 새 원본으로 상품 등록
+                      </a>
+                    )}
+                  </div>
+                )}
               <div className="mt-5 grid gap-4 sm:grid-cols-2">
                 {product.assets
                   .filter((a) => a.kind === "input")

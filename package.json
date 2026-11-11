@@ -24,6 +24,7 @@
     "test": "bun test apps/api/src packages",
     "test:local": "bun run scripts/local-smoke.ts",
     "test:oauth": "bun run scripts/oauth-local-smoke.ts",
+    "test:photography": "bun run scripts/photography-benchmark.ts",
     "test:e2e": "playwright test",
     "build": "bun run --sequential --filter './apps/*' build",
     "deploy": "bun run check && bun run scripts/deploy-production.ts",

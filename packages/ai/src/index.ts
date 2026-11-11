@@ -6,6 +6,7 @@ import {
 } from "@photo-studio/schemas";
 import { mockAnalysisFixture } from "./fixtures";
 export * from "./provider";
+export * from "./photography";
 
 export interface AnalysisResult {
   source: "mock";

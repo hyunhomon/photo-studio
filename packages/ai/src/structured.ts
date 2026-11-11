@@ -1,19 +1,16 @@
 import { z } from "zod";
-import { shootPlanSchema, qualitySchema } from "@photo-studio/schemas";
+import { shootPlanSchema } from "@photo-studio/schemas";
 
 // These fields belong to application policy, not to a model's judgement.
 // Strip unused provider metadata; required content, enums and limits stay validated.
 export const providerPlanSchema = shootPlanSchema
-  .omit({ aspectRatio: true })
+  .omit({ aspectRatio: true, shootType: true })
   .extend({
     season: shootPlanSchema.shape.season.describe(
       "Season for the shoot, written in Korean.",
     ),
     mood: shootPlanSchema.shape.mood.describe(
       "Specific visual mood for the approved garment.",
-    ),
-    shootType: shootPlanSchema.shape.shootType.describe(
-      "Use exactly model_studio or model_location. Never translate these enum values.",
     ),
     model: shootPlanSchema.shape.model
       .strip()
@@ -25,15 +22,6 @@ export const providerPlanSchema = shootPlanSchema
     ),
   })
   .strip();
-export const providerQualitySchema = qualitySchema
-  .omit({ needsHumanReview: true, evaluationVersion: true })
-  .extend({
-    flaggedIssues: z
-      .array(qualitySchema.shape.flaggedIssues.element.strip())
-      .max(20),
-  })
-  .strip();
-
 // Gemini supports enums; use the equivalent singleton enum for literals.
 export function providerJsonSchema(schema: z.ZodType) {
   function portable(value: unknown): unknown {
@@ -68,6 +56,9 @@ const safePaths = new Set([
   "model",
   "model.style",
   "model.pose",
+  "model.appearance",
+  "camera.backgroundSeparation",
+  "materialDirection",
   "camera",
   "camera.framing",
   "camera.angle",

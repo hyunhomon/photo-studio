@@ -242,9 +242,9 @@ test("Mock: connect, upload, plan, generate, review, export and delete", async (
   await expect(page.getByLabel("의류 종류", { exact: true })).toHaveValue(
     "수정한 셔츠",
   );
-  await page.getByRole("button", { name: "촬영 방식", exact: true }).click();
+  await page.getByRole("button", { name: "배경 분리", exact: true }).click();
   await page
-    .getByRole("option", { name: "가상 로케이션컷", exact: true })
+    .getByRole("option", { name: "분리감 있게 · 멀리 있는 배경", exact: true })
     .click();
   await page.getByRole("button", { name: "콘셉트 승인", exact: true }).click();
   await expect(page.getByText("V2 · 승인됨", { exact: true })).toBeVisible();
@@ -255,34 +255,36 @@ test("Mock: connect, upload, plan, generate, review, export and delete", async (
     page.getByRole("button", { name: "동의하고 1장 생성" }),
   ).toBeDisabled();
   await page
-    .getByLabel("이미지 생성·평가 비용과 승인된 콘셉트를 확인했습니다.")
+    .getByLabel("이미지 생성 비용과 승인된 촬영 지시를 확인했습니다.")
     .check();
   await page.getByRole("button", { name: "동의하고 1장 생성" }).click();
   await waitForWorkflow(
-    page.getByText("Mock 합성 평가입니다.", { exact: false }),
+    page.getByRole("heading", { name: "원본과 직접 확인", exact: true }),
   );
   await expect(
     page.getByRole("img", { name: "Synthetic shirt 결과 비교" }),
   ).toHaveJSProperty("naturalWidth", 64);
-  await page.getByRole("button", { name: "채택", exact: true }).click();
-  await expect(page.getByText("✓ 채택한 컷", { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "채택", exact: true }),
+  ).toHaveCount(0);
+  await expect(page.getByText("상품 충실도", { exact: true })).toHaveCount(0);
   const downloadEvent = page.waitForEvent("download");
   await page.getByRole("link", { name: "PNG 다운로드" }).click();
   const download = await downloadEvent;
   expect(download.suggestedFilename()).toBe("photo-studio.png");
-  await page.getByRole("button", { name: "폐기", exact: true }).click();
-  await page.getByRole("button", { name: "폐기 사유", exact: true }).click();
-  await page.getByRole("option", { name: "로고·텍스트가 왜곡됐어요" }).click();
-  await page.getByLabel("추가 메모 (선택)").fill("Synthetic review");
+  await page.getByRole("button", { name: "이 컷 개선", exact: true }).click();
+  await page.getByRole("button", { name: "개선할 항목", exact: true }).click();
   await page
-    .getByRole("button", { name: "폐기 사유 저장", exact: true })
+    .getByRole("option", {
+      name: "인물 · 얼굴과 자세의 자연스러움",
+      exact: true,
+    })
     .click();
-  await expect(
-    page.getByText("폐기한 컷 · 로고·텍스트가 왜곡됐어요", { exact: true }),
-  ).toBeVisible();
-  await page.getByRole("button", { name: "사유를 남기고 재생성" }).click();
   await page
-    .getByLabel("이미지 생성·평가 비용과 승인된 콘셉트를 확인했습니다.")
+    .getByLabel("이번 컷에 반영할 요청 (선택)")
+    .fill("Synthetic relaxed expression revision");
+  await page
+    .getByLabel("이미지 생성 비용과 승인된 촬영 지시를 확인했습니다.")
     .check();
   await page.getByRole("button", { name: "동의하고 1장 생성" }).click();
   await waitForWorkflow(
@@ -293,9 +295,21 @@ test("Mock: connect, upload, plan, generate, review, export and delete", async (
     { timeout: 60000 },
   );
   await page
+    .getByRole("button", { name: "이전 컷과 비교", exact: true })
+    .click();
+  await expect(
+    page.getByRole("img", {
+      name: "Synthetic shirt 이전 컷 비교",
+      exact: true,
+    }),
+  ).toHaveJSProperty("naturalWidth", 64);
+  await page
+    .getByRole("button", { name: "원본 의류와 비교", exact: true })
+    .click();
+  await page
     .getByRole("heading", { name: "당신의 다음 컷." })
     .scrollIntoViewIfNeeded();
-  await page.screenshot({
+  await page.locator("#results").screenshot({
     path: `.tmp/${productionOrigin ? "production-" : ""}studio-review-${test.info().project.name}.png`,
   });
   expect(
@@ -354,8 +368,8 @@ test("Mock: connect, upload, plan, generate, review, export and delete", async (
   await page.goto("/studio/presets");
   await page.getByRole("button", { name: "새 프리셋" }).click();
   await page.getByLabel("프리셋 이름", { exact: true }).fill("Synthetic brand");
-  await page.getByRole("button", { name: "촬영 모드" }).click();
-  await page.getByRole("option", { name: "모델 · 가상 로케이션" }).click();
+  await page.getByRole("button", { name: "배경 분리" }).click();
+  await page.getByRole("option", { name: "자연스럽게", exact: true }).click();
   await page.getByRole("button", { name: "프리셋 저장" }).click();
   await expect(
     page.getByRole("heading", { name: "Synthetic brand" }),

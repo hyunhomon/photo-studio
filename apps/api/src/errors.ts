@@ -4,7 +4,8 @@ export class AppError extends HTTPException {
   constructor(
     public code: string,
     message: string,
-    status: 400 | 401 | 403 | 404 | 409 | 413 | 429 | 500 | 502 | 503 = 400,
+    status:
+      400 | 401 | 403 | 404 | 409 | 410 | 413 | 429 | 500 | 502 | 503 = 400,
   ) {
     super(status, { message });
   }

@@ -1,4 +1,4 @@
-# Hono API Contract — Draft v1
+# Hono API Contract — v1 (ADR-019 반영)
 
 Base path: `/api/v1` (auth callback routes are `/auth/*`). JSON envelope: `{ data, error?: { code, message }, meta? }` with standard HTTP status. Response types shared via Zod; never include encrypted credentials.
 
@@ -18,17 +18,17 @@ Base path: `/api/v1` (auth callback routes are `/auth/*`). JSON envelope: `{ dat
 | GET | `/api/v1/products/:id` | 상품/분석 상태 | owner |
 | POST | `/api/v1/products/:id/plan` | 상품 분석 + 콘셉트 추천 작업 시작 | owner |
 | PATCH | `/api/v1/shoot-plans/:id` | 사람이 촬영 계획 수정 | owner |
-| POST | `/api/v1/shoot-plans/:id/generations` | **비용 확인 후** 1장 생성 작업 시작 | owner |
+| POST | `/api/v1/products/:id/generate` | **비용 확인 후** 승인된 기획으로 1장 생성/컷 개선 | owner |
 | GET | `/api/v1/jobs/:id` | 작업 상태/단계/결과 요약 | owner |
-| GET | `/api/v1/products/:id/assets` | 생성/원본 목록 | owner |
+| GET | `/api/v1/products/:id/results` | 결과/원본 연결·이전 컷·개선 지시·촬영 버전 (점수 없음) | owner |
 | GET | `/api/v1/assets/:id/content` | private R2 이미지 보기 | owner |
 | GET | `/api/v1/assets/:id/download` | 파일 다운로드 | owner |
-| POST | `/api/v1/assets/:id/feedback` | accept/reject + reason | owner |
+| POST | `/api/v1/assets/:id/feedback` | 종료된 기능: owner 검사 후 410, 쓰기 없음 | owner |
 | GET | `/api/v1/presets` | 내 브랜드 프리셋 | session |
 | POST | `/api/v1/presets` | 프리셋 생성 | session |
 | PATCH | `/api/v1/presets/:id` | 프리셋 수정 | owner |
 | DELETE | `/api/v1/presets/:id` | 프리셋 삭제 | owner |
-| GET | `/api/v1/usage/summary` | 비용/생성/채택 요약 | session |
+| GET | `/api/v1/usage/summary` | 비용/생성/재생성/지연 요약 (점수·채택률 없음) | session |
 
 ## 요청 예시 (스키마 계약 개념, 실행 코드 아님)
 
@@ -36,22 +36,27 @@ Base path: `/api/v1` (auth callback routes are `/auth/*`). JSON envelope: `{ dat
 
 실제 요청은 `{ consent: true, idempotencyKey: UUID, presetId: UUID | null, description: string, reuseAnalysis?: boolean }`이다. `reuseAnalysis` 기본값은 false(상품 분석+기획 각 1회). true는 저장된 본인 상품 분석을 snapshot으로 고정해 기획 1회만 새로 요청한다. 분석이 없으면 409, 동의가 없으면 400이며 Origin/CSRF/owner/rate limit/idempotency 검사를 유지한다. 비용 동의가 필요한 새 작업이며 이전 유료 요청을 자동 재시도하지 않는다.
 
-### `POST /api/v1/shoot-plans/:id/generations`
+### `POST /api/v1/products/:id/generate`
 
 ```json
 {
   "quality": "medium",
-  "aspectRatio": "3:4",
+  "planId": "approved-plan-uuid",
   "count": 1,
-  "consentToProviderCharges": true,
-  "idempotencyKey": "uuid-per-user-action"
+  "consent": true,
+  "idempotencyKey": "uuid-per-user-action",
+  "regenerationOf": null,
+  "regenerationReason": null,
+  "adjustments": ""
 }
 ```
 
 - `count` MVP는 `1`만 허용.
 - 비용/크레딧 안내는 확정 견적이 아니라 제공자 과금 방식에 따라 다를 수 있는 추정치로 UI 표시.
 - 동일 `idempotencyKey`와 user ID 조합 재요청은 기존 job을 반환.
-- `202 Accepted` + `data: { jobId, status }`.
+- `regenerationOf`/`regenerationReason`은 함께 제공한다. `adjustments`는 선택적 최대 1000자 지시이며 원본 의류 불변 조건 안에서 적용한다. 이전 컷은 같은 owner/상품의 generated asset이어야 한다.
+- `202 Accepted` + `data: JobDto`. 비율은 승인된 기획의 3:4, 호출은 1장 생성만 하며 AI 평가를 호출하지 않는다.
+- 기획/프리셋의 `model.appearance`/`modelAppearance`, `camera.backgroundSeparation`/`backgroundSeparation` (`gentle|balanced|separated`), `materialDirection`을 지원한다. 과거 `shootType`은 읽기 호환이며 새 provider 입력에는 사용하지 않는다.
 
 ### `GET /api/v1/jobs/:id`
 
@@ -59,29 +64,27 @@ Base path: `/api/v1` (auth callback routes are `/auth/*`). JSON envelope: `{ dat
 {
   "data": {
     "id": "job_...",
-    "type": "generate",
+    "kind": "generate",
     "status": "needs_review",
-    "stage": "evaluation_completed",
-    "assetIds": ["asset_..."],
-    "error": null
+    "stage": "review",
+    "errorCode": null,
+    "attempts": []
   }
 }
 ```
 
 ### `POST /api/v1/assets/:id/feedback`
 
-```json
-{ "decision": "reject", "reason": "logo_distortion", "notes": "가슴 프린트 왜곡" }
-```
+ADR-019로 종료했다. 인증·owner 검사 후 HTTP 410 `FEATURE_RETIRED`, 타인 자원은 404. 과거 기록은 계정 JSON export에서 유지한다. 새 생성 결과 DTO에는 quality/feedback이 없다.
 
-Allowed reasons: `color_mismatch`, `logo_distortion`, `pattern_distortion`, `shape_mismatch`, `bad_fit`, `anatomy_issue`, `background_issue`, `other`.
+컷 개선의 `regenerationReason`: `lighting_focus`, `human_naturalness`, `material_rendering`, `color_change`, `logo_distortion`, `pattern_change`, `silhouette_change`, `missing_detail`, `unrealistic`, `composition`, `other`.
 
 ## 에러 코드
 
 - `UNAUTHENTICATED`, `INVITE_REQUIRED`, `OAUTH_STATE_INVALID`, `OAUTH_CONNECT_FAILED`
 - `FORBIDDEN`, `NOT_FOUND`, `INVALID_IMAGE`, `IMAGE_TOO_LARGE`, `VALIDATION_ERROR`
 - `INSUFFICIENT_PROVIDER_CREDIT`, `PROVIDER_RATE_LIMITED`, `PROVIDER_UNAVAILABLE`
-- `GENERATION_OUTCOME_UNKNOWN`, `GENERATION_FAILED`, `JOB_CONFLICT`
+- `GENERATION_OUTCOME_UNKNOWN`, `GENERATION_FAILED`, `JOB_CONFLICT`, `SOURCE_TOO_LARGE`, `FEATURE_RETIRED`
 
 ## 안전·성능
 

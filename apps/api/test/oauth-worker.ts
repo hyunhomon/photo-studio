@@ -31,14 +31,8 @@ export default {
         plan.value,
         "medium",
       );
-      const quality = await adapter.evaluate(
-        "synthetic/vision",
-        images,
-        images[0] ?? "",
-        [],
-      );
       return Response.json({
-        ok: image.value.bytes.length > 0 && quality.value.needsHumanReview,
+        ok: image.value.bytes.length > 0,
       });
     }
     return app.fetch(request, env, ctx);

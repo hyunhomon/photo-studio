@@ -13,7 +13,9 @@ const initial: PresetInput = {
   modelStyle: "성인 커머셜 패션 모델",
   location: "밝은 무채색 스튜디오",
   lighting: "부드러운 확산광",
-  shootType: "model_studio",
+  modelAppearance: "",
+  backgroundSeparation: "balanced",
+  materialDirection: "",
 };
 export default function PresetScreen() {
   const { me, error, setError, state, retry } = useAccount();
@@ -99,11 +101,7 @@ export default function PresetScreen() {
               key={item.id}
               className="rounded-panel border border-line bg-surface p-6"
             >
-              <p className="eyebrow text-muted">
-                {item.shootType === "model_studio"
-                  ? "MODEL / STUDIO"
-                  : "MODEL / LOCATION"}
-              </p>
+              <p className="eyebrow text-muted">SHOOT DIRECTION</p>
               <h2 className="mt-4 text-xl">{item.name}</h2>
               <p className="mt-4 text-sm leading-7 text-muted">{item.mood}</p>
               <dl className="mt-5 space-y-3 border-t border-line pt-4 text-xs text-muted">
@@ -201,16 +199,43 @@ export default function PresetScreen() {
             </div>
           ))}
           <Select
-            label="촬영 모드"
-            value={form.shootType}
+            label="배경 분리"
+            value={form.backgroundSeparation}
             onChange={(value) =>
-              setForm({ ...form, shootType: value as PresetInput["shootType"] })
+              setForm({
+                ...form,
+                backgroundSeparation:
+                  value as PresetInput["backgroundSeparation"],
+              })
             }
             options={[
-              { value: "model_studio", label: "모델 · 스튜디오" },
-              { value: "model_location", label: "모델 · 가상 로케이션" },
+              { value: "gentle", label: "은은하게" },
+              { value: "balanced", label: "자연스럽게" },
+              { value: "separated", label: "분리감 있게" },
             ]}
           />
+          <label className="block text-xs">
+            인물 인상 (성인 · 선택)
+            <textarea
+              className="studio-input mt-2 min-h-20"
+              maxLength={500}
+              value={form.modelAppearance}
+              onChange={(e) =>
+                setForm({ ...form, modelAppearance: e.target.value })
+              }
+            />
+          </label>
+          <label className="block text-xs">
+            소재 표현 지시 (선택)
+            <textarea
+              className="studio-input mt-2 min-h-20"
+              maxLength={500}
+              value={form.materialDirection}
+              onChange={(e) =>
+                setForm({ ...form, materialDirection: e.target.value })
+              }
+            />
+          </label>
           <Button type="submit" disabled={busy} className="w-full">
             프리셋 저장
           </Button>

@@ -18,26 +18,12 @@ test("portable planning schema, lossless JSON parsing and app-owned constants to
       let value: unknown = mockAnalysisFixture;
       if (stage === "shoot_plan") {
         expect(wire.properties.aspectRatio).toBeUndefined();
-        expect(wire.properties.shootType.enum).toEqual([
-          "model_studio",
-          "model_location",
-        ]);
+        expect(wire.properties.shootType).toBeUndefined();
         const { aspectRatio: _ratio, ...plan } = mockPlan(mockAnalysisFixture);
         value = {
           ...plan,
           model: { ...plan.model, notes: "synthetic-unused-metadata" },
           unused: "synthetic-unused-metadata",
-        };
-      }
-      if (stage === "quality_evaluation") {
-        expect(wire.properties.needsHumanReview).toBeUndefined();
-        value = {
-          garmentFidelityScore: 0.7,
-          realismScore: 0.8,
-          compositionScore: 0.9,
-          flaggedIssues: [],
-          needsHumanReview: false,
-          evaluationVersion: "untrusted",
         };
       }
       return Response.json({
@@ -77,10 +63,7 @@ test("portable planning schema, lossless JSON parsing and app-owned constants to
     mockAnalysisFixture.preservationPoints,
   );
   expect(JSON.stringify(plan.value)).not.toContain("synthetic-unused-metadata");
-  const quality = await adapter.evaluate("synthetic", [], "synthetic", []);
-  expect(quality.value.needsHumanReview).toBe(true);
-  expect(quality.value.evaluationVersion).toBe("v1");
-  expect(calls).toBe(3);
+  expect(calls).toBe(2);
 });
 test("invalid or truncated paid planning output retains cost and only safe validation categories, with no retries", async () => {
   for (const kind of [
@@ -99,7 +82,10 @@ test("invalid or truncated paid planning output retains cost and only safe valid
         };
         if (kind === "missing_field") delete value.lighting;
         if (kind === "invalid_enum")
-          value.shootType = "synthetic-sensitive-model-value";
+          value.camera = {
+            ...(value.camera as object),
+            backgroundSeparation: "synthetic-sensitive-model-value",
+          };
         return Response.json({
           choices: [
             {
@@ -141,7 +127,9 @@ test("invalid or truncated paid planning output retains cost and only safe valid
       if (kind === "missing_field")
         expect(invalid.diagnostic.issues[0]?.field).toBe("lighting");
       if (kind === "invalid_enum")
-        expect(invalid.diagnostic.issues[0]?.field).toBe("shootType");
+        expect(invalid.diagnostic.issues[0]?.field).toBe(
+          "camera.backgroundSeparation",
+        );
     }
     expect(calls).toBe(1);
   }

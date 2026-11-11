@@ -95,19 +95,12 @@ const fixture = Bun.serve({
         response_format: { json_schema: { name: string } };
       };
       const name = payload.response_format.json_schema.name;
+      if (!["product_analysis", "shoot_plan"].includes(name))
+        return new Response(null, { status: 400 });
       const { aspectRatio: _ratio, ...wirePlan } =
         mockPlan(mockAnalysisFixture);
       const value =
-        name === "product_analysis"
-          ? mockAnalysisFixture
-          : name === "shoot_plan"
-            ? wirePlan
-            : {
-                garmentFidelityScore: 0.8,
-                realismScore: 0.8,
-                compositionScore: 0.8,
-                flaggedIssues: [],
-              };
+        name === "product_analysis" ? mockAnalysisFixture : wirePlan;
       return Response.json({
         choices: [
           {
@@ -293,7 +286,7 @@ try {
     401,
   );
   console.info(
-    "PASS: native workerd HTTP for OAuth, connection status, model catalogs, analysis/plan/image/evaluation; D1 PKCE/session/replay/disconnect; redirects never followed. Local synthetic provider only; no external AI.",
+    "PASS: native workerd HTTP for OAuth, connection status, model catalogs, analysis/plan/one image; D1 PKCE/session/replay/disconnect; redirects never followed. Local synthetic provider only; no external AI.",
   );
 } finally {
   server.kill();

@@ -49,7 +49,8 @@ export interface PlanSnapshot {
   description: string;
   analysisModel: string;
   imageModel: string;
-  evaluationModel: string;
+  /** Legacy snapshots only; no evaluator is invoked (ADR-019). */
+  evaluationModel?: string;
 }
 export interface PipelineDeps {
   adapter?: (env: Env, job: JobRow) => Promise<ModelAdapter>;
@@ -293,6 +294,7 @@ export async function sourceSnapshot(
 }
 export async function imageData(env: Env, job: JobRow, ids: string[]) {
   const urls: string[] = [];
+  let totalBytes = 0;
   for (const id of ids) {
     const a = await createDb(env.DB)
       .select()
@@ -306,6 +308,9 @@ export async function imageData(env: Env, job: JobRow, ids: string[]) {
       )
       .get();
     if (!a) throw new ProviderError("SOURCE_MISSING");
+    totalBytes += a.sizeBytes;
+    if (totalBytes > 12 * 1024 * 1024)
+      throw new ProviderError("SOURCE_TOO_LARGE");
     const obj = await env.ASSETS.get(a.r2Key);
     if (!obj) throw new ProviderError("SOURCE_MISSING");
     const bytes = new Uint8Array(await obj.arrayBuffer());
@@ -643,7 +648,6 @@ export function pipelineRoutes() {
         ? "mock/analyzer-planner-v1"
         : c.env.OPENROUTER_ANALYSIS_MODEL,
       imageModel: c.env.OPENROUTER_IMAGE_MODEL,
-      evaluationModel: c.env.OPENROUTER_EVALUATION_MODEL,
     };
     const job = await insertJob(
       c.env,

@@ -123,6 +123,12 @@ export default function UploadDialog({
           </p>
         )}
         <p className="text-[11px] leading-5 text-muted">
+          소재와 작은 로고가 보이도록 긴 변 1024px 이상인 선명한 원본을
+          권장합니다. 정면 사진과 로고·원단을 가까이 찍은 상세 사진을 함께
+          넣으면 근거를 보강할 수 있습니다. 이 권장 크기가 보존 정확도를
+          보장하지는 않습니다.
+        </p>
+        <p className="text-[11px] leading-5 text-muted">
           사진은 비공개로 보관하고 위치·카메라 등 부가 메타데이터를 제거합니다.
           권리를 보유한 사진만 등록해 주세요.
         </p>

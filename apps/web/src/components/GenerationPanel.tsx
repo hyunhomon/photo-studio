@@ -1,18 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import {
-  ArrowDownToLine,
-  Check,
-  ImagePlus,
-  RotateCcw,
-  ShieldCheck,
-  X,
-  ZoomIn,
-} from "lucide-react";
+import { ArrowDownToLine, ImagePlus, RotateCcw, ZoomIn } from "lucide-react";
 import { Button, Modal, Select } from "@photo-studio/ui";
 import type { PipelineDto, ProductDto, ResultDto } from "@photo-studio/schemas";
 import { apiBase, errorMessage, type Me, request } from "../lib/api";
 import { Field, JobStatus } from "./PlanningPanel";
 export const reasons = [
+  { value: "lighting_focus", label: "빛과 초점 · 배경과의 연결" },
+  { value: "human_naturalness", label: "인물 · 얼굴과 자세의 자연스러움" },
+  { value: "material_rendering", label: "소재 · 옷감과 주변 표면" },
   { value: "color_change", label: "원본과 색상이 달라요" },
   { value: "logo_distortion", label: "로고·텍스트가 왜곡됐어요" },
   { value: "pattern_change", label: "패턴이 달라요" },
@@ -36,23 +31,23 @@ export default function GenerationPanel({
   const [results, setResults] = useState<ResultDto[]>([]),
     [selected, setSelected] = useState(""),
     [open, setOpen] = useState(false),
-    [reject, setReject] = useState(false),
     [zoom, setZoom] = useState<string | null>(null);
   const [regenerate, setRegenerate] = useState<string | null>(null),
-    [reason, setReason] = useState("color_change"),
+    [reason, setReason] = useState("lighting_focus"),
     [note, setNote] = useState(""),
     [quality, setQuality] = useState("medium"),
     [consent, setConsent] = useState(false),
     [busy, setBusy] = useState(false),
     [error, setError] = useState("");
   const requestId = useRef(crypto.randomUUID());
+  const [comparePrevious, setComparePrevious] = useState(false);
   const refresh = useCallback(async () => {
     const d = await request<ResultDto[]>(
       `/api/v1/products/${product.id}/results`,
     );
     setResults(d);
   }, [product.id]);
-  // biome-ignore lint/correctness/useExhaustiveDependencies: each durable pipeline snapshot can add a result or evaluation in D1.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: each durable pipeline snapshot can add a result in D1.
   useEffect(() => {
     void refresh().catch((e) => setError(errorMessage(e)));
   }, [refresh, pipeline]);
@@ -79,26 +74,11 @@ export default function GenerationPanel({
   }
   function begin(id: string | null) {
     setRegenerate(id);
-    setReason("color_change");
+    setReason("lighting_focus");
+    setNote("");
     setConsent(false);
     requestId.current = crypto.randomUUID();
     setOpen(true);
-  }
-  async function feedback(decision: "accepted" | "rejected") {
-    if (!result) return;
-    await request(
-      `/api/v1/assets/${result.asset.id}/feedback`,
-      {
-        method: "POST",
-        body: JSON.stringify({
-          decision,
-          reason: decision === "rejected" ? reason : null,
-          note: decision === "rejected" ? note : "",
-        }),
-      },
-      me.csrf,
-    );
-    setReject(false);
   }
   const imageUrl = (id: string) => `${apiBase}/api/v1/assets/${id}/content`;
   return (
@@ -180,7 +160,10 @@ export default function GenerationPanel({
                 aria-pressed={r.asset.id === result.asset.id}
                 aria-label={`결과 ${results.length - i} 선택`}
                 className={`shrink-0 overflow-hidden rounded-lg border-2 ${r.asset.id === result.asset.id ? "border-primary" : "border-transparent"}`}
-                onClick={() => setSelected(r.asset.id)}
+                onClick={() => {
+                  setSelected(r.asset.id);
+                  setComparePrevious(false);
+                }}
               >
                 <img
                   src={imageUrl(r.asset.id)}
@@ -190,23 +173,62 @@ export default function GenerationPanel({
               </button>
             ))}
           </fieldset>
+          {result.regenerationOf && (
+            <fieldset
+              className="mb-4 flex flex-wrap gap-2"
+              aria-label="비교 기준"
+            >
+              <button
+                type="button"
+                className={`rounded-lg border px-4 py-2 text-xs ${!comparePrevious ? "border-primary text-primary" : "border-line text-muted"}`}
+                aria-pressed={!comparePrevious}
+                onClick={() => setComparePrevious(false)}
+              >
+                원본 의류와 비교
+              </button>
+              <button
+                type="button"
+                className={`rounded-lg border px-4 py-2 text-xs ${comparePrevious ? "border-primary text-primary" : "border-line text-muted"}`}
+                aria-pressed={comparePrevious}
+                onClick={() => setComparePrevious(true)}
+              >
+                이전 컷과 비교
+              </button>
+            </fieldset>
+          )}
           <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_260px]">
             <div className="grid gap-4 sm:grid-cols-2">
               {source && (
                 <figure className="overflow-hidden rounded-panel border border-line bg-surface">
                   <figcaption className="flex items-center justify-between border-b border-line px-5 py-3 text-xs">
-                    <span>원본 참조</span>
-                    <span className="eyebrow text-muted">ORIGINAL</span>
+                    <span>
+                      {comparePrevious && result.regenerationOf
+                        ? "이전 컷 · 비교 기준"
+                        : "원본 참조"}
+                    </span>
+                    <span className="eyebrow text-muted">
+                      {comparePrevious ? "PREVIOUS" : "ORIGINAL"}
+                    </span>
                   </figcaption>
                   <button
                     type="button"
                     className="relative block w-full"
-                    aria-label="원본 사진 확대"
-                    onClick={() => setZoom(source.id)}
+                    aria-label="비교 기준 사진 확대"
+                    onClick={() =>
+                      setZoom(
+                        comparePrevious && result.regenerationOf
+                          ? result.regenerationOf
+                          : source.id,
+                      )
+                    }
                   >
                     <img
-                      src={imageUrl(source.id)}
-                      alt={`${product.name} 원본 비교`}
+                      src={imageUrl(
+                        comparePrevious && result.regenerationOf
+                          ? result.regenerationOf
+                          : source.id,
+                      )}
+                      alt={`${product.name} ${comparePrevious && result.regenerationOf ? "이전 컷" : "원본"} 비교`}
                       className="aspect-[3/4] w-full bg-studio object-contain"
                     />
                     <ZoomIn
@@ -244,97 +266,40 @@ export default function GenerationPanel({
               </figure>
             </div>
             <aside className="rounded-panel border border-line bg-surface p-6">
-              <p className="flex items-center gap-2 text-sm font-semibold">
-                <ShieldCheck size={17} aria-hidden="true" />
-                품질 검수
-                {result.mock && (
-                  <span className="text-[10px] text-muted">MOCK</span>
-                )}
-              </p>
+              <h3 className="text-base font-semibold">
+                {comparePrevious ? "이전 컷과 직접 확인" : "원본과 직접 확인"}
+              </h3>
               <p className="mt-3 text-xs leading-6 text-muted">
-                AI 평가는 참고 정보입니다. 로고·색상·패턴·핏을 확대해 직접
-                확인해 주세요.
+                세 가지를 확대해 비교해 보세요.
               </p>
-              {result.quality ? (
-                <>
-                  <div className="mt-6 space-y-4">
-                    {[
-                      {
-                        label: "상품 충실도",
-                        value: result.quality.garmentFidelityScore,
-                      },
-                      {
-                        label: "자연스러움",
-                        value: result.quality.realismScore,
-                      },
-                      { label: "구도", value: result.quality.compositionScore },
-                    ].map((s) => (
-                      <div key={s.label}>
-                        <div className="flex justify-between text-xs">
-                          <span>{s.label}</span>
-                          <span>{Math.round(s.value * 100)} / 100</span>
-                        </div>
-                        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-line">
-                          <div
-                            style={{ width: `${s.value * 100}%` }}
-                            className="h-full rounded-full bg-primary"
-                          />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  <ul className="mt-6 space-y-3">
-                    {result.quality.flaggedIssues.map((issue) => (
-                      <li
-                        key={`${issue.code}-${issue.reason}`}
-                        className={`rounded-lg p-3 text-xs leading-6 ${issue.severity === "high" ? "bg-warning-surface text-warning" : "bg-studio"}`}
-                      >
-                        <span className="font-semibold">
-                          {issue.severity === "high" ? "주의" : "확인"} ·{" "}
-                        </span>
-                        {issue.reason}
-                      </li>
-                    ))}
-                  </ul>
-                </>
-              ) : (
-                <p className="mt-5 rounded-lg bg-studio p-4 text-xs leading-6">
-                  아직 품질 평가가 없거나 평가에 실패했습니다. 이미지를 직접
-                  검수할 수 있습니다. 평가는 자동으로 다시 호출하지 않습니다.
-                </p>
-              )}
-              {result.feedback && (
-                <p className="mt-5 rounded-lg border border-line p-3 text-xs">
-                  {result.feedback.decision === "accepted"
-                    ? "✓ 채택한 컷"
-                    : "폐기한 컷"}
-                  {result.feedback.reason &&
-                    ` · ${reasons.find((r) => r.value === result.feedback?.reason)?.label ?? result.feedback.reason}`}
-                </p>
-              )}
-              <div className="mt-6 grid grid-cols-2 gap-2">
-                <Button
-                  className="px-3"
-                  disabled={busy}
-                  onClick={() => void action(() => feedback("accepted"))}
-                >
-                  <Check size={14} aria-hidden="true" />
-                  채택
-                </Button>
-                <Button
-                  className="px-3"
-                  variant="secondary"
-                  disabled={busy}
-                  onClick={() => {
-                    setNote("");
-                    setReason("color_change");
-                    setReject(true);
-                  }}
-                >
-                  <X size={14} aria-hidden="true" />
-                  폐기
-                </Button>
-              </div>
+              <ul className="mt-5 space-y-5 text-xs leading-6">
+                <li>
+                  <strong className="block text-ink">빛과 초점</strong>
+                  <span className="text-muted">
+                    얼굴·옷·배경의 빛 방향, 바닥의 접촉 그림자, 거리와 이어지는
+                    초점 흐림을 확인하세요.
+                  </span>
+                </li>
+                <li>
+                  <strong className="block text-ink">인물의 자연스러움</strong>
+                  <span className="text-muted">
+                    눈과 피부의 질감, 표정·손·몸의 무게 중심이 함께 자연스러운지
+                    확인하세요.
+                  </span>
+                </li>
+                <li>
+                  <strong className="block text-ink">소재 표현</strong>
+                  <span className="text-muted">
+                    원본의 로고·조직·주름과 두께감이 유지되고, 주변 표면이 모두
+                    같은 재질처럼 보이지 않는지 확인하세요.
+                  </span>
+                </li>
+              </ul>
+              <p className="mt-5 text-[10px] text-muted">
+                {result.captureVersion
+                  ? "빛·인물·소재를 반영한 촬영 지시 적용"
+                  : "이전 촬영 지시로 만든 컷"}
+              </p>
               <a
                 href={`${apiBase}/api/v1/assets/${result.asset.id}/download`}
                 data-astro-reload
@@ -349,12 +314,11 @@ export default function GenerationPanel({
                 disabled={busy || active || plan?.status !== "approved"}
                 onClick={() => begin(result.asset.id)}
               >
-                <RotateCcw size={14} aria-hidden="true" />
-                사유를 남기고 재생성
+                <RotateCcw size={14} aria-hidden="true" />이 컷 개선
               </Button>
               {result.regenerationReason && (
                 <p className="mt-4 text-[11px] leading-6 text-muted">
-                  이전 결과에서 재생성 ·{" "}
+                  이전 컷에서 개선 ·{" "}
                   {reasons.find((r) => r.value === result.regenerationReason)
                     ?.label ?? result.regenerationReason}
                 </p>
@@ -371,18 +335,12 @@ export default function GenerationPanel({
         }
         description={
           me.mode === "mock"
-            ? "외부 AI 호출 없이 원본을 복사한 Mock 결과와 합성 평가를 만듭니다. 실제 화보 생성이 아닙니다."
-            : "원본 참조와 승인한 콘셉트로 이미지 1장 및 품질 평가 1회를 요청합니다. 두 호출의 비용은 내 OpenRouter 크레딧에서 차감됩니다."
+            ? "외부 AI 호출 없이 원본을 복사한 Mock 결과를 만듭니다. 실제 화보 생성이 아닙니다."
+            : "원본 참조와 승인한 촬영 지시로 이미지 1장을 요청합니다. 이미지 생성 1회 비용이 내 OpenRouter 크레딧에서 차감됩니다. 자동 평가 호출은 없습니다."
         }
       >
         <div className="mt-5 rounded-xl bg-studio p-4 text-xs leading-6">
-          <p className="font-semibold">
-            승인된 촬영:{" "}
-            {plan?.spec.shootType === "model_location"
-              ? "가상 로케이션컷"
-              : "스튜디오컷"}{" "}
-            · 3:4 · PNG
-          </p>
+          <p className="font-semibold">승인된 촬영 지시 · 3:4 · PNG</p>
           <p>
             {plan?.spec.mood} / {plan?.spec.model.style}
           </p>
@@ -404,19 +362,32 @@ export default function GenerationPanel({
         </div>
         {regenerate && (
           <div className="mt-4">
-            <p className="mb-2 text-xs text-muted">재생성 사유</p>
+            <p className="mb-2 text-xs text-muted">이번에 개선할 한 가지</p>
             <Select
-              label="재생성 사유"
+              label="개선할 항목"
               value={reason}
               onChange={setReason}
               options={reasons}
             />
           </div>
         )}
+        <div className="mt-4">
+          <Field
+            label="이번 컷에 반영할 요청 (선택)"
+            value={note}
+            onChange={setNote}
+            multiline
+          />
+        </div>
+        {regenerate && (
+          <p className="mt-3 text-xs leading-6 text-muted">
+            이전 컷을 인물·구도 연속성 참조로 함께 사용합니다. 선택한 항목을
+            우선 고치며 원본 의류가 보존 기준입니다.
+          </p>
+        )}
         <p className="mt-4 text-xs leading-6 text-muted">
-          이미지 모델: {me.models.image} / 평가 모델: {me.models.evaluation}.
-          예상 호출: 이미지 1회 + 평가 1회. 정확한 비용은 사전 확정할 수
-          없습니다. 응답이 불확실하면 자동 재생성을 멈춥니다.{" "}
+          이미지 모델: {me.models.image}. 예상 호출: 이미지 1회. 정확한 비용은
+          사전 확정할 수 없습니다. 응답이 불확실하면 자동 재생성을 멈춥니다.{" "}
           <a
             href="https://openrouter.ai/models/openai/gpt-image-2"
             target="_blank"
@@ -433,7 +404,7 @@ export default function GenerationPanel({
             checked={consent}
             onChange={(e) => setConsent(e.target.checked)}
           />
-          이미지 생성·평가 비용과 승인된 콘셉트를 확인했습니다.
+          이미지 생성 비용과 승인된 촬영 지시를 확인했습니다.
         </label>
         <Button
           className="mt-5 w-full"
@@ -449,6 +420,7 @@ export default function GenerationPanel({
                     idempotencyKey: requestId.current,
                     planId: plan?.id,
                     quality,
+                    adjustments: note,
                     count: 1,
                     regenerationOf: regenerate,
                     regenerationReason: regenerate ? reason : null,
@@ -462,36 +434,6 @@ export default function GenerationPanel({
         >
           동의하고 1장 생성
         </Button>
-      </Modal>
-      <Modal
-        open={reject}
-        onClose={() => setReject(false)}
-        title="이 컷을 폐기하는 이유"
-        description="사유를 남기면 다음 결과의 품질 개선에 참고할 수 있습니다. 폐기는 사진을 삭제하지 않으며 비용을 환불하지 않습니다."
-      >
-        <div className="mt-5">
-          <Select
-            label="폐기 사유"
-            value={reason}
-            onChange={setReason}
-            options={reasons}
-          />
-          <div className="mt-4">
-            <Field
-              label="추가 메모 (선택)"
-              value={note}
-              onChange={setNote}
-              multiline
-            />
-          </div>
-          <Button
-            className="mt-5 w-full"
-            disabled={busy}
-            onClick={() => void action(() => feedback("rejected"))}
-          >
-            폐기 사유 저장
-          </Button>
-        </div>
       </Modal>
       <Modal
         open={Boolean(zoom)}

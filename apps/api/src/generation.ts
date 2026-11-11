@@ -6,8 +6,6 @@ import {
   createDb,
   desc,
   eq,
-  evaluations,
-  feedback,
   jobs,
   shootPlans,
 } from "@photo-studio/db";
@@ -15,12 +13,14 @@ import {
   type ResultDto,
   type ShootPlan,
   generateRequestSchema,
-  feedbackSchema,
   productAnalysisSchema,
-  qualitySchema,
   shootPlanSchema,
 } from "@photo-studio/schemas";
-import { ProviderError, type ProviderUsage } from "@photo-studio/ai";
+import {
+  CAPTURE_PROTOCOL_VERSION,
+  ProviderError,
+  type ProviderUsage,
+} from "@photo-studio/ai";
 import type { AppContext, Env } from "./env";
 import { AppError, notFound } from "./errors";
 import { assetDto, ownedProduct } from "./resources";
@@ -47,6 +47,9 @@ export interface GenerationSnapshot extends PlanSnapshot {
   quality: "medium" | "high";
   regenerationOf: string | null;
   regenerationReason: string | null;
+  adjustments?: string;
+  captureVersion?: string;
+  reviewMode?: "manual";
 }
 export const generatedKey = (job: JobRow) =>
   `${job.userId}/${job.productId}/generated/${job.id}.png`;
@@ -73,6 +76,8 @@ export async function runGenerationStage(
   stage: "generation" | "evaluation",
   deps: PipelineDeps = {},
 ) {
+  // Retired evaluation steps from older workflow definitions must never call AI.
+  if (stage === "evaluation") return;
   const db = createDb(env.DB),
     job = await db.select().from(jobs).where(eq(jobs.id, jobId)).get();
   if (!job) return;
@@ -81,11 +86,17 @@ export async function runGenerationStage(
     const input = JSON.parse(job.requestJson) as GenerationSnapshot,
       adapter = await (deps.adapter ?? resolveAdapter)(env, job);
     await adapter.preflight(
-      stage === "generation" ? input.imageModel : input.evaluationModel,
+      input.imageModel,
       stage,
       input.quality,
+      input.sourceIds.length + (input.regenerationOf ? 1 : 0),
     );
-    const sources = await imageData(env, job, input.sourceIds);
+    const references = await imageData(env, job, [
+      ...input.sourceIds,
+      ...(input.regenerationOf ? [input.regenerationOf] : []),
+    ]);
+    const sources = references.slice(0, input.sourceIds.length);
+    const previousImage = input.regenerationOf ? references.at(-1) : undefined;
     if (stage === "generation") {
       await paidStage(env, job, stage, input.imageModel, async () => {
         const result = await adapter.generate(
@@ -93,6 +104,12 @@ export async function runGenerationStage(
           sources,
           input.plan,
           input.quality,
+          {
+            captureVersion: input.captureVersion ?? CAPTURE_PROTOCOL_VERSION,
+            reason: input.regenerationReason,
+            adjustments: input.adjustments,
+            previousImage,
+          },
         );
         await recordUsage(env, job, stage, result.usage);
         await jobActive(env, job);
@@ -128,54 +145,16 @@ export async function runGenerationStage(
         await clearObjectQueue(env, key);
         return { value: { assetId: job.id }, usage: result.usage };
       });
-    } else {
-      const result = await imageData(env, job, [job.id]);
-      const evaluation = await paidStage(
-        env,
-        job,
-        stage,
-        input.evaluationModel,
-        () =>
-          adapter.evaluate(
-            input.evaluationModel,
-            sources,
-            result[0] ?? "",
-            input.plan.mustPreserve,
-          ),
-      );
-      await db
-        .insert(evaluations)
-        .values({
-          assetId: job.id,
-          userId: job.userId,
-          specJson: JSON.stringify(qualitySchema.parse(evaluation)),
-          createdAt: Date.now(),
-        })
-        .onConflictDoNothing();
-      await db
-        .update(jobs)
-        .set({
-          status: "needs_review",
-          stage: "review",
-          finishedAt: Date.now(),
-        })
-        .where(and(eq(jobs.id, job.id), eq(jobs.userId, job.userId)));
     }
+    await db
+      .update(jobs)
+      .set({ status: "needs_review", stage: "review", finishedAt: Date.now() })
+      .where(and(eq(jobs.id, job.id), eq(jobs.userId, job.userId)));
   } catch (e) {
-    if (stage === "evaluation") {
-      await env.DB.prepare(
-        "UPDATE generation_jobs SET status='evaluation_failed',error_code=?,stage='review',finished_at=? WHERE id=? AND user_id=? AND status IN ('queued','running')",
-      )
-        .bind(
-          e instanceof ProviderError ? e.code : "EVALUATION_FAILED",
-          Date.now(),
-          job.id,
-          job.userId,
-        )
-        .run();
-    } else await finishFailure(env, job.id, e);
+    await finishFailure(env, job.id, e);
   }
 }
+
 async function ownedGenerated(env: Env, userId: string, id: string) {
   const row = await createDb(env.DB)
     .select()
@@ -248,13 +227,13 @@ export function generationRoutes() {
       quality: input.quality,
       regenerationOf: input.regenerationOf,
       regenerationReason: input.regenerationReason,
+      adjustments: input.adjustments,
+      captureVersion: CAPTURE_PROTOCOL_VERSION,
+      reviewMode: "manual",
       analysisModel: c.env.OPENROUTER_ANALYSIS_MODEL,
       imageModel: identity.isTest
         ? "mock/reference-copy-v1"
         : c.env.OPENROUTER_IMAGE_MODEL,
-      evaluationModel: identity.isTest
-        ? "mock/evaluator-v1"
-        : c.env.OPENROUTER_EVALUATION_MODEL,
     };
     // consent is recorded by job.createdAt; the hashed snapshot stays deterministic for retries.
     const job = await insertJob(
@@ -285,25 +264,6 @@ export function generationRoutes() {
       .limit(100)
       .all();
     if (!images.length) return c.json({ data: [] });
-    const qQueries = images.map((image) =>
-      db
-        .select()
-        .from(evaluations)
-        .where(
-          and(
-            eq(evaluations.assetId, image.id),
-            eq(evaluations.userId, userId),
-          ),
-        ),
-    );
-    const fQueries = images.map((image) =>
-      db
-        .select()
-        .from(feedback)
-        .where(and(eq(feedback.assetId, image.id), eq(feedback.userId, userId)))
-        .orderBy(desc(feedback.createdAt), desc(feedback.id))
-        .limit(1),
-    );
     const jQueries = images.map((image) =>
       db
         .select()
@@ -311,74 +271,32 @@ export function generationRoutes() {
         .where(and(eq(jobs.id, image.jobId ?? ""), eq(jobs.userId, userId)))
         .limit(1),
     );
-    const qFirst = qQueries[0],
-      fFirst = fQueries[0],
-      jFirst = jQueries[0];
-    if (!qFirst || !fFirst || !jFirst) return c.json({ data: [] });
-    const [qualityRows, feedbackRows, jobRows] = await Promise.all([
-      db.batch([qFirst, ...qQueries.slice(1)]),
-      db.batch([fFirst, ...fQueries.slice(1)]),
-      db.batch([jFirst, ...jQueries.slice(1)]),
-    ]);
+    const first = jQueries[0];
+    if (!first) return c.json({ data: [] });
+    const jobRows = await db.batch([first, ...jQueries.slice(1)]);
     const results: ResultDto[] = [];
     for (const [i, image] of images.entries()) {
-      const q = qualityRows[i]?.[0],
-        f = feedbackRows[i]?.[0],
-        job = jobRows[i]?.[0];
+      const job = jobRows[i]?.[0];
       const snapshot = job
         ? (JSON.parse(job.requestJson) as GenerationSnapshot)
         : null;
       results.push({
         asset: assetDto(image),
-        quality: q ? qualitySchema.parse(JSON.parse(q.specJson)) : null,
-        feedback: f
-          ? {
-              ...feedbackSchema.parse({
-                decision: f.decision,
-                reason: f.reason,
-                note: f.note,
-              }),
-              createdAt: f.createdAt,
-            }
-          : null,
         regenerationOf: snapshot?.regenerationOf ?? null,
         regenerationReason: snapshot?.regenerationReason ?? null,
+        adjustments: snapshot?.adjustments ?? "",
+        captureVersion: snapshot?.captureVersion ?? null,
         mock: c.get("identity").isTest,
       });
     }
     return c.json({ data: results });
   });
   api.post("/assets/:id/feedback", async (c) => {
-    const userId = c.get("identity").userId,
-      asset = await ownedGenerated(c.env, userId, c.req.param("id")),
-      input = feedbackSchema.parse(await c.req.json());
-    await rateLimit(c, `feedback:${userId}`, 60);
-    const row = {
-      id: crypto.randomUUID(),
-      assetId: asset.id,
-      userId,
-      ...input,
-      createdAt: Date.now(),
-    };
-    const saved = await c.env.DB.prepare(
-      "INSERT INTO feedback(id,asset_id,user_id,decision,reason,note,created_at) SELECT ?,?,?,?,?,?,max(?,coalesce(max(created_at)+1,?)) FROM feedback WHERE asset_id=? AND user_id=? RETURNING created_at",
-    )
-      .bind(
-        row.id,
-        row.assetId,
-        row.userId,
-        row.decision,
-        row.reason,
-        row.note,
-        row.createdAt,
-        row.createdAt,
-        row.assetId,
-        row.userId,
-      )
-      .first<{ created_at: number }>();
-    return c.json(
-      { data: { ...input, createdAt: saved?.created_at ?? row.createdAt } },
-      201,
+    await ownedGenerated(c.env, c.get("identity").userId, c.req.param("id"));
+    throw new AppError(
+      "FEATURE_RETIRED",
+      "점수·피드백 기능은 종료됐습니다. 새로고침 후 원본 비교와 컷 개선을 이용해 주세요.",
+      410,
     );
   });
   return api;

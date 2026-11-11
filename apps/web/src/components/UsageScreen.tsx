@@ -9,10 +9,8 @@ const stageLabels: Record<string, string> = {
   analysis: "상품 분석",
   planning: "촬영 기획",
   generation: "이미지 생성",
-  evaluation: "품질 평가",
+  evaluation: "이전 AI 평가 · 중단됨",
 };
-const percent = (value: number | null) =>
-  value === null ? "—" : `${Math.round(value * 100)}%`;
 export default function UsageScreen() {
   const { me, error, setError, state, retry } = useAccount(),
     [data, setData] = useState<UsageDto | null>(null);
@@ -52,7 +50,7 @@ export default function UsageScreen() {
         </p>
       ) : (
         <>
-          <div className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {[
               {
                 label: "확인된 AI 비용 · 부분합",
@@ -64,12 +62,7 @@ export default function UsageScreen() {
               {
                 label: "생성한 컷",
                 value: `${data.generated}`,
-                detail: `검수용 평가 ${data.evaluated}컷 · 재생성 요청 ${data.regenerations}회`,
-              },
-              {
-                label: "검수한 컷의 채택률",
-                value: percent(data.reviewedAcceptanceRate),
-                detail: `채택 ${data.accepted} / 폐기 ${data.rejected}`,
+                detail: `개선 요청 ${data.regenerations}회`,
               },
               {
                 label: "평균 AI 응답 시간",
@@ -98,7 +91,7 @@ export default function UsageScreen() {
               : "OpenRouter가 제공한 실제 비용만 집계합니다. 미확인 비용은 합계에 포함되지 않으므로 총 청구액과 다를 수 있습니다. 실제 청구는 OpenRouter에서 확인해 주세요."}{" "}
             프로젝트·결과 삭제 시 관련 기록도 삭제되어 집계가 달라집니다.
           </p>
-          <div className="mt-8 grid gap-6 xl:grid-cols-2">
+          <div className="mt-8 grid gap-6">
             <section className="rounded-panel border border-line bg-surface p-6">
               <h2 className="flex items-center gap-2 text-lg">
                 <ChartNoAxesColumn size={18} aria-hidden="true" />
@@ -140,49 +133,6 @@ export default function UsageScreen() {
                   ))}
                 </div>
               )}
-            </section>
-            <section className="rounded-panel border border-line bg-surface p-6">
-              <h2 className="text-lg">품질과 선택</h2>
-              <dl className="mt-5 space-y-4 text-sm">
-                {[
-                  {
-                    label: "평가된 컷 중 채택률",
-                    value: percent(data.evaluatedAcceptanceRate),
-                  },
-                  {
-                    label: "평균 상품 충실도 · AI 참고값",
-                    value: percent(data.quality.fidelity),
-                  },
-                  {
-                    label: "평균 자연스러움 · AI 참고값",
-                    value: percent(data.quality.realism),
-                  },
-                  {
-                    label: "평균 구도 · AI 참고값",
-                    value: percent(data.quality.composition),
-                  },
-                  {
-                    label: "채택 컷당 확인된 비용 · 부분합",
-                    value:
-                      data.acceptedCostUsd === null
-                        ? "—"
-                        : `$${data.acceptedCostUsd.toFixed(5)}`,
-                  },
-                ].map((s) => (
-                  <div
-                    key={s.label}
-                    className="flex items-center justify-between gap-4 border-b border-line pb-3"
-                  >
-                    <dt className="text-xs text-muted">{s.label}</dt>
-                    <dd className="font-semibold">{s.value}</dd>
-                  </div>
-                ))}
-              </dl>
-              <p className="mt-5 text-xs leading-7 text-muted">
-                평가된 컷 중 채택률은 AI 평가가 있는 컷을 분모로 계산합니다.
-                검수한 컷의 채택률은 사람이 채택·폐기를 선택한 컷만 포함합니다.
-                AI 점수는 판매 적합성을 보장하지 않습니다.
-              </p>
             </section>
           </div>
           <section className="mt-8 overflow-hidden rounded-panel border border-line bg-surface">

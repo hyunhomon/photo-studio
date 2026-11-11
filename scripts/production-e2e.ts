@@ -220,5 +220,5 @@ try {
 }
 if (failure) throw failure;
 console.info(
-  "PASS: production Mock upload → plan → approval → generate/evaluate → review → regeneration → export/download → deletion, cross-user isolation and PKCE/browser binding. No paid provider call.",
+  "PASS: production Mock upload → plan → approval → one image → original/previous comparison → directed revision → export/download → deletion, cross-user isolation and PKCE/browser binding. No paid provider call.",
 );

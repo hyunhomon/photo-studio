@@ -8,7 +8,7 @@ Build the smallest reliable web MVP that turns clothing photos into AI-planned f
 - Hono API Worker, Zod contracts, Drizzle + D1, R2, Cloudflare Workflows.
 - OpenRouter OAuth **PKCE S256** for MVP BYOK; the user pays OpenRouter directly. Never use a shared operator API key for customer inference.
 - Image model defaults to `openai/gpt-image-2`, configurable. Analysis model remains configurable and must be capability-checked.
-- MVP has direct OpenRouter OAuth without invite codes (ADR-016), project/product/asset management, analyse+plan flow, user-approved generation, quality review, usage/cost logging, and download.
+- MVP has direct OpenRouter OAuth without invite codes (ADR-016), project/product/asset management, analyse+plan flow, user-approved generation, original/previous-frame comparison, directed revisions, usage/cost logging, and download. ADR-019 retires shoot modes, numeric AI evaluation and feedback controls; prioritize coherent light/focus, natural adults, and material appearance.
 - Do **not** implement payments, subscriptions, credit balances, batch generation, teams or training models now.
 
 ## Execution
@@ -36,10 +36,10 @@ Build the smallest reliable web MVP that turns clothing photos into AI-planned f
 - When OpenRouter does not return a stable `user_id`, fail safely rather than merging unrelated accounts.
 
 ## Core metrics
-Capture API call model/stage/latency/outcome/usage/actual cost or null, quality scores, user accepted/rejected, rejection reason and regeneration linkage. Never fabricate cost when provider omits it: mark `unknown` and optionally store separately identified estimate.
+Capture API call model/stage/latency/outcome/usage/actual cost or null, capture protocol/prompt versions, revision axis/instructions and regeneration linkage. Preserve legacy quality/feedback history but do not create or display new ratings (ADR-019). Never fabricate cost when provider omits it: mark `unknown` and optionally store separately identified estimate.
 
 ## Working definition of done
 - End-to-end scenario documented in `docs/09-IMPLEMENTATION-PLAN.md` works with a mock adapter and then (by explicit human invocation) with a funded test OpenRouter account.
-- Secure upload → plan → manual generate → evaluation → feedback → download → deletion.
+- Secure upload → plan → manual generate → original/previous comparison → consented directed revision → download → deletion.
 - An unrelated user cannot read another user's data or media.
 - Durable workflow does not blindly repeat uncertain paid calls.

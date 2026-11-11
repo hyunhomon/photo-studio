@@ -41,7 +41,7 @@ export interface Me {
   connected: boolean;
   mode: "mock" | "openrouter";
   deleting: boolean;
-  models: { analysis: string; image: string; evaluation: string };
+  models: { analysis: string; image: string };
 }
 export const errorMessage = (error: unknown) =>
   error instanceof Error ? error.message : "요청을 처리하지 못했습니다.";

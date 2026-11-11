@@ -11,9 +11,9 @@
 - 세션 종료/연결 해제 시 서버 키 사용 중지, 가능한 제공자 폐기 기능 검증 및 안내.
 - 브라우저 `localStorage`/URL query에 user API Key 영구 저장 금지.
 
-## 초대 코드와 권한
+## 직접 OAuth와 권한
 
-- 초대 코드 해시를 D1에 저장하며 사용 횟수/만료 검사 및 brute-force rate-limit.
+- 초대 코드는 ADR-016으로 종료했다. 직접 OAuth start의 Origin/browser binding/rate limit을 유지한다.
 - 모든 D1 row와 R2 image는 현재 인증 주체에 매핑 후 접근; 누락된 auth 필터가 없는지 테스트.
 - 수정 API는 Origin/CSRF 확인; rate-limit과 request size 제한.
 - CORS는 웹 호스트 정확한 origin allowlist만 허용. credentials 요청에서 와일드카드 금지.
@@ -36,16 +36,16 @@
 | provider_request_id | 비용·장애 조사 | 민감 request dump 지양 |
 | cost_actual_usd | 실제 API 원가 | 제공자 응답 값이 있을 때만 |
 | cost_estimated_usd | 예상 비용 | 별도 표시, 확정 비용 아님 |
-| image_quality_scores | 자동 검수 | 모델 판단은 오류 가능 |
-| decision/reject_reason | 채택률 개선 | 사용자 개별 피드백 |
+| capture_version | 촬영 프로토콜 재현 | 모델의 실제 물리 시뮬레이션 보장 아님 |
+| regeneration_reason/adjustments | 개선 항목과 지시 | owner snapshot에 비공개 저장, console/CI에 원문 금지 |
 | regeneration_of | 재시도 원가 | 중복/의도적 수정 구분 |
 
 ## 주요 KPI SQL 집계 개념
 
-- `attempts / accepted assets` = 채택 1장당 시도 수.
-- `SUM(actual_cost_usd) / COUNT(accepted assets)` = 비용 데이터가 완전할 때의 채택 1장당 측정 원가.
+- ADR-019로 점수/채택률 수집을 종료했다. 과거 평가·피드백 및 비용은 보존/내보낸다. 신규 비용·생성/재생성·지연·미확인 응답을 집계한다.
+- 생성당 원가는 실제 확인된 비용 부분합과 미확인 수를 함께 제시한다. 채택 1장당 원가는 별도 고객 인터뷰 자료가 있을 때만 계산한다.
 - 일부 비용이 NULL이면 '부분 관측' 경고; 분모에 미관측 호출을 무시해 저비용으로 오해하지 말 것.
-- 로고 왜곡/색상 변형 등 사유별 빈도, 상품군별 평균 생성 시도, 최초 채택 시간.
+- 빛·초점/인물/소재 및 상품 오류 항목별 개선 빈도, 원본→이전 컷 연결을 확인한다. 품질 합격 판정으로 해석하지 않는다.
 
 ## 외부 모델 사용 고지
 

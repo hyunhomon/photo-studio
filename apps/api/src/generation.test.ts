@@ -1,5 +1,5 @@
 import { expect, test, spyOn } from "bun:test";
-import { mockAdapter, ProviderError } from "@photo-studio/ai";
+import { mockAdapter } from "@photo-studio/ai";
 import type { PipelineDto, ResultDto, JobDto } from "@photo-studio/schemas";
 import { studioFixture } from "../test/studio";
 import { runPlanStage } from "./pipeline";
@@ -31,7 +31,7 @@ async function ready() {
       s.call<JobDto>(`/products/${s.product.id}/generate`, "POST", input),
   };
 }
-test("approved generation, nullable costs, compare/download, human feedback and regeneration lineage", async () => {
+test("approved generation, nullable costs, retired feedback and directed regeneration lineage", async () => {
   const s = await ready();
   expect((await s.generate()).status).toBe(409);
   await s.approve();
@@ -64,8 +64,9 @@ test("approved generation, nullable costs, compare/download, human feedback and 
   expect(results.length).toBe(1);
   const result = results[0];
   if (!result) throw new Error("Missing fixture result");
-  expect(result.quality?.needsHumanReview).toBe(true);
-  expect(result.feedback).toBeNull();
+  expect(result).not.toHaveProperty("quality");
+  expect(result).not.toHaveProperty("feedback");
+  expect(result.captureVersion).toBe("photo-v1");
   expect(
     s.sqlite
       .query("SELECT status FROM generation_jobs WHERE kind='generate'")
@@ -89,39 +90,31 @@ test("approved generation, nullable costs, compare/download, human feedback and 
   expect(
     (
       await s.call(`/assets/${result.asset.id}/feedback`, "POST", {
-        decision: "rejected",
-      })
-    ).status,
-  ).toBe(400);
-  expect(
-    (
-      await s.call(`/assets/${result.asset.id}/feedback`, "POST", {
         decision: "accepted",
       })
     ).status,
-  ).toBe(201);
-  expect(
-    (
-      await s.call(`/assets/${result.asset.id}/feedback`, "POST", {
-        decision: "rejected",
-        reason: "color_change",
-        note: "Synthetic feedback",
-      })
-    ).status,
-  ).toBe(201);
-  expect(
-    (await s.call<ResultDto[]>(`/products/${s.product.id}/results`)).data[0]
-      ?.feedback?.decision,
-  ).toBe("rejected");
+  ).toBe(410);
   const regenerated = (
     await s.call<JobDto>(`/products/${s.product.id}/generate`, "POST", {
       ...s.input,
       idempotencyKey: crypto.randomUUID(),
       regenerationOf: result.asset.id,
-      regenerationReason: "color_change",
+      regenerationReason: "lighting_focus",
+      adjustments: "Synthetic shadow direction adjustment",
     })
   ).data;
-  await runGenerationStage(s.env, regenerated.id, "generation");
+  let directions = 0;
+  adapter.generate = async (...args) => {
+    directions++;
+    expect(args[4]?.reason).toBe("lighting_focus");
+    expect(args[4]?.adjustments).toBe("Synthetic shadow direction adjustment");
+    expect(args[4]?.previousImage?.startsWith("data:image/png;base64,")).toBe(
+      true,
+    );
+    return original(...args);
+  };
+  await runGenerationStage(s.env, regenerated.id, "generation", deps);
+  expect(directions).toBe(1);
   await runGenerationStage(s.env, regenerated.id, "evaluation");
   expect(
     (await s.call<ResultDto[]>(`/products/${s.product.id}/results`)).data[0]
@@ -176,42 +169,73 @@ test("R2 failure after paid response retains reported cost and never repeats gen
       .get(),
   ).toEqual({ status: "outcome_unknown" });
 });
-test("evaluation failure retains image and permits manual review without retrying evaluation", async () => {
+test("retired evaluation stages never invoke an adapter or create a paid evaluation", async () => {
   const s = await ready();
   await s.approve();
   const job = (await s.generate()).data;
   await runGenerationStage(s.env, job.id, "generation");
   let calls = 0;
-  const adapter = mockAdapter();
-  adapter.evaluate = async () => {
-    calls++;
-    throw new ProviderError("INSUFFICIENT_PROVIDER_CREDIT");
+  const deps = {
+    adapter: async () => {
+      calls++;
+      throw new Error("Evaluation must not resolve a provider");
+    },
   };
-  await runGenerationStage(s.env, job.id, "evaluation", {
-    adapter: async () => adapter,
-  });
-  await runGenerationStage(s.env, job.id, "evaluation", {
-    adapter: async () => adapter,
-  });
-  expect(calls).toBe(1);
-  const result = (
-    await s.call<ResultDto[]>(`/products/${s.product.id}/results`)
-  ).data[0];
-  expect(result?.quality).toBeNull();
+  await runGenerationStage(s.env, job.id, "evaluation", deps);
+  await runGenerationStage(s.env, job.id, "evaluation", deps);
+  expect(calls).toBe(0);
+  expect(
+    s.sqlite
+      .query(
+        "SELECT count(*) n FROM generation_attempts WHERE stage='evaluation'",
+      )
+      .get(),
+  ).toEqual({ n: 0 });
   expect(
     s.sqlite
       .query("SELECT status FROM generation_jobs WHERE kind='generate'")
       .get(),
-  ).toEqual({ status: "evaluation_failed" });
-  expect(
-    (
-      await s.call(`/assets/${result?.asset.id}/feedback`, "POST", {
-        decision: "accepted",
-      })
-    ).status,
-  ).toBe(201);
+  ).toEqual({ status: "needs_review" });
 });
 
+test("combined garment and previous reference size is checked before a paid claim", async () => {
+  const s = await ready();
+  await s.approve();
+  const first = (await s.generate()).data;
+  await runGenerationStage(s.env, first.id, "generation");
+  s.sqlite.run("UPDATE assets SET size_bytes=? WHERE id=?", [
+    12 * 1024 * 1024,
+    first.id,
+  ]);
+  const next = (
+    await s.call<JobDto>(`/products/${s.product.id}/generate`, "POST", {
+      ...s.input,
+      idempotencyKey: crypto.randomUUID(),
+      regenerationOf: first.id,
+      regenerationReason: "material_rendering",
+    })
+  ).data;
+  let paid = 0;
+  const adapter = mockAdapter();
+  adapter.generate = async () => {
+    paid++;
+    throw new Error("Must not call");
+  };
+  await runGenerationStage(s.env, next.id, "generation", {
+    adapter: async () => adapter,
+  });
+  expect(paid).toBe(0);
+  expect(
+    s.sqlite
+      .query("SELECT count(*) n FROM generation_attempts WHERE job_id=?")
+      .get(next.id),
+  ).toEqual({ n: 0 });
+  expect(
+    s.sqlite
+      .query("SELECT error_code FROM generation_jobs WHERE id=?")
+      .get(next.id),
+  ).toEqual({ error_code: "SOURCE_TOO_LARGE" });
+});
 test("deletion during a generation response prevents late image resurrection", async () => {
   const s = await ready();
   await s.approve();

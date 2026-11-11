@@ -17,17 +17,16 @@ Hono API Worker [Cloudflare]
   └─ Cloudflare Workflow binding
        ├─ Product Analyzer (OpenRouter, multimodal)
        ├─ Shoot Planner (OpenRouter, structured JSON)
-       ├─ Image Generator (OpenRouter Images API)
-       └─ Quality Evaluator (OpenRouter, multimodal)
+       └─ Image Generator (OpenRouter Images API + versioned capture protocol)
            ↓
-      D1 job/attempt/eval & R2 results
+      D1 job/attempt/legacy eval & R2 results → human original/previous comparison
 ```
 
 ## 배포 (제안)
 
 - `apps/web`: Cloudflare Workers에 Astro 배포, SEO 랜딩 + CSR/Islands studio.
 - `apps/api`: 독립 Hono Worker, `/auth/*`, `/api/v1/*`, Workflow entrypoint.
-- 실제 도메인은 미정. 예: `studio.<domain>`, `api.<domain>` (예시일 뿐 현재 도메인 아님).
+- 현재 production은 `photo-studio.cloby.co` 한 환경이며 web Custom Domain과 동일 origin의 API routes를 사용한다.
 - 공개 API 도메인은 동일 사이트의 서브도메인으로 설정하거나 web Worker proxy로 same-origin화 가능.
 - CORS 허용 origin 명시, 쿠키 `credentials: include`, CSRF 방어 및 local dev 검증.
 
@@ -43,7 +42,7 @@ Hono API Worker [Cloudflare]
 ## Workflow 경계
 
 - `PlanProduct` 작업: 업로드 검증 완료 → **사용자가 분석 시작 및 OpenRouter 비용 안내 승인** → 상품 분석 → 기획 JSON → 저장 → 사용자 확인 대기.
-- `GenerateShot` 작업: 사용자 비용 승인 → OpenRouter Images API → R2 저장 → AI 품질 평가 → 사용자 채택 대기.
+- `GenerateShot` 작업: 사용자 비용 승인 → 촬영 지시 컴파일 → OpenRouter Images API 1장 → R2 저장 → 원본/이전 컷 수동 비교 대기. ADR-019로 AI 평가 호출·채택 피드백을 종료한다. 개선 항목/지시는 새로운 동의 기반 작업이며 이전 생성 컷을 연속성 참조로 전달한다.
 - 두 작업 사이에는 반드시 UI에서 명시적 확인이 있어야 한다.
 - 작업 상태: `queued | running | needs_review | completed | failed | outcome_unknown | cancelled`.
 - paid external call 시작 전 attempt row를 `started`로 쓰고, 성공 응답/결과 asset 저장 뒤 `succeeded` 확정.

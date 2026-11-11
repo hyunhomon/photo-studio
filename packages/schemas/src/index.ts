@@ -59,9 +59,12 @@ export const presetInputSchema = z
     modelStyle: z.string().trim().min(1).max(500),
     location: z.string().trim().min(1).max(500),
     lighting: z.string().trim().min(1).max(300),
-    shootType: z
-      .enum(["model_studio", "model_location"])
-      .default("model_studio"),
+    modelAppearance: z.string().trim().max(500).default(""),
+    backgroundSeparation: z
+      .enum(["gentle", "balanced", "separated"])
+      .default("balanced"),
+    materialDirection: z.string().trim().max(500).default(""),
+    shootType: z.enum(["model_studio", "model_location"]).optional(),
   })
   .strict();
 export type PresetInput = z.infer<typeof presetInputSchema>;
@@ -99,11 +102,27 @@ export const shootPlanSchema = z
   .object({
     season: shortText,
     mood: shortText,
-    shootType: z.enum(["model_studio", "model_location"]),
-    model: z.object({ style: shortText, pose: shortText }).strict(),
-    camera: z.object({ framing: shortText, angle: shortText }).strict(),
+    // Read legacy plans without making the retired mode a new control.
+    shootType: z.enum(["model_studio", "model_location"]).optional(),
+    model: z
+      .object({
+        style: shortText,
+        pose: shortText,
+        appearance: z.string().trim().max(500).default(""),
+      })
+      .strict(),
+    camera: z
+      .object({
+        framing: shortText,
+        angle: shortText,
+        backgroundSeparation: z
+          .enum(["gentle", "balanced", "separated"])
+          .default("balanced"),
+      })
+      .strict(),
     location: z.object({ type: shortText, time: shortText }).strict(),
     lighting: shortText,
+    materialDirection: z.string().trim().max(500).default(""),
     mustPreserve: z.array(shortText).min(1).max(20),
     aspectRatio: z.literal("3:4"),
   })
@@ -173,6 +192,9 @@ export const qualitySchema = z
   .strict();
 export type QualityEvaluation = z.infer<typeof qualitySchema>;
 export const rejectionReasonSchema = z.enum([
+  "lighting_focus",
+  "human_naturalness",
+  "material_rendering",
   "color_change",
   "logo_distortion",
   "pattern_change",
@@ -191,6 +213,7 @@ export const generateRequestSchema = z
     count: z.literal(1),
     regenerationOf: z.uuid().nullable().default(null),
     regenerationReason: rejectionReasonSchema.nullable().default(null),
+    adjustments: z.string().trim().max(1000).default(""),
   })
   .strict()
   .refine((v) => Boolean(v.regenerationOf) === Boolean(v.regenerationReason), {
@@ -209,10 +232,10 @@ export const feedbackSchema = z
 export type FeedbackInput = z.infer<typeof feedbackSchema>;
 export interface ResultDto {
   asset: AssetDto;
-  quality: QualityEvaluation | null;
-  feedback: (FeedbackInput & { createdAt: number }) | null;
   regenerationOf: string | null;
   regenerationReason: string | null;
+  adjustments: string;
+  captureVersion: string | null;
   mock: boolean;
 }
 export interface UsageDto {
@@ -221,21 +244,10 @@ export interface UsageDto {
   knownCostCount: number;
   unknownCostCount: number;
   reportedCostUsd: number;
-  acceptedCostUsd: number | null;
   averageLatencyMs: number | null;
   generated: number;
-  evaluated: number;
-  accepted: number;
-  rejected: number;
-  reviewedAcceptanceRate: number | null;
-  evaluatedAcceptanceRate: number | null;
   unknownOutcomes: number;
   regenerations: number;
-  quality: {
-    fidelity: number | null;
-    realism: number | null;
-    composition: number | null;
-  };
   history: JobDto[];
   stages: {
     stage: string;

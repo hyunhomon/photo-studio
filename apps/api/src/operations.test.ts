@@ -38,10 +38,32 @@ test("owner-only usage distinguishes unknown costs; safe export excludes credent
     usage.knownCostCount,
     usage.unknownCostCount,
     usage.reportedCostUsd,
-  ]).toEqual([4, 1, 3, 0.01]);
-  expect(usage.reviewedAcceptanceRate).toBe(1);
-  expect(usage.evaluatedAcceptanceRate).toBe(1);
-  expect(usage.acceptedCostUsd).toBe(0.01);
+  ]).toEqual([3, 1, 2, 0.01]);
+  expect(usage).not.toHaveProperty("quality");
+  expect(usage).not.toHaveProperty("reviewedAcceptanceRate");
+  // Simulate data written before ADR-019: retirement must not erase history or its cost.
+  s.sqlite.run(
+    "INSERT INTO quality_evaluations(asset_id,user_id,spec_json,created_at) SELECT id,user_id,?,0 FROM assets WHERE id=?",
+    [JSON.stringify({ realismScore: 0.9, legacy: true }), job.id],
+  );
+  s.sqlite.run(
+    "INSERT INTO feedback(id,asset_id,user_id,decision,reason,note,created_at) SELECT ?,id,user_id,'rejected','logo_distortion','Synthetic historical note',0 FROM assets WHERE id=?",
+    [crypto.randomUUID(), job.id],
+  );
+  s.sqlite.run(
+    "INSERT INTO generation_attempts(id,user_id,job_id,stage,model,status,request_hash,prompt_version,actual_cost_usd,created_at) SELECT ?,user_id,job_id,'evaluation','synthetic/legacy','succeeded',request_hash,'studio-v2',0.005,0 FROM generation_attempts WHERE job_id=? AND stage='generation'",
+    [crypto.randomUUID(), job.id],
+  );
+  expect((await s.call<UsageDto>("/usage")).data.reportedCostUsd).toBeCloseTo(
+    0.015,
+  );
+  expect(
+    (
+      await s.call(`/assets/${job.id}/feedback`, "POST", {
+        decision: "accepted",
+      })
+    ).status,
+  ).toBe(410);
   const b = await s.login();
   expect(
     (await s.call<UsageDto>("/usage", "GET", undefined, b)).data.calls,
@@ -53,6 +75,14 @@ test("owner-only usage distinguishes unknown costs; safe export excludes credent
   );
   expect(exported.status).toBe(200);
   const text = await exported.text();
+  const history = JSON.parse(text);
+  expect(history.evaluations).toHaveLength(1);
+  expect(history.feedback[0].note).toBe("Synthetic historical note");
+  expect(history.feedback[0].decision).toBe("rejected");
+  expect(
+    history.attempts.find((a: { stage: string }) => a.stage === "evaluation")
+      .actualCostUsd,
+  ).toBe(0.005);
   for (const value of [
     "keyEnvelope",
     "key_envelope",

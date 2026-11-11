@@ -39,19 +39,10 @@ export function operationsRoutes() {
         uncertain: number | null;
       }>();
     const image = await c.env.DB.prepare(
-      "SELECT count(*) generated, count(q.asset_id) evaluated, sum(CASE WHEN f.decision='accepted' THEN 1 ELSE 0 END) accepted,sum(CASE WHEN f.decision='rejected' THEN 1 ELSE 0 END) rejected,sum(CASE WHEN f.decision='accepted' AND q.asset_id IS NOT NULL THEN 1 ELSE 0 END) evaluated_accepted,avg(json_extract(q.spec_json,'$.garmentFidelityScore')) fidelity,avg(json_extract(q.spec_json,'$.realismScore')) realism,avg(json_extract(q.spec_json,'$.compositionScore')) composition FROM assets a LEFT JOIN quality_evaluations q ON q.asset_id=a.id AND q.user_id=a.user_id LEFT JOIN feedback f ON f.id=(SELECT ff.id FROM feedback ff WHERE ff.asset_id=a.id AND ff.user_id=a.user_id ORDER BY ff.created_at DESC,ff.id DESC LIMIT 1) WHERE a.user_id=? AND a.kind='generated'",
+      "SELECT count(*) generated FROM assets WHERE user_id=? AND kind='generated'",
     )
       .bind(userId)
-      .first<{
-        generated: number;
-        evaluated: number;
-        accepted: number | null;
-        rejected: number | null;
-        evaluated_accepted: number | null;
-        fidelity: number | null;
-        realism: number | null;
-        composition: number | null;
-      }>();
+      .first<{ generated: number }>();
     const regenerated = await c.env.DB.prepare(
       "SELECT count(*) n FROM generation_jobs WHERE user_id=? AND kind='generate' AND json_extract(request_json,'$.regenerationOf') IS NOT NULL",
     )
@@ -69,35 +60,16 @@ export function operationsRoutes() {
       .orderBy(desc(jobs.createdAt))
       .limit(50)
       .all();
-    const accepted = image?.accepted ?? 0,
-      rejected = image?.rejected ?? 0;
     const data: UsageDto = {
       mock: c.get("identity").isTest,
       calls: calls?.calls ?? 0,
       knownCostCount: calls?.known ?? 0,
       unknownCostCount: (calls?.calls ?? 0) - (calls?.known ?? 0),
       reportedCostUsd: calls?.cost ?? 0,
-      acceptedCostUsd:
-        accepted > 0 && (calls?.known ?? 0) > 0
-          ? (calls?.cost ?? 0) / accepted
-          : null,
       averageLatencyMs: calls?.latency ?? null,
       generated: image?.generated ?? 0,
-      evaluated: image?.evaluated ?? 0,
-      accepted,
-      rejected,
-      reviewedAcceptanceRate:
-        accepted + rejected ? accepted / (accepted + rejected) : null,
-      evaluatedAcceptanceRate: image?.evaluated
-        ? (image.evaluated_accepted ?? 0) / image.evaluated
-        : null,
       unknownOutcomes: calls?.uncertain ?? 0,
       regenerations: regenerated?.n ?? 0,
-      quality: {
-        fidelity: image?.fidelity ?? null,
-        realism: image?.realism ?? null,
-        composition: image?.composition ?? null,
-      },
       history: await jobDtos(c.env, list),
       stages: stage.results,
     };

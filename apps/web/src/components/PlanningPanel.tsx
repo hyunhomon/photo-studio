@@ -52,6 +52,8 @@ const failureLabels: Record<string, string> = {
     "AI 응답이 끝나기 전에 잘렸습니다. 기록된 비용을 확인해 주세요. 자동 재호출하지 않습니다.",
   PROVIDER_OUTPUT_BLOCKED:
     "AI 제공자가 응답을 제한했습니다. 상품 설명과 사진을 확인해 주세요. 자동 재호출하지 않습니다.",
+  SOURCE_TOO_LARGE:
+    "원본과 이전 컷을 합친 참조가 12MB를 넘습니다. 참조 크기를 줄여 새 상품에서 시작해 주세요. AI는 호출하지 않았습니다.",
   DISPATCH_PENDING:
     "실행 요청 전달을 확인하지 못했습니다. 안전하게 연결을 다시 확인할 수 있습니다.",
   PROVIDER_RATE_LIMITED: "OpenRouter 요청 한도에 도달했습니다.",
@@ -260,20 +262,6 @@ export function PlanEditor({
         원본의 보존 포인트를 확인하고 무드·모델·장소를 조정해 주세요.
       </p>
       <div className="grid gap-4 sm:grid-cols-2">
-        <div>
-          <p className="mb-2 text-xs text-muted">촬영 방식</p>
-          <Select
-            label="촬영 방식"
-            value={v.shootType}
-            onChange={(s) =>
-              set({ ...v, shootType: s as ShootPlan["shootType"] })
-            }
-            options={[
-              { value: "model_studio", label: "모델 스튜디오컷" },
-              { value: "model_location", label: "가상 로케이션컷" },
-            ]}
-          />
-        </div>
         <Field
           label="시즌"
           value={v.season}
@@ -318,6 +306,48 @@ export function PlanEditor({
           label="조명"
           value={v.lighting}
           onChange={(s) => set({ ...v, lighting: s })}
+        />
+      </div>
+      <div className="mt-5 grid gap-4">
+        <div>
+          <p className="mb-2 text-xs text-muted">배경 분리</p>
+          <Select
+            label="배경 분리"
+            value={v.camera.backgroundSeparation}
+            onChange={(value) =>
+              set({
+                ...v,
+                camera: {
+                  ...v.camera,
+                  backgroundSeparation:
+                    value as ShootPlan["camera"]["backgroundSeparation"],
+                },
+              })
+            }
+            options={[
+              { value: "gentle", label: "은은하게 · 주변도 자연스럽게" },
+              { value: "balanced", label: "자연스럽게 · 상품 중심" },
+              { value: "separated", label: "분리감 있게 · 멀리 있는 배경" },
+            ]}
+          />
+        </div>
+        <Field
+          label="인물 인상 (성인 · 선택)"
+          value={v.model.appearance}
+          onChange={(appearance) =>
+            set({ ...v, model: { ...v.model, appearance } })
+          }
+          multiline
+        />
+        <p className="text-[11px] leading-6 text-muted">
+          나이대, 머리 모양, 표정과 개성을 적어 주세요. 묘사는 가상 성인 인물의
+          방향을 정하며, 특정 인물의 동일성을 보장하지 않습니다.
+        </p>
+        <Field
+          label="소재 표현 지시 (선택)"
+          value={v.materialDirection}
+          onChange={(materialDirection) => set({ ...v, materialDirection })}
+          multiline
         />
       </div>
       <div className="mt-4">

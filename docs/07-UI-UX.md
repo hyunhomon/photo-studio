@@ -26,14 +26,16 @@ ADR-018: 좌측 264px 공통 사이드바에 최근 작업을 표시하며 64px 
 
 - 왼쪽: 업로드한 제품 이미지, 보존 포인트, 모델·무드·로케이션 설정.
 - 중앙: 생성 이미지 큰 프리뷰, 원본과 나란히 비교.
-- 오른쪽/하단: 작업 상태, AI 검수 사유, 사용자 채택/폐기 및 원가 정보.
+- 오른쪽/하단: 작업 상태, 빛·초점/인물/소재 수동 비교 안내와 컷 개선 및 원가 정보. AI 점수·채택/폐기 피드백은 제거한다(ADR-019).
+- 기획: 모드 선택 없이 장소/시간/조명/구도, 가상의 성인 외모 묘사, 배경 분리, 소재 표현을 편집한다. 외모 묘사는 동일인 보장 기능으로 표시하지 않는다.
+- 비교: 원본 의류와 비교를 기본으로, 개선 결과에서 이전 컷 비교로 전환한다. ‘이 컷 개선’은 항목/구체 지시 입력 후 이미지 1장 비용 동의를 받는다.
 - 3-step 진행 표시: `상품 분석` → `촬영 기획` → `이미지 생성·검수`.
 - 분석 시작 버튼과 생성 버튼 옆에 각각 *고객 OpenRouter 크레딧 사용* 문구와 가능할 경우 예상 비용 범위.
 - 초기에 사진 1장만으로도 플로우 시작, 디테일 사진 추가는 선택.
 
 ## UI 컴포넌트
 
-`Button`, `IconButton`, `Input`, `Field`, `Select`, `Modal`, `Toast`, `Progress`, `ImageUploadDropzone`, `PhotoPreview`, `ReferenceComparison`, `ShotSettingsPanel`, `JobStatus`, `QualityFlags`, `FeedbackControls`, `ApiCostNotice`.
+`Button`, `IconButton`, `Input`, `Field`, `Select`, `Modal`, `Toast`, `Progress`, `ImageUploadDropzone`, `PhotoPreview`, `ReferenceComparison`, `ShotSettingsPanel`, `JobStatus`, `ApiCostNotice`. QualityFlags/FeedbackControls는 종료한다.
 
 ## 상태별 사용성
 
@@ -44,7 +46,7 @@ ADR-018: 좌측 264px 공통 사이드바에 최근 작업을 표시하며 64px 
 - 잔액 부족: OpenRouter 충전 안내, 비밀키 입력 요구 금지.
 - 계획 분석 중: 단계/진행률(정확히 알 수 없으면 가짜 % 금지).
 - API 비용 청구 후 결과 알 수 없음: '처리 결과 확인 필요'로 표시, 자동 재실행 금지.
-- 상품 변형 발견: 원본 비교 + 플래그 + '수정해서 재생성' 액션(클릭 시 별도 비용 안내).
+- 상품 변형 발견: 원본/이전 컷 비교 + '이 컷 개선' 액션(클릭 시 별도 비용 안내). 오류를 AI가 자동 검출했다고 표시하지 않는다.
 - 업로드 오류: 파일 타입·용량 등 해결 가능한 메시지.
 
 ## 접근성 / 반응형

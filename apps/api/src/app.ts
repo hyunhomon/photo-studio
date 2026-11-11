@@ -104,9 +104,6 @@ export function createApp(deps: AuthDeps & ResourceDeps = {}) {
           image: identity.isTest
             ? "Mock 원본 복사"
             : c.env.OPENROUTER_IMAGE_MODEL,
-          evaluation: identity.isTest
-            ? "Mock 합성 평가"
-            : c.env.OPENROUTER_EVALUATION_MODEL,
         },
       },
     });

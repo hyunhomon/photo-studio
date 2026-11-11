@@ -33,7 +33,7 @@ export class StudioWorkflow extends WorkflowEntrypoint<
     if (!id) throw new Error("Missing operation");
     try {
       if (event.payload.kind === "generate")
-        for (const stage of ["generation", "evaluation"] as const) {
+        for (const stage of ["generation"] as const) {
           await step.do(
             stage,
             { retries: { limit: 0, delay: "1 second" }, timeout: "4 minutes" },
