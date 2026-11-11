@@ -154,13 +154,13 @@ test("Mock: direct multi-photo upload, reference planning, compare, revise, expo
   });
   await page.goto("/");
   await page.emulateMedia({ colorScheme: "light" });
-  await expect(page.locator("html")).toHaveCSS("color-scheme", "dark");
+  await expect(page.locator("html")).toHaveCSS("color-scheme", "light");
   await expect(page.locator("html")).toHaveCSS(
     "background-color",
-    "rgb(11, 12, 14)",
+    "rgb(245, 243, 237)",
   );
   await expect(page.getByRole("heading", { level: 1 })).toContainText(
-    "한 벌의 사진으로",
+    "상품 사진에서",
   );
   await page
     .getByRole("link", { name: "사진으로 촬영 시작하기", exact: true })
@@ -179,6 +179,11 @@ test("Mock: direct multi-photo upload, reference planning, compare, revise, expo
   ).toBeVisible({ timeout: 30000 });
   // This scenario must never consume funded OpenRouter credits, even remotely.
   expect((await data<{ mode: string }>(page, "/me")).mode).toBe("mock");
+  await expect(page.locator("html")).toHaveCSS("color-scheme", "dark");
+  await expect(page.locator("html")).toHaveCSS(
+    "background-color",
+    "rgb(11, 12, 14)",
+  );
   await expect(page.getByLabel("프로젝트 이름")).toHaveCount(0);
   const form = page.getByRole("form", { name: "상품 등록 폼" });
   const upload = form.getByLabel("상품 사진", { exact: true });

@@ -286,3 +286,12 @@ production desktop/mobile 전체 Mock E2E **4/4 통과**: 저장된 분석 재�
 - [x] 최종 format/lint/typecheck/test/build 통과(진단/린트 경고 0, 단위 66/66), local desktop/mobile Mock 6/6. 1440x1000·1024x768·1440x640에서 외부 문서 높이/스크롤 0·고정 탭·내부 스크롤·사진 위치 유지, SVG/간격/수평 행동·설명 제거·단일 계정 행동 검증. 합성 캡처 케이스 6개, provider 호출 0.
 - [x] 1fd2d12 commit/push, API/Workflow→웹 production 배포 및 인프라 read probe 완료. 공개 HTTPS/CORS/OAuth/폰트/반응형 smoke 및 운영 desktop/mobile Mock 6/6(wrapper exit0) 통과. 운영 캡처/합성 계정·사진 정리 확인, 실제 사용자/연결/세션 보존. DB/실사용 자료 초기화·secret 변경·유료 AI 호출 없음.
 - [ ] 동일 실제 입력의 사용자 실행으로 v5 질감/그림자 비교. Mock 성공을 실제 품질 합격으로 표시하지 않는다.
+
+
+### 연구 기반 랜딩 재설계 — 2026-11-12 (ADR-029)
+
+- [x] 공식 현대 SaaS 12개 조사·실제 화면 확인과 기능 inventory, 선택/제외 근거 문서화.
+- [x] 랜딩 한정 아이보리/잉크·올리브 톤, 큰 제품 데모와 다채로운 기능 서사, 기존 커스텀 SVG/기울어진 카드 제거.
+- [x] 공개 사진 3장 출처/용량/예시 표시, 실제 AI 호출 없는 탭/선택/입력/장면 전환/확대, FAQ/실제 CTA/앵커.
+- [x] format/lint/typecheck/test/build 통과(진단/린트 경고0, 단위66/66), local desktop/mobile 8/8. 데모/FAQ/이미지/앵커/AI 호출 없음·360~1440px overflow·라이트 랜딩→다크 스튜디오 전환과 기존 전체 Mock 흐름 통과. 기능/카피 read-only 리뷰와 실제 화면 캡처 점검.
+- [ ] 웹 전용 production 배포·공개 smoke·운영 브라우저 검증.

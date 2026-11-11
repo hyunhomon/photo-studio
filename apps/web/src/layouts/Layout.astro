@@ -4,21 +4,29 @@ import { ClientRouter } from "astro:transitions";
 interface Props {
   title: string;
   description?: string;
+  appearance?: "studio" | "marketing";
 }
 const {
   title,
+  appearance = "studio",
   description = "의류 사진에서 시작하는 새로운 촬영 워크플로. 상품 분석, 촬영 기획, AI 화보와 품질 검수.",
 } = Astro.props;
 ---
 
 <!doctype html>
-<html lang="ko">
+<html lang="ko" class:list={{ "marketing-theme": appearance === "marketing" }}>
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content={description} />
-    <meta name="theme-color" content="#0b0c0e" />
-    <meta name="color-scheme" content="dark" />
+    <meta
+      name="theme-color"
+      content={appearance === "marketing" ? "#f5f3ed" : "#0b0c0e"}
+    />
+    <meta
+      name="color-scheme"
+      content={appearance === "marketing" ? "light" : "dark"}
+    />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <title>{title} — Photo Studio</title>
     {Astro.url.pathname.startsWith("/studio") && (

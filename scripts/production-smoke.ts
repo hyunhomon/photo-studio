@@ -49,7 +49,7 @@ try {
     page.on("pageerror", () => errors.push("browser error"));
     await page.goto(origin);
     await expect(page.getByRole("heading", { level: 1 })).toContainText(
-      "한 벌의 사진으로",
+      "상품 사진에서",
     );
     await page.screenshot({
       path: `${output}/landing-${viewport.width}.png`,

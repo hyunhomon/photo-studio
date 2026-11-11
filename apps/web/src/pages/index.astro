@@ -1,193 +1,379 @@
 ---
 import Layout from "../layouts/Layout.astro";
-import GarmentStudy from "../components/GarmentStudy.astro";
+import LandingDemo from "../components/LandingDemo";
 import { BrandLockup } from "@photo-studio/ui";
+import {
+  ArrowUpRight,
+  ArrowRight,
+  Check,
+  Plus,
+  Layers,
+  Download,
+  History,
+  Scan,
+  LockKeyhole,
+  SlidersHorizontal,
+} from "lucide-react";
+import "../styles/landing.css";
 const steps = [
   {
     number: "01",
-    title: "상품 사진을 올리세요",
-    body: "정면부터 디테일까지. 한 상품의 사진을 함께 보고 시작해요.",
+    title: "사진을 준비하고",
+    body: "상품의 정면·후면·디테일을 함께. 원하는 구도와 인물 사진도 따로 더할 수 있어요.",
   },
   {
     number: "02",
-    title: "원하는 장면을 정하세요",
-    body: "레퍼런스와 함께 기획하고, 빛·인물·소재를 직접 조정해요.",
+    title: "촬영을 설계하고",
+    body: "AI가 제안한 상품 이해와 촬영 콘셉트를 확인하고, 프레임·빛·소재를 직접 조정하세요.",
   },
   {
     number: "03",
-    title: "한 컷씩 만들고 비교하세요",
-    body: "원본과 비교하고, 필요한 부분만 다시 다듬어요.",
+    title: "비교하며 다듬어요",
+    body: "한 컷을 만들고 원본과 나란히. 원하는 부분을 지정해 다음 컷으로 이어갑니다.",
+  },
+];
+const tools = [
+  {
+    icon: Layers,
+    title: "브랜드 프리셋",
+    body: "무드, 모델 스타일, 장소와 조명을 저장하고 다음 상품에도 이어가세요.",
+  },
+  {
+    icon: History,
+    title: "사용 기록",
+    body: "어떤 작업을 실행했는지, 제공된 실제 비용과 소요 시간을 확인하세요.",
+  },
+  {
+    icon: Download,
+    title: "다운로드와 내보내기",
+    body: "완성한 컷은 PNG로, 상품과 작업 기록은 데이터 파일로 보관하세요.",
+  },
+];
+const faqs = [
+  {
+    question: "시작하려면 무엇이 필요한가요?",
+    answer:
+      "OpenRouter 계정과 촬영할 상품 사진을 준비해 주세요. 초대 코드나 별도의 프로젝트 생성 없이 연결한 뒤 상품을 바로 등록할 수 있어요.",
+  },
+  {
+    question: "이미지 생성 비용은 어떻게 결제하나요?",
+    answer:
+      "분석·기획과 이미지 생성 비용은 본인의 OpenRouter 크레딧에서 청구돼요. Photo Studio의 자체 구독이나 크레딧 판매는 없어요. 제공자가 비용을 반환하지 않은 호출은 사용 기록에 ‘미확인’으로 남겨요.",
+  },
+  {
+    question: "레퍼런스 사진은 어떻게 사용되나요?",
+    answer:
+      "상품 사진은 의류의 기준, 촬영 레퍼런스는 구도·포즈·빛의 방향, 인물 참조는 성인 모델의 인상을 전달하는 데 사용해요. 사용 권한이 있는 사진만 등록해 주세요. 얼굴·상품 구조·구도의 완전한 일치를 보장하는 기능은 아니에요.",
+  },
+  {
+    question: "사진을 올리면 바로 생성되나요?",
+    answer:
+      "아니요. 업로드만으로 AI를 호출하지 않아요. 분석과 생성은 직접 실행하며, 기획을 수정한 내용은 이미지를 생성할 때 함께 저장돼요.",
+  },
+  {
+    question: "사진과 작업 기록은 어디에 남나요?",
+    answer:
+      "사진은 비공개로 저장하고 계정별로 접근을 제한해요. 작업을 나중에 다시 열거나 데이터를 내보낼 수 있고, 상품 또는 계정 삭제로 정리할 수 있어요. 자세한 범위는 사진과 데이터 보관 안내에서 확인해 주세요.",
   },
 ];
 ---
 
 <Layout
-  title="상품 사진으로, 다음 컷을 시작하세요"
-  description="상품 사진을 올리고 원하는 촬영을 기획하세요. 원본과 생성 결과를 한 작업대에서 비교하며 만드는 AI 패션 스튜디오."
+  appearance="marketing"
+  title="상품 사진에서, 다음 촬영까지"
+  description="상품과 레퍼런스를 올리고, 구도와 빛을 정하세요. 촬영 기획부터 이미지 생성, 원본 비교와 지시형 개선까지 이어지는 Photo Studio."
 >
-  <div class="landing-stage">
-    <div class="landing-board">
-      <header class="flex min-h-24 items-center justify-between gap-3 px-5 sm:px-10 lg:px-12">
-        <a href="/" aria-label="Photo Studio 홈" class="py-3">
-          <BrandLockup />
-        </a>
-        <nav class="flex items-center gap-2" aria-label="주요 메뉴">
-          <a
-            href="#process-heading"
-            class="hidden rounded-xl px-4 py-3 text-xs text-muted hover:bg-elevated hover:text-ink sm:block"
-          >
-            이용 방법
-          </a>
-          <a
-            href="/studio"
-            class="inline-flex min-h-11 shrink-0 items-center gap-3 rounded-xl bg-elevated px-3 text-xs font-semibold whitespace-nowrap sm:px-4 hover:bg-control"
-          >
-            스튜디오 열기 <span aria-hidden="true">↗</span>
-          </a>
-        </nav>
-      </header>
-      <main id="main">
-        <section class="landing-hero" aria-labelledby="hero-heading">
-          <div class="landing-orbit-card orbit-garment" aria-hidden="true">
-            <div class="h-full overflow-hidden rounded-xl bg-[#e4e0d6]">
-              <GarmentStudy />
-            </div>
-            <p>한 벌에서 시작해요.</p>
-          </div>
-          <div class="landing-orbit-card orbit-scene" aria-hidden="true">
-            <svg
-              viewBox="0 0 200 240"
-              class="h-full w-full rounded-xl bg-studio"
-              fill="none"
-            >
-              <path
-                d="M30 0v225M150 0v225M0 200h200M30 200l100 40"
-                stroke="var(--color-control)"
-              />
-              <path d="M31 20h56v145H31z" fill="var(--color-accent-soft)" />
-              <ellipse
-                cx="112"
-                cy="211"
-                rx="34"
-                ry="6"
-                fill="var(--color-paper)"
-              />
-              <path
-                d="m92 137-5 68 15 1 11-52 6 52 14-1-6-68"
-                fill="var(--color-control)"
-              />
-              <path d="M99 60v15l12 9 12-9V60" fill="#b4ad9e" />
-              <ellipse cx="111" cy="49" rx="15" ry="20" fill="#cbc2b0" />
-              <path
-                d="M95 48q-3-26 17-23 18 2 15 25l-8-13-20 5"
-                fill="var(--color-paper)"
-              />
-              <path
-                d="m99 74-21 8-12 59 11 3 12-40-3 40q24 8 46-1l-3-40 13 38 12-4-19-55-13-8-11 10Z"
-                fill="#dbd5c5"
-              />
-              <path
-                d="m99 74 12 10-8 9-9-16m28-3-11 10 8 9 9-15m-17 6v61"
-                stroke="#9f998d"
-              />
-              <path
-                d="M14 26V14h12m148 0h12v12M14 170v12h12m148 0h12v-12"
-                stroke="var(--color-primary)"
-              />
-            </svg>
-            <p>원하는 장면으로.</p>
-          </div>
-          <div class="landing-orbit-card orbit-light" aria-hidden="true">
-            <div class="light-study">
-              <span></span>
-            </div>
-            <p>빛과 소재까지.</p>
-          </div>
-          <div class="landing-hero-copy">
-            <h1
-              id="hero-heading"
-              class="text-[clamp(2.5rem,5vw,4.75rem)] leading-[1.2] font-semibold tracking-[-0.065em]"
-            >
-              한 벌의 사진으로,
+  <div class="marketing-page">
+    <header class="marketing-nav marketing-width">
+      <a href="/" aria-label="Photo Studio 홈">
+        <BrandLockup />
+      </a>
+      <nav aria-label="주요 메뉴" class="marketing-links">
+        <a href="#workflow">작업 방식</a>
+        <a href="#features">주요 기능</a>
+        <a href="#questions">궁금한 점</a>
+      </nav>
+      <a href="/studio" class="marketing-nav-cta">
+        스튜디오 열기 <ArrowUpRight size={16} aria-hidden="true" />
+      </a>
+    </header>
+    <main id="main">
+      <section
+        class="marketing-hero marketing-width"
+        aria-labelledby="hero-heading"
+      >
+        <div class="marketing-hero-copy">
+          <h1 id="hero-heading">
+            상품 사진에서,
+            <br />
+            <span>다음 촬영까지.</span>
+          </h1>
+          <div class="marketing-hero-intro">
+            <p>
+              원본은 기준으로. 레퍼런스는 방향으로.
               <br />
-              다음 <span class="text-primary">컷의 시작.</span>
-            </h1>
-            <p class="mx-auto mt-7 max-w-sm text-sm leading-7 text-muted sm:text-base sm:leading-8">
-              상품 사진을 올리고, 원하는 장면을 정하세요.
-              <br />
-              기획부터 원본 비교까지 하나의 작업대에서.
+              촬영을 기획하고, 한 컷씩 만들고 다듬는
+              <br class="desktop-break" /> AI 패션 스튜디오.
             </p>
-            <a
-              href="/studio"
-              class="pill-link mt-8 min-h-14 gap-6 px-6 text-sm"
-            >
-              사진으로 촬영 시작하기{" "}
-              <span
-                class="grid size-6 place-items-center rounded-full bg-paper text-primary"
-                aria-hidden="true"
-              >
-                ↗
-              </span>
-            </a>
-            <p class="mt-4 text-[11px] leading-6 text-muted">
-              OpenRouter 계정으로 연결해요.
-              <br />
-              사진 등록만으로 AI 비용이 발생하지 않아요.
-            </p>
+            <div class="marketing-hero-actions">
+              <a class="marketing-button" href="/studio">
+                사진으로 촬영 시작하기{" "}
+                <ArrowUpRight size={18} aria-hidden="true" />
+              </a>
+              <a class="marketing-text-link" href="#workflow">
+                작업 방식 살펴보기 <ArrowRight size={15} aria-hidden="true" />
+              </a>
+            </div>
           </div>
-          <p class="landing-illustration-note">
-            카드는 촬영 과정을 표현한 일러스트예요.
+        </div>
+        <div class="marketing-demo-frame">
+          <LandingDemo client:load />
+        </div>
+        <div class="marketing-demo-caption">
+          <span>사진 준비부터 비교까지, 직접 눌러보세요.</span>
+          <span>
+            별도 제작한 데모 이미지이며 실제 서비스 생성 결과가 아닙니다.
+          </span>
+        </div>
+      </section>
+      <section
+        class="marketing-width marketing-workflow"
+        id="workflow"
+        aria-labelledby="workflow-heading"
+      >
+        <div class="marketing-section-intro">
+          <h2 id="workflow-heading">
+            사진 준비부터,
+            <br />한 컷을 다듬기까지.
+          </h2>
+          <p>
+            상품 사진을 올리고 촬영 기획을 시작하세요.
+            <br />
+            만들던 상품은 사이드바에서 바로 이어갑니다.
           </p>
-        </section>
-        <section
-          aria-labelledby="process-heading"
-          class="border-t border-line px-5 py-14 sm:px-10 sm:py-20 lg:px-12"
-        >
-          <div>
-            <h2
-              id="process-heading"
-              class="text-2xl leading-relaxed font-semibold tracking-tight sm:text-3xl"
-            >
-              촬영에 필요한 것만, 차례대로.
+        </div>
+        <ol class="marketing-steps">
+          {steps.map((step) => (
+            <li>
+              <span>{step.number}</span>
+              <h3>{step.title}</h3>
+              <p>{step.body}</p>
+            </li>
+          ))}
+        </ol>
+      </section>
+      <section
+        class="marketing-direction-section"
+        id="features"
+        aria-labelledby="direction-heading"
+      >
+        <div class="marketing-width marketing-direction-grid">
+          <div class="marketing-photo-story">
+            <img
+              src="/landing/demo-detail.webp"
+              alt="소재와 프레이밍을 보여주는 데모용 패션 사진"
+              width="512"
+              height="1024"
+              loading="lazy"
+            />
+            <div class="marketing-photo-caption">
+              <span>프레임. 빛. 소재.</span>
+              <span>장면을 만드는 세부 사항.</span>
+            </div>
+          </div>
+          <div class="marketing-direction-copy">
+            <h2 id="direction-heading">
+              정해진 장면보다,
+              <br />
+              내가 고르는 방향.
             </h2>
-            <ol class="mt-10 grid gap-9 sm:grid-cols-3 sm:gap-8">
-              {steps.map((step) => (
-                <li class="border-t border-line pt-5">
-                  <span class="text-xs font-semibold text-primary">
-                    {step.number}
-                  </span>
-                  <h3 class="mt-5 text-base font-semibold sm:text-lg">
-                    {step.title}
-                  </h3>
-                  <p class="mt-3 max-w-sm text-sm leading-7 text-muted">
-                    {step.body}
-                  </p>
-                </li>
-              ))}
-            </ol>
+            <p>
+              무드만 적고 기다리지 않아도 돼요.
+              <br />
+              촬영 콘셉트의 중요한 선택들을 직접 바꾸세요.
+            </p>
+            <div class="marketing-feature-lines">
+              <div>
+                <Scan size={20} strokeWidth={1.5} aria-hidden="true" />
+                <div>
+                  <h3>프레임과 시점</h3>
+                  <p>전신, 바스트, 디테일. 로우 앵글부터 버드아이까지.</p>
+                </div>
+              </div>
+              <div>
+                <SlidersHorizontal
+                  size={20}
+                  strokeWidth={1.5}
+                  aria-hidden="true"
+                />
+                <div>
+                  <h3>빛과 소재</h3>
+                  <p>시간대와 조명, 배경 분리, 원단 표현을 구체적으로.</p>
+                </div>
+              </div>
+              <div>
+                <Layers size={20} strokeWidth={1.5} aria-hidden="true" />
+                <div>
+                  <h3>역할이 다른 레퍼런스</h3>
+                  <p>의류의 디테일, 원하는 구도, 인물의 인상을 나눠서.</p>
+                </div>
+              </div>
+            </div>
+            <a href="/studio" class="marketing-text-link">
+              내 상품으로 설계하기 <ArrowUpRight size={17} aria-hidden="true" />
+            </a>
           </div>
-        </section>
-        <aside
-          aria-label="AI 비용 안내"
-          class="mx-5 flex flex-col gap-4 border-t border-line py-9 text-sm sm:mx-10 sm:flex-row sm:items-start sm:justify-between sm:gap-12 lg:mx-12"
-        >
-          <p class="shrink-0 font-semibold">내 계정으로, 필요한 한 컷만.</p>
-          <p class="max-w-2xl text-xs leading-7 text-muted">
-            비용은 본인의 OpenRouter 크레딧에서 청구돼요. 분석·기획과 이미지
-            생성은 각각 실행할 때 비용이 발생하며, 서비스 자체 결제나 구독은
-            없어요.
+        </div>
+      </section>
+      <section
+        class="marketing-width marketing-refine"
+        aria-labelledby="refine-heading"
+      >
+        <div class="marketing-refine-copy">
+          <h2 id="refine-heading">
+            원본을 곁에 두고,
+            <br />
+            <span>다음 컷을 더 섬세하게.</span>
+          </h2>
+          <p>
+            원본과 이전 컷을 곁에 두고 확대해서 보세요.
+            <br />
+            빛·인물·소재 중 바꿀 부분과 구체적인 지시로
+            <br class="desktop-break" /> 다음 한 컷을 다듬습니다.
           </p>
-        </aside>
-      </main>
-      <footer class="mx-5 flex flex-wrap items-center justify-between gap-4 border-t border-line py-7 text-xs text-muted sm:mx-10 lg:mx-12">
-        <span>PHOTO STUDIO © 2026</span>
-        <a
-          href="/privacy"
-          class="min-h-11 py-3 underline-offset-4 hover:text-ink hover:underline"
-        >
-          사진과 데이터 보관 안내
+          <ul>
+            <li>
+              <Check size={16} aria-hidden="true" /> 원본·이전 컷 전환
+            </li>
+            <li>
+              <Check size={16} aria-hidden="true" /> 크게 보기와 원본 크기 확대
+            </li>
+            <li>
+              <Check size={16} aria-hidden="true" /> 항목을 지정하는 컷 개선
+            </li>
+          </ul>
+        </div>
+        <div class="marketing-refine-visual">
+          <img
+            src="/landing/demo-shoot.webp"
+            alt="비교·개선 흐름을 설명하는 데모용 촬영 사진"
+            width="512"
+            height="1024"
+            loading="lazy"
+          />
+          <div class="marketing-revision-card">
+            <div>
+              <span class="revision-dot"></span>
+              <strong>이번에는, 소재를 다듬기</strong>
+            </div>
+            <p>
+              원단의 결은 살리고,
+              <br />
+              옷이 닿는 부분의 그림자를 자연스럽게.
+            </p>
+            <span class="marketing-revision-foot">
+              구체적인 지시로 다음 컷의 방향을 정해요.
+            </span>
+          </div>
+        </div>
+      </section>
+      <section
+        class="marketing-width marketing-continuity"
+        aria-labelledby="continuity-heading"
+      >
+        <div class="marketing-section-intro">
+          <h2 id="continuity-heading">
+            한 상품의 촬영이,
+            <br />
+            다음 상품의 시작이 되도록.
+          </h2>
+          <p>
+            촬영 방향은 재사용하고,
+            <br />
+            작업과 파일은 차곡차곡 남기세요.
+          </p>
+        </div>
+        <div class="marketing-tools">
+          {tools.map(({ icon: Icon, title, body }) => (
+            <article>
+              <Icon size={24} strokeWidth={1.5} aria-hidden="true" />
+              <h3>{title}</h3>
+              <p>{body}</p>
+            </article>
+          ))}
+        </div>
+      </section>
+      <section
+        class="marketing-account-section"
+        aria-labelledby="account-heading"
+      >
+        <div class="marketing-width marketing-account-grid">
+          <div>
+            <LockKeyhole size={26} strokeWidth={1.5} aria-hidden="true" />
+            <h2 id="account-heading">
+              사진은 비공개로.
+              <br />
+              촬영은 내 계정으로.
+            </h2>
+          </div>
+          <div>
+            <p>
+              OpenRouter 계정으로 바로 연결해요.
+              <br />
+              Photo Studio의 별도 구독·크레딧 상품 없이,
+              <br />
+              본인의 OpenRouter 크레딧으로 실행합니다.
+            </p>
+            <a href="/privacy" class="marketing-text-link">
+              사진과 데이터 보관 안내{" "}
+              <ArrowUpRight size={17} aria-hidden="true" />
+            </a>
+          </div>
+        </div>
+      </section>
+      <section
+        class="marketing-width marketing-faq"
+        id="questions"
+        aria-labelledby="questions-heading"
+      >
+        <h2 id="questions-heading">
+          시작하기 전에,
+          <br />
+          궁금할 것들.
+        </h2>
+        <div>
+          {faqs.map(({ question, answer }) => (
+            <details>
+              <summary>
+                {question}
+                <Plus size={20} strokeWidth={1.5} aria-hidden="true" />
+              </summary>
+              <p>{answer}</p>
+            </details>
+          ))}
+        </div>
+      </section>
+      <section class="marketing-width marketing-final">
+        <div>
+          <h2>
+            다음 상품,
+            <br />
+            어떤 장면으로 만날까요?
+          </h2>
+          <p>사진을 준비했다면, 이제 스튜디오로.</p>
+        </div>
+        <a href="/studio" class="marketing-button">
+          스튜디오 시작하기 <ArrowUpRight size={21} aria-hidden="true" />
         </a>
-      </footer>
-    </div>
+      </section>
+    </main>
+    <footer class="marketing-width marketing-footer">
+      <a href="/" aria-label="Photo Studio 홈">
+        <BrandLockup />
+      </a>
+      <p>한 벌의 사진에서 시작하는 새로운 촬영.</p>
+      <a href="/privacy">사진과 데이터</a>
+      <span>© {new Date().getFullYear()} Photo Studio</span>
+    </footer>
   </div>
 </Layout>

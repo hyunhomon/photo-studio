@@ -232,3 +232,13 @@
 - 고정 배경거리 기본값은 접촉하지 않는 먼 배경에만 적용한다. 계단/의자/벽은 몸·옷의 실제 지지점에 둬야 하며 억지 배경 분리로 몸을 띄우지 않는다. 기존 v3/v4 snapshot을 읽으며 추가 AI 단계/자동 재생성/평가/점수/스키마 migration은 없다. 실제 질감·그림자 개선 효과는 같은 입력의 사용자 실행 비교 전까지 미검증이다.
 - 실제 생성 성공 attempt의 outputJson에 실행된 captureVersion을 기록한다. 요청 snapshot/hash는 불변이며 구버전 큐 요청이 새 컴파일러로 실행될 경우 실제 결과 버전을 별도로 읽는다. 과거 기록에 버전이 없으면 null로 두고 현재 버전으로 소급 추측하지 않는다. paid claim/replay/이미 성공한 output은 재작성하지 않는다.
 - 공식 근거: https://headlessui.com/react/listbox ; https://headlessui.com/react/tabs ; https://pbr-book.org/4ed/Reflection_Models/Roughness_Using_Microfacet_Theory ; https://pbr-book.org/4ed/Light_Sources/Area_Lights ; https://openrouter.ai/docs/guides/overview/multimodal/image-generation#image-to-image-reference-images
+
+
+## ADR-029: 연구 기반 편집형 SaaS 랜딩 — Accepted (사용자 지정, 2026-11-12)
+
+- 사용자는 SVG 장식 대신 폭넓은 현대 SaaS 리서치와 현재 구현된 기능에 기반한 랜딩 재설계를 요청했다. 12개 공식 사이트의 실제 화면/콘텐츠와 선택 근거는 `16-LANDING-DESIGN-RESEARCH.md`에 기록한다.
+- ADR-027의 다크/네온 랜딩·기울어진 SVG 카드 레이아웃을 대체한다. 랜딩만 아이보리/잉크/올리브·옅은 라임과 중간 굵기 큰 제목/대형 제품 데모로 구성하며, 앱의 다크·네온과 Pretendard/Paperlogy는 유지한다. Layout appearance로 route 테마를 명시한다.
+- 실제 기능인 사진/참조 입력, 기획 편집과 카메라 선택, 비교·지시형 개선, 프리셋·사용 기록·다운로드/내보내기, BYOK/보관을 단계적으로 소개한다. 고객 로고/성과 수치/미구현 기능/품질 보장을 만들어 넣지 않는다.
+- 공개 데모는 Headless UI Tab/Dialog와 state만 사용해 입력·장면 전환·확대를 보여준다. AI 실행/API·private 계정·업로드 요청은 하지 않는다. 스튜디오 링크에서만 실제 서비스로 이동한다.
+- 사용자 사진/키/프롬프트는 공개하지 않는다. 별도 image_gen으로 제작한 허구 성인의 비민감 마케팅 사진 3장만 정적 WebP(총 약110KB)로 포함한다. 실제 서비스 생성 성과와 구분하는 캡션/대체 텍스트를 제공한다. 원본과 생성 프롬프트는 ignored .tmp, provenance는 리서치 문서에 둔다. 기존 고객 이미지 금지 정책은 유지한다.
+- 커스텀 인물/의류 SVG와 orbit CSS를 삭제한다. 브랜드 마크/표준 아이콘은 유지한다. 리서치 자료/타사 에셋은 제품에 복제하지 않는다. API/Workflow/DB/계정/비용 처리 변경이나 유료 OpenRouter 호출은 없다.
