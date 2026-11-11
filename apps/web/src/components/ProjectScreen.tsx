@@ -12,11 +12,13 @@ import type { ProductDto, ProjectDto } from "@photo-studio/schemas";
 import { useAccount } from "../lib/account";
 import { apiBase, errorMessage, request } from "../lib/api";
 import WorkspaceShell from "./WorkspaceShell";
+import WorkspaceSkeleton from "./WorkspaceSkeleton";
+import { navigate } from "astro:transitions/client";
 import UploadDialog from "./UploadDialog";
 
 type Project = ProjectDto & { products: ProductDto[] };
 export default function ProjectScreen({ id }: { id: string }) {
-  const { me, error, setError } = useAccount();
+  const { me, error, setError, state, retry } = useAccount();
   const [project, setProject] = useState<Project | null>(null);
   const [upload, setUpload] = useState(false),
     [remove, setRemove] = useState(false),
@@ -46,7 +48,7 @@ export default function ProjectScreen({ id }: { id: string }) {
         },
         me.csrf,
       );
-      if (deleting) location.assign("/studio");
+      if (deleting) await navigate("/studio");
       else {
         if (project) setProject({ ...project, ...data });
         setEdit(false);
@@ -58,19 +60,23 @@ export default function ProjectScreen({ id }: { id: string }) {
     }
   }
   return (
-    <WorkspaceShell me={me} error={error}>
+    <WorkspaceShell
+      me={me}
+      error={error}
+      accountState={state}
+      onRetry={retry}
+      activeProjectId={id}
+      title={project?.name}
+    >
       {!project ? (
-        <p role="status" className="py-12 text-sm text-muted">
-          프로젝트를 불러오고 있습니다…
-        </p>
+        <WorkspaceSkeleton label="프로젝트를 불러오고 있습니다" />
       ) : (
         <>
           <a
             href="/studio"
             className="mb-6 flex items-center gap-2 text-xs text-muted"
           >
-            <ArrowLeft size={14} aria-hidden="true" />
-            전체 프로젝트
+            <ArrowLeft size={14} aria-hidden="true" />새 작업 시작
           </a>
           <div className="flex flex-wrap items-end justify-between gap-5">
             <div>
@@ -190,7 +196,7 @@ export default function ProjectScreen({ id }: { id: string }) {
               onClose={() => setUpload(false)}
               projectId={id}
               csrf={me.csrf}
-              onDone={(p) => location.assign(`/studio/products/${p.id}`)}
+              onDone={(p) => void navigate(`/studio/products/${p.id}`)}
             />
           )}
           <Modal

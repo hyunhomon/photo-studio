@@ -45,6 +45,7 @@ export default function ConnectionPanel() {
       <a
         className="pill-link mt-6 w-full"
         href={`${apiBase}/auth/openrouter/start`}
+        data-astro-reload
       >
         OpenRouter로 연결 <ArrowUpRight size={16} aria-hidden="true" />
       </a>

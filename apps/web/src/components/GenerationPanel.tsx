@@ -337,6 +337,7 @@ export default function GenerationPanel({
               </div>
               <a
                 href={`${apiBase}/api/v1/assets/${result.asset.id}/download`}
+                data-astro-reload
                 className="mt-3 flex min-h-11 items-center justify-center gap-2 rounded-lg border border-control px-4 py-3 text-xs font-semibold hover:bg-elevated"
               >
                 <ArrowDownToLine size={14} aria-hidden="true" />

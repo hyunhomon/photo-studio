@@ -16,7 +16,7 @@ const initial: PresetInput = {
   shootType: "model_studio",
 };
 export default function PresetScreen() {
-  const { me, error, setError } = useAccount();
+  const { me, error, setError, state, retry } = useAccount();
   const [items, setItems] = useState<PresetDto[]>([]),
     [form, setForm] = useState(initial),
     [editing, setEditing] = useState<string | null>(null);
@@ -67,7 +67,13 @@ export default function PresetScreen() {
     }
   }
   return (
-    <WorkspaceShell me={me} error={error} section="브랜드 프리셋">
+    <WorkspaceShell
+      me={me}
+      error={error}
+      accountState={state}
+      onRetry={retry}
+      section="브랜드 프리셋"
+    >
       <div className="flex flex-wrap items-end justify-between gap-5">
         <div>
           <p className="eyebrow text-muted">A CONSISTENT POINT OF VIEW</p>

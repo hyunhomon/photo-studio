@@ -14,7 +14,7 @@ const stageLabels: Record<string, string> = {
 const percent = (value: number | null) =>
   value === null ? "—" : `${Math.round(value * 100)}%`;
 export default function UsageScreen() {
-  const { me, error, setError } = useAccount(),
+  const { me, error, setError, state, retry } = useAccount(),
     [data, setData] = useState<UsageDto | null>(null);
   useEffect(() => {
     if (me)
@@ -23,7 +23,13 @@ export default function UsageScreen() {
         .catch((e) => setError(errorMessage(e)));
   }, [me, setError]);
   return (
-    <WorkspaceShell me={me} error={error} section="사용 기록">
+    <WorkspaceShell
+      me={me}
+      error={error}
+      accountState={state}
+      onRetry={retry}
+      section="사용 기록"
+    >
       <div className="flex flex-wrap items-end justify-between gap-5">
         <div>
           <p className="eyebrow text-muted">THE STUDIO, IN NUMBERS</p>
@@ -34,6 +40,7 @@ export default function UsageScreen() {
         </div>
         <a
           href={`${apiBase}/api/v1/account/export`}
+          data-astro-reload
           className="flex min-h-11 items-center gap-2 rounded-full border border-line px-5 py-3 text-xs font-semibold"
         >
           <Download size={15} aria-hidden="true" />내 데이터 내보내기

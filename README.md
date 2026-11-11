@@ -4,6 +4,8 @@
 
 Astro + React Islands, Tailwind CSS v4, Headless UI로 직접 제작한 스튜디오 UI에 Pretendard와 Paperlogy를 자체 호스팅합니다. Hono API Worker, Drizzle/D1, private R2, Cloudflare Workflows를 사용합니다. 서비스 자체 결제·구독·크레딧, 팀·배치·모델 학습 기능은 없습니다.
 
+최근 프로젝트는 공통 좌측 사이드바에서 이어가며 Ctrl/⌘+K로 검색할 수 있습니다. 작은 화면은 메뉴로 목록을 엽니다. 중앙 시작 화면에서 프로젝트 이름을 입력해 생성하고, 화면 이동의 인증 확인 중에는 연결 폼 대신 skeleton을 표시합니다.
+
 ## 실행
 
 Node 24 LTS(최소 22.23.4), Bun 1.3.14 이상이 필요합니다.

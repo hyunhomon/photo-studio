@@ -70,8 +70,12 @@ test("Mock: connect, upload, plan, generate, review, export and delete", async (
     await page.getByRole("button", { name: "로컬 Mock 스튜디오 열기" }).click();
   }
   await expect(page.getByRole("heading", { level: 1 })).toContainText(
-    "나의 프로젝트",
+    "어떤 장면을 만들까요?",
   );
+  await page.screenshot({
+    path: `.tmp/workspace-home-${test.info().project.name}.png`,
+    fullPage: true,
+  });
   await page.getByRole("button", { name: "새 프로젝트", exact: true }).click();
   await page.keyboard.press("Escape");
   await expect(
@@ -86,6 +90,58 @@ test("Mock: connect, upload, plan, generate, review, export and delete", async (
     .click();
   await expect(page).toHaveURL(/\/studio\/projects\//);
   const projectUrl = page.url();
+  await expect(
+    page.getByRole("heading", {
+      name: "Synthetic E2E collection",
+      exact: true,
+    }),
+  ).toBeVisible();
+  await page.keyboard.press("Control+k");
+  await page
+    .getByRole("combobox", { name: "프로젝트 검색어" })
+    .fill("Synthetic E2E");
+  await expect(
+    page.getByRole("option", { name: "Synthetic E2E collection" }),
+  ).toBeVisible();
+  await page.keyboard.press("ArrowDown");
+  await page.keyboard.press("Enter");
+  await expect(page.getByRole("dialog", { name: "프로젝트 검색" })).toHaveCount(
+    0,
+  );
+  await expect(page).toHaveURL(projectUrl);
+  await expect(
+    page.getByRole("heading", {
+      name: "Synthetic E2E collection",
+      exact: true,
+    }),
+  ).toBeVisible();
+  if (test.info().project.name === "mobile-chromium") {
+    await page.getByRole("button", { name: "프로젝트 목록 열기" }).click();
+    await expect(
+      page
+        .getByRole("navigation", { name: "프로젝트 목록" })
+        .getByRole("link", { name: "Synthetic E2E collection" }),
+    ).toHaveAttribute("aria-current", "page");
+    await page.screenshot({
+      path: ".tmp/workspace-mobile-drawer.png",
+      fullPage: true,
+    });
+    await page.keyboard.press("Escape");
+    await expect(
+      page.getByRole("button", { name: "프로젝트 목록 열기" }),
+    ).toBeFocused();
+  } else {
+    await expect(
+      page
+        .getByRole("navigation", { name: "프로젝트 목록" })
+        .getByRole("link", { name: "Synthetic E2E collection" }),
+    ).toHaveAttribute("aria-current", "page");
+    await page.getByRole("button", { name: "사이드바 접기" }).click();
+    await expect(
+      page.getByRole("button", { name: "사이드바 펼치기" }),
+    ).toBeVisible();
+    await page.getByRole("button", { name: "사이드바 펼치기" }).click();
+  }
   await page.getByRole("button", { name: "상품 등록", exact: true }).click();
   await page.getByLabel("상품 이름", { exact: true }).fill("Synthetic shirt");
   await page.getByLabel("상품 사진", { exact: true }).setInputFiles({
@@ -247,10 +303,41 @@ test("Mock: connect, upload, plan, generate, review, export and delete", async (
       () => document.documentElement.scrollWidth <= innerWidth,
     ),
   ).toBe(true);
-  await page.goto("/studio/usage");
+  let releaseSession: () => void = () => {};
+  const sessionGate = new Promise<void>((resolve) => {
+    releaseSession = resolve;
+  });
+  await page.route(
+    "**/api/v1/me",
+    async (route) => {
+      await sessionGate;
+      await route.continue();
+    },
+    { times: 1 },
+  );
+  const documentOrigin = await page.evaluate(() => performance.timeOrigin);
+  if (test.info().project.name === "mobile-chromium")
+    await page.getByRole("button", { name: "프로젝트 목록 열기" }).click();
+  await page.getByRole("link", { name: "사용 기록", exact: true }).click();
+  try {
+    await expect(
+      page.getByRole("status", {
+        name: "스튜디오를 불러오고 있습니다",
+        exact: true,
+      }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("link", { name: "OpenRouter로 연결" }),
+    ).toHaveCount(0);
+  } finally {
+    releaseSession();
+  }
   await expect(
     page.getByRole("heading", { name: "만들고, 고르고, 돌아보기." }),
   ).toBeVisible();
+  expect(await page.evaluate(() => performance.timeOrigin)).toBe(
+    documentOrigin,
+  );
   await expect(
     page
       .getByText("생성한 컷", { exact: true })
@@ -280,7 +367,7 @@ test("Mock: connect, upload, plan, generate, review, export and delete", async (
   await page.getByRole("button", { name: "영구 삭제", exact: true }).click();
   await expect(page).toHaveURL(/\/studio$/);
   await expect(
-    page.getByRole("heading", { name: "첫 번째 컬렉션을 기다리고 있어요." }),
+    page.getByRole("heading", { name: "어떤 장면을 만들까요?" }),
   ).toBeVisible();
   await page.goto("/studio/settings");
   await page.getByRole("button", { name: "계정과 모든 데이터 삭제" }).click();

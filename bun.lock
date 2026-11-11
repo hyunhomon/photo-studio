@@ -39,6 +39,7 @@
       "dependencies": {
         "@astrojs/cloudflare": "14.4.6",
         "@astrojs/react": "7.1.5",
+        "@headlessui/react": "2.2.10",
         "@photo-studio/schemas": "workspace:*",
         "@photo-studio/ui": "workspace:*",
         "@tailwindcss/vite": "4.3.5",

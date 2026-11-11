@@ -1,137 +1,242 @@
+import { useEffect, useState, type ReactNode } from "react";
 import {
-  FolderOpen,
-  SlidersHorizontal,
-  ChartNoAxesColumn,
-  Settings2,
-  ArrowUpRight,
-  Sparkles,
-} from "lucide-react";
-import type { ReactNode } from "react";
-import type { Me } from "../lib/api";
-import { BrandLockup } from "@photo-studio/ui";
+  Dialog,
+  DialogBackdrop,
+  DialogPanel,
+  DialogTitle,
+} from "@headlessui/react";
+import { Menu, Search, SquarePen, ArrowUpRight, RefreshCw } from "lucide-react";
+import { Button } from "@photo-studio/ui";
+import type { ProjectDto } from "@photo-studio/schemas";
+import type { AccountState } from "../lib/account";
+import { request, type Me } from "../lib/api";
 import ConnectionPanel from "./ConnectionPanel";
+import WorkspaceSkeleton from "./WorkspaceSkeleton";
+import { NewProjectDialog } from "./ProjectComposer";
+import { ProjectNavigation, ProjectSearch } from "./ProjectNavigation";
 
 export default function WorkspaceShell({
   children,
   me,
-  section = "프로젝트",
+  accountState,
+  onRetry,
+  section = "스튜디오",
   error,
+  activeProjectId,
+  title,
+  welcome = false,
 }: {
   children: ReactNode;
   me: Me | null;
+  accountState: AccountState;
+  onRetry: () => void;
   section?: string;
   error?: string;
+  activeProjectId?: string;
+  title?: string;
+  welcome?: boolean;
 }) {
+  const [projects, setProjects] = useState<ProjectDto[]>([]),
+    [loading, setLoading] = useState(true),
+    [listError, setListError] = useState("");
+  const [listAttempt, setListAttempt] = useState(0),
+    [collapsed, setCollapsed] = useState(false);
+  const [drawer, setDrawer] = useState(false),
+    [search, setSearch] = useState(false),
+    [create, setCreate] = useState(false);
+  useEffect(() => {
+    try {
+      setCollapsed(sessionStorage.getItem("ps:sidebar:collapsed") === "true");
+    } catch {
+      /* Preference storage is optional. */
+    }
+  }, []);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: retry and a project rename explicitly refresh the private sidebar list.
+  useEffect(() => {
+    if (!me) return;
+    const controller = new AbortController();
+    setLoading(true);
+    setListError("");
+    request<ProjectDto[]>("/api/v1/projects", { signal: controller.signal })
+      .then((data) => {
+        if (!controller.signal.aborted) setProjects(data);
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setListError("목록 조회 실패");
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false);
+      });
+    return () => controller.abort();
+  }, [me, listAttempt, title]);
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (me && (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setDrawer(false);
+        setSearch(true);
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [me]);
+  function toggle() {
+    setCollapsed((value) => {
+      try {
+        sessionStorage.setItem("ps:sidebar:collapsed", String(!value));
+      } catch {}
+      return !value;
+    });
+  }
+  const nav = {
+    me,
+    projects,
+    loading: loading && !["unauthenticated", "error"].includes(accountState),
+    listError,
+    onRetry: () => setListAttempt((n) => n + 1),
+    onNew: () => {
+      setDrawer(false);
+      setCreate(true);
+    },
+    onSearch: () => {
+      setDrawer(false);
+      setSearch(true);
+    },
+    collapsed,
+    onToggle: toggle,
+    activeProjectId,
+    section,
+  };
+  const pending = accountState === "pending" || accountState === "redirecting";
+  const heading =
+    title || projects.find((p) => p.id === activeProjectId)?.name || section;
   return (
-    <div className="min-h-screen lg:grid lg:grid-cols-[224px_1fr]">
-      <aside className="flex flex-col border-b border-line bg-sidebar px-5 py-6 lg:sticky lg:top-0 lg:h-screen lg:border-r lg:border-b-0">
-        <a
-          href="/"
-          aria-label="Photo Studio 홈"
-          className="flex w-fit items-center py-1"
-        >
-          <BrandLockup stacked />
-        </a>
-        <div className="mt-7 rounded-xl border border-line bg-paper/70 px-4 py-3">
-          <p className="flex items-center justify-between text-xs font-semibold">
-            MY STUDIO <span className="text-[9px] text-primary">BETA</span>
-          </p>
-          <p className="mt-1 text-[11px] text-muted">
-            한 벌에서 시작하는 다음 컬렉션
-          </p>
-        </div>
-        <nav
-          aria-label="스튜디오 메뉴"
-          className="mt-6 flex gap-2 overflow-x-auto lg:flex-col"
-        >
-          {[
-            { href: "/studio", label: "프로젝트", icon: FolderOpen },
-            {
-              href: "/studio/presets",
-              label: "브랜드 프리셋",
-              icon: SlidersHorizontal,
-            },
-            {
-              href: "/studio/usage",
-              label: "사용 기록",
-              icon: ChartNoAxesColumn,
-            },
-          ].map(({ href, label, icon: Icon }) => (
-            <a
-              key={href}
-              href={href}
-              aria-current={section === label ? "page" : undefined}
-              className={`flex min-h-11 shrink-0 items-center gap-3 rounded-lg border px-3 py-3 text-xs whitespace-nowrap transition-colors ${section === label ? "border-accent-line bg-accent-soft text-primary" : "border-transparent text-muted hover:bg-studio hover:text-ink"}`}
-            >
-              <Icon size={16} aria-hidden="true" />
-              {label}
-            </a>
-          ))}
-        </nav>
-        <div className="hidden flex-1 lg:block" />
-        <div className="mt-6 flex items-center justify-between gap-3 border-t border-line pt-5 lg:block">
-          <div>
-            <p className="flex items-center gap-2 text-xs font-semibold">
-              <span
-                className={`size-1.5 rounded-full ${me ? "bg-primary" : "bg-muted"}`}
-              />
-              {me?.mode === "mock"
-                ? "Mock 테스트 연결"
-                : me?.connected
-                  ? "OpenRouter 연결됨"
-                  : "계정 확인 중"}
-            </p>
-            <p className="mt-2 hidden text-[11px] leading-5 text-muted lg:block">
-              {me?.mode === "mock"
-                ? "합성 데이터 · 외부 AI 호출 없음"
-                : "내 OpenRouter 계정으로 촬영합니다."}
-            </p>
-          </div>
-          <a
-            href="/studio/settings"
-            className="mt-0 flex items-center gap-2 text-xs text-muted hover:text-ink lg:mt-4"
-          >
-            <Settings2 size={14} aria-hidden="true" />
-            계정과 데이터
-          </a>
-        </div>
+    <div
+      className={`min-h-dvh lg:grid ${collapsed ? "lg:grid-cols-[64px_minmax(0,1fr)]" : "lg:grid-cols-[264px_minmax(0,1fr)]"}`}
+    >
+      <aside
+        className="sticky top-0 hidden h-dvh min-w-0 border-r border-line/60 bg-sidebar lg:block"
+        aria-label="작업 사이드바"
+      >
+        <ProjectNavigation {...nav} />
       </aside>
       <div className="min-w-0">
-        <header className="flex min-h-20 items-center justify-between gap-4 border-b border-line px-6 lg:px-10">
-          <p className="text-xs text-muted">
-            워크스페이스 <span className="mx-2 text-line">/</span>
-            <span className="text-ink">{section}</span>
+        <header className="sticky top-0 z-20 flex h-16 items-center gap-3 border-b border-line/40 bg-paper/95 px-4 backdrop-blur-md sm:px-7 lg:static lg:border-transparent lg:px-9">
+          <button
+            type="button"
+            aria-label="프로젝트 목록 열기"
+            onClick={() => setDrawer(true)}
+            className="grid size-10 shrink-0 place-items-center rounded-lg text-muted hover:bg-studio lg:hidden"
+          >
+            <Menu size={20} aria-hidden="true" />
+          </button>
+          <p className="min-w-0 flex-1 truncate text-sm font-medium text-muted">
+            {heading}
           </p>
+          {me?.mode === "mock" && (
+            <span className="rounded-md border border-accent-line bg-accent-soft px-2 py-1 text-[9px] text-primary">
+              MOCK · 외부 AI 호출 없음
+            </span>
+          )}
+          <button
+            type="button"
+            aria-label="프로젝트 검색"
+            onClick={() => setSearch(true)}
+            disabled={!me}
+            className="grid size-10 shrink-0 place-items-center rounded-lg text-muted hover:bg-studio disabled:opacity-40 lg:hidden"
+          >
+            <Search size={18} aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            aria-label="새 프로젝트"
+            onClick={() => setCreate(true)}
+            disabled={!me}
+            className="grid size-10 shrink-0 place-items-center rounded-lg text-muted hover:bg-studio disabled:opacity-40 lg:hidden"
+          >
+            <SquarePen size={18} aria-hidden="true" />
+          </button>
           <a
             href="/privacy"
-            className="flex items-center gap-1 text-[11px] text-muted"
+            className="hidden items-center gap-1 text-[10px] text-muted hover:text-ink sm:flex"
           >
             사진과 데이터
-            <ArrowUpRight size={13} aria-hidden="true" />
+            <ArrowUpRight size={12} aria-hidden="true" />
           </a>
         </header>
-        {me?.mode === "mock" && (
-          <div className="flex items-center gap-2 border-b border-accent-line bg-accent-soft px-6 py-2.5 text-[11px] text-primary lg:px-10">
-            <Sparkles size={13} aria-hidden="true" />
-            Mock 테스트 스튜디오입니다. 분석·생성·평가는 합성 결과이며 외부 AI
-            비용이 발생하지 않습니다.
-          </div>
-        )}
         <main
           id="main"
-          className="mx-auto max-w-[1560px] px-6 py-9 lg:px-10 xl:px-14"
+          className={`mx-auto max-w-[1480px] px-4 sm:px-7 lg:px-10 ${welcome ? "" : "py-6 lg:py-9"}`}
         >
           {error && (
             <p
               role="alert"
-              className="mb-6 rounded-xl border border-danger-line bg-danger-surface p-4 text-sm text-danger"
+              className="mb-5 rounded-xl border border-danger-line bg-danger-surface p-4 text-sm leading-6 text-danger"
             >
               {error}
             </p>
           )}
-          {!me ? <ConnectionPanel /> : children}
+          {pending ? (
+            <WorkspaceSkeleton
+              label={
+                accountState === "redirecting"
+                  ? "OpenRouter로 이동하고 있습니다"
+                  : "스튜디오를 불러오고 있습니다"
+              }
+            />
+          ) : accountState === "unauthenticated" ? (
+            <ConnectionPanel />
+          ) : accountState === "error" ? (
+            <section className="mx-auto max-w-lg py-20 text-center">
+              <RefreshCw
+                size={25}
+                className="mx-auto text-muted"
+                aria-hidden="true"
+              />
+              <h1 className="mt-5 text-xl">
+                스튜디오에 잠시 연결할 수 없어요.
+              </h1>
+              <p className="mt-3 text-sm leading-7 text-muted">
+                연결 상태를 다시 확인해 주세요.
+              </p>
+              <Button variant="secondary" className="mt-6" onClick={onRetry}>
+                다시 확인
+              </Button>
+            </section>
+          ) : (
+            children
+          )}
         </main>
       </div>
+      <Dialog
+        open={drawer}
+        onClose={() => setDrawer(false)}
+        className="relative z-40 lg:hidden"
+      >
+        <DialogBackdrop className="fixed inset-0 bg-overlay/70 backdrop-blur-sm" />
+        <DialogPanel className="fixed inset-y-0 left-0 w-[min(310px,88vw)] bg-sidebar shadow-2xl">
+          <DialogTitle className="sr-only">스튜디오 탐색</DialogTitle>
+          <ProjectNavigation
+            {...nav}
+            collapsed={false}
+            mobile
+            onClose={() => setDrawer(false)}
+          />
+        </DialogPanel>
+      </Dialog>
+      {me && (
+        <NewProjectDialog
+          me={me}
+          open={create}
+          onClose={() => setCreate(false)}
+        />
+      )}
+      <ProjectSearch
+        key={String(search)}
+        open={search}
+        onClose={() => setSearch(false)}
+        projects={projects}
+      />
     </div>
   );
 }

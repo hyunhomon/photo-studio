@@ -121,3 +121,11 @@
 - 응답 잘림/차단/JSON 오류/schema 불일치를 구분한다. 실패 attempt의 기존 `output_json`에는 값·원문·모르는 속성명·Zod 메시지 없이 고정 reason/허용된 field path/issue code만 저장한다. 사용량·실제 비용·원장은 유지하며 유료 호출 자동 재시도는 없다.
 - `reuseAnalysis=true`는 사용자 비용 동의를 받은 새 작업이다. 본인 상품의 저장된 분석을 요청 시 snapshot으로 고정하고 기존 analysis stage의 모델 호출을 생략한 뒤 planning 1회만 실행한다. 이전 실패 원장/비용은 변경하지 않으며 새 idempotency key와 원장을 사용한다. 기본 분석+기획 흐름은 유지한다.
 - 근거: https://openrouter.ai/docs/guides/features/structured-outputs 및 https://ai.google.dev/gemini-api/docs/structured-output
+
+## ADR-018: 작업 사이드바와 명시적 인증 pending — Accepted (사용자 지정, 2026-11-11)
+- ChatGPT/Codex의 탐색 패턴을 참고해 프로젝트 목록을 전 화면 공통 좌측 사이드바로 옮긴다. 중앙 `/studio`는 이름/메모 입력으로 실제 프로젝트를 생성하는 시작 화면이다. 데이터 모델과 AI 실행 동의 단계는 유지한다.
+- 최근 7일/이전 프로젝트, 현재 프로젝트 표시, Ctrl/⌘+K Headless UI Combobox 검색, 접기/펼치기 및 작은 화면 Headless UI Dialog 탐색을 제공한다. 사용자별 실제 owner 목록만 요청한다. 브라우저 저장소에는 접힘 여부 boolean만 보관하며 프로젝트/키/세션/프롬프트는 캐시하지 않는다.
+- account 상태를 pending/ready/unauthenticated/redirecting/error로 구분한다. 초기 SSR와 인증 확인 중에는 ARIA skeleton을 표시한다. 명시적인 401과 공개 설정 확인 뒤에만 연결 화면 또는 기존 직접 OAuth 이동을 수행한다. 서버/네트워크 장애는 재확인 UI로 복구하며 연결 해제로 표시하지 않는다.
+- Astro ClientRouter로 스튜디오 내부 링크/변경 후 이동을 수행한다. 라우트마다 실제 세션을 다시 확인하고 private 응답은 no-store를 유지한다. OAuth/키 재연결/파일 다운로드/내보내기는 native navigation으로 처리한다. 라우터 history state를 유지하며 auth_error 파라미터만 제거한다.
+- dark/neon·Pretendard/Paperlogy·Headless UI·의미 있는 HTML·동작 감소 설정을 유지한다. 웹 전용 배포를 사용하며 이번 변경으로 API/Workflow/secret/D1은 변경하지 않는다.
+- 근거: https://chatgpt.com, https://docs.astro.build/en/guides/view-transitions/, https://headlessui.com/react/combobox

@@ -61,6 +61,29 @@
 }
 
 @layer components {
+  .sidebar-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    min-height: 42px;
+    border-radius: 0.6rem;
+    padding: 0.65rem 0.75rem;
+    font-size: 0.75rem;
+    text-align: left;
+    transition:
+      background 120ms,
+      color 120ms;
+  }
+  .sidebar-item:hover {
+    background: var(--color-studio);
+  }
+  .sidebar-brand svg {
+    width: 32px;
+    height: 32px;
+  }
+  .project-composer:focus-within {
+    border-color: var(--color-primary);
+  }
   .studio-input {
     width: 100%;
     min-height: 44px;
@@ -116,6 +139,9 @@
     letter-spacing: -0.07em;
     line-height: 0.95;
     -webkit-text-stroke: 0.25px currentColor;
+  }
+  .sidebar-brand .brand-wordmark {
+    font-size: 1rem;
   }
   .studio-button {
     font-family: var(--font-sans);

@@ -1,5 +1,6 @@
 ---
 import "../styles/global.css";
+import { ClientRouter } from "astro:transitions";
 interface Props {
   title: string;
   description?: string;
@@ -20,8 +21,11 @@ const {
     <meta name="color-scheme" content="dark" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <title>{title} — Photo Studio</title>
+    {Astro.url.pathname.startsWith("/studio") && (
+      <ClientRouter fallback="swap" />
+    )}
   </head>
-  <body>
+  <body transition:animate="none">
     <a
       href="#main"
       class="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-50 focus:bg-paper focus:p-4"

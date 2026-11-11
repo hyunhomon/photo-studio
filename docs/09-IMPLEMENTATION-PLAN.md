@@ -173,3 +173,11 @@ production 재배포 `8b2f245` 후 같은 합성 invalid-code probe가 실제 Op
 재배포 `aaf29b6` 후 사용자가 실제 촬영 콘셉트 표시 성공을 확인했다. 식별자/원문 없는 읽기 전용 지표에서 studio-v2 planning succeeded, job completed, 실제 비용 $0.0001081, 출력 209 tokens를 확인했다. 해당 실제 실행은 분석+기획 경로였으며 기획만 복구는 별도의 Mock/원장 검사로 구분한다. 기존 studio-v1 실패와 비용은 그대로 보존됐다. 공개 production smoke도 통과했다. 실제 이미지 생성/평가·의류 품질 검증은 아직 남아 있다.
 
 production desktop/mobile 전체 Mock E2E **4/4 통과**: 저장된 분석 재사용 동의, 기획 attempt 1개/분석 값 보존, 기획 승인→생성/평가/검수/재생성/다운로드/삭제 및 타 계정 권한 차단까지 확인했다. 임시 합성 계정과 사진을 정리했다. 자동 테스트는 모두 Mock이며 실제 유료 실행은 사용자가 UI에서 수행한 별도 검증이다.
+
+### 작업 사이드바 및 인증 pending UX — 2026-11-11
+
+- ADR-018: 중앙 프로젝트 카드 목록을 최근 작업 사이드바로 전환했다. 프로젝트 생성 composer, 최근/이전 목록, 현재 프로젝트 표시, 접기/펼치기, Ctrl/⌘+K 검색, 모바일 Dialog 메뉴와 공통 계정 탐색을 구현했다.
+- account pending/ready/unauthenticated/redirecting/error를 구분한다. SSR와 me 응답 대기는 skeleton, 503/네트워크 실패는 재확인 UI로 표시한다. 실제 401 확인 전 연결 폼을 표시하지 않는다. 인증/개인 목록은 캐시하지 않고 접힘 boolean만 sessionStorage에 보관한다.
+- Astro ClientRouter 내부 이동, 네이티브 OAuth/다운로드/내보내기를 연결했다. 모바일 메뉴 닫기로 링크가 먼저 제거돼 라우터가 건너뛰는 경합을 발견해 명시적 navigate로 수정했다. desktop/mobile 모두 링크 이동 전후 performance.timeOrigin이 유지됨을 검증했다.
+- format/lint/typecheck/unit/build 통과: 단위 **33/33**, Astro 진단 0. local E2E **6/6**: 4개 화면의 인증 대기/503 재확인, 유효 세션 지연 중 연결 폼 없음, 검색 방향키/Enter, 메뉴 ESC/포커스 복귀, 기존 Mock 촬영·기획 복구·검수·다운로드·삭제까지 통과했다.
+- 합성 프로젝트만 사용한 desktop/mobile/search/drawer 캡처를 시각 점검하고 preview 계정/자료를 정리했다. 웹 전용 production 배포 후 검증 결과를 후속 기록한다. 실제 고객 AI 호출이나 API/Workflow/D1/secret 변경 없음.

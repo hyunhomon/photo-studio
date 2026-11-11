@@ -15,12 +15,14 @@
 |---|---|
 | `/` | 한 문장 가치 제안, 실제 사용 흐름, 베타 참여 CTA |
 | `/beta` | 과거 링크 호환용 `/studio` 308 redirect; 입력 화면 없음 |
-| `/studio` | 프로젝트 리스트, 최근 작업, 새 촬영 버튼 |
+| `/studio` | 중앙 프로젝트 생성 composer, 공통 사이드바의 최근 프로젝트/검색 |
 | `/studio/projects/:id` | 제품/프리셋/결과물 목록 |
 | `/studio/products/:id` | 분석 → 기획 → 생성 → 검수의 메인 작업 화면 |
 | `/studio/settings` | OpenRouter 연결 상태, 연결 해제, 개인정보 삭제/내보내기 안내 |
 
 ## 핵심 작업 화면 (desktop)
+
+ADR-018: 좌측 264px 공통 사이드바에 최근 작업을 표시하며 64px rail로 접을 수 있다. 프로젝트·상품·프리셋·기록·계정 화면에서 같은 탐색을 제공한다. 프로젝트 검색은 Ctrl/⌘+K, 방향키/Enter/ESC를 지원한다. 모바일은 메뉴 Dialog로 열며 포커스 복귀를 유지한다. `/studio` 본문의 프로젝트 카드 grid는 제거한다. 새 프로젝트 생성은 AI가 호출되지 않으며 실제 촬영 실행은 기존 비용 동의 흐름을 따른다.
 
 - 왼쪽: 업로드한 제품 이미지, 보존 포인트, 모델·무드·로케이션 설정.
 - 중앙: 생성 이미지 큰 프리뷰, 원본과 나란히 비교.
@@ -34,6 +36,9 @@
 `Button`, `IconButton`, `Input`, `Field`, `Select`, `Modal`, `Toast`, `Progress`, `ImageUploadDropzone`, `PhotoPreview`, `ReferenceComparison`, `ShotSettingsPanel`, `JobStatus`, `QualityFlags`, `FeedbackControls`, `ApiCostNotice`.
 
 ## 상태별 사용성
+
+- 인증 확인 중: 초기 HTML부터 skeleton/ARIA status. 연결 안내를 먼저 표시하지 않는다.
+- 인증/네트워크 장애: 연결 해제로 간주하지 않고 오류와 다시 확인 액션을 표시한다.
 
 - 비연결: OpenRouter 연결 필요 설명 + 연결 CTA.
 - 잔액 부족: OpenRouter 충전 안내, 비밀키 입력 요구 금지.

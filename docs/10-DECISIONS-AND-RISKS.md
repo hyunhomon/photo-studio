@@ -85,3 +85,7 @@ D1 공식 limits의 Free 50 queries/invocation 및 query당 100 bound parameters
 읽기 전용 진단에서 실제 planning은 Google AI Studio/`google/gemini-2.5-flash-lite`, STOP, 출력 198 tokens, 비용 $0.0000965로 정상 종료했으나 앱 validation에서 거부됐다. 원문은 저장하지 않아 정확한 필드는 소급 확인할 수 없다. ADR-017로 provider/App 계약을 분리하고 앱 정책 상수·singleton enum·JSON formatting 호환·값 없는 validation 진단을 추가했다. 성급하게 필수 항목/enum 검증을 없애거나 유료 자동 repair를 하지 않는다. 성공한 분석을 재사용하는 동의 기반 기획 1회 복구를 구현한다. 실제 사용자 기획 재검증은 배포 후 UI에서 실행해야 한다.
 
 재배포 후 실제 사용자 기획 성공 및 콘셉트 표시를 확인했다. studio-v2 planning/job 완료, 실제 비용 $0.0001081와 기존 실패 비용 보존을 읽기 전용 지표로 검증했다. 이는 분석+기획 경로의 실제 성공이며 기획만 복구는 합성 테스트로 구분한다. 실제 이미지 생성·평가/의류 품질은 미검증이다.
+
+## 2026-11-11 — 탐색/인증 pending UX
+
+사용자 요청으로 ChatGPT/Codex 패턴의 프로젝트 사이드바와 중앙 생성 composer를 구현했다(ADR-018). 기존 me=null 조건은 인증 요청 전에도 연결 폼을 표시하므로 명시적 pending/unauthenticated/error 상태로 분리했다. 화면 이동은 Astro ClientRouter를 사용하고 인증 응답·개인 목록은 브라우저 저장소에 캐시하지 않는다. 접힘 boolean만 sessionStorage에 보관한다. Headless UI 검색/모바일 탐색·키보드·skeleton 및 503 재확인 경로를 검증한다. 유료 실행/서비스 인증 정책은 유지하고 웹만 배포한다.

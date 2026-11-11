@@ -5,12 +5,14 @@ import type { ProductDto, PipelineDto } from "@photo-studio/schemas";
 import { useAccount } from "../lib/account";
 import { apiBase, errorMessage, request } from "../lib/api";
 import WorkspaceShell from "./WorkspaceShell";
+import WorkspaceSkeleton from "./WorkspaceSkeleton";
+import { navigate } from "astro:transitions/client";
 import UploadDialog from "./UploadDialog";
 import PlanningPanel from "./PlanningPanel";
 import GenerationPanel from "./GenerationPanel";
 
 export default function ProductScreen({ id }: { id: string }) {
-  const { me, error, setError } = useAccount();
+  const { me, error, setError, state, retry } = useAccount();
   const [product, setProduct] = useState<ProductDto | null>(null);
   const [pipeline, setPipeline] = useState<PipelineDto>({
     plans: [],
@@ -31,14 +33,21 @@ export default function ProductScreen({ id }: { id: string }) {
     setBusy(true);
     try {
       await request(`/api/v1/products/${id}`, { method: "DELETE" }, me.csrf);
-      location.assign(`/studio/projects/${product.projectId}`);
+      await navigate(`/studio/projects/${product.projectId}`);
     } catch (e) {
       setError(errorMessage(e));
       setBusy(false);
     }
   }
   return (
-    <WorkspaceShell me={me} error={error}>
+    <WorkspaceShell
+      me={me}
+      error={error}
+      accountState={state}
+      onRetry={retry}
+      activeProjectId={product?.projectId}
+      title={product?.name}
+    >
       {product ? (
         <>
           <a
@@ -140,9 +149,7 @@ export default function ProductScreen({ id }: { id: string }) {
           </Modal>
         </>
       ) : (
-        <p role="status" className="py-12 text-sm text-muted">
-          상품을 불러오고 있습니다…
-        </p>
+        <WorkspaceSkeleton label="상품을 불러오고 있습니다" />
       )}
     </WorkspaceShell>
   );
