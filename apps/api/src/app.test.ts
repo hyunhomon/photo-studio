@@ -4,6 +4,7 @@ import { app } from "./app";
 
 const env = {
   ALLOWED_WEB_ORIGINS: "http://localhost:4321",
+  AI_MODE: "mock",
 } as CloudflareBindings;
 
 describe("API scaffold", () => {
@@ -29,17 +30,19 @@ describe("API scaffold", () => {
       );
     }
   });
-  test("does not expose future product or workflow routes", async () => {
+  test("protects private routes and has no public test backdoor", async () => {
     for (const path of [
       "/api/v1/projects",
       "/auth/openrouter/start",
       "/__test/bindings",
     ]) {
       const response = await app.request(path, {}, env);
-      expect(response.status).toBe(404);
+      expect(response.status).toBe(path.startsWith("/api/v1/") ? 401 : 404);
       expect(await response.json()).toMatchObject({
         data: null,
-        error: { code: "NOT_FOUND" },
+        error: {
+          code: path.startsWith("/api/v1/") ? "UNAUTHENTICATED" : "NOT_FOUND",
+        },
       });
     }
   });

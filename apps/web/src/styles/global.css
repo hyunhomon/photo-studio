@@ -2,6 +2,25 @@
 @import "@photo-studio/ui/theme.css";
 @source "../../../../packages/ui/src";
 
+@font-face {
+  font-family: "Pretendard";
+  src: url("/fonts/PretendardVariable.woff2") format("woff2");
+  font-weight: 100 900;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Paperlogy";
+  src: url("/fonts/Paperlogy-Regular.woff2") format("woff2");
+  font-weight: 400 500;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Paperlogy";
+  src: url("/fonts/Paperlogy-SemiBold.woff2") format("woff2");
+  font-weight: 600 900;
+  font-display: swap;
+}
+
 @layer base {
   html {
     background: var(--color-paper);
@@ -12,6 +31,10 @@
     margin: 0;
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
+  }
+  h1,
+  h2 {
+    font-family: var(--font-editorial);
   }
   button,
   a {
@@ -32,6 +55,19 @@
 }
 
 @layer components {
+  .studio-input {
+    width: 100%;
+    min-height: 44px;
+    border: 1px solid var(--color-line);
+    background: var(--color-surface);
+    border-radius: 0.65rem;
+    padding: 0.75rem 1rem;
+    font-size: 0.875rem;
+    color: var(--color-ink);
+  }
+  .studio-input:focus {
+    border-color: #526a2b;
+  }
   .eyebrow {
     font-size: 0.65rem;
     font-weight: 600;

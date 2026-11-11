@@ -39,13 +39,15 @@ Phase 1은 초대 코드·PKCE S256/state/browser binding·서버 콜백·버전
 
 > 배포 인프라 후속 요청(2026-11-10): `https://photo-studio.cloby.co`에 production 한 환경으로 Phase 0 Mock을 배포했다. D1/private R2/Workflow와 웹/API routes를 연결했으며, 기존 리소스를 재사용하는 재배포도 통과했다. `bun run deploy`의 format/lint/typecheck/unit/build 검증, unit 5 pass, local binding smoke, local E2E 4 pass, production desktop/mobile HTTPS·API·CORS·Dialog 검증을 통과했다. 실제 AI/고객 인증은 실행하지 않았다. 기존 Cloudflare Web Analytics beacon만 production 네트워크 검사에서 허용하며 존 설정은 변경하지 않았다. 세부 구성과 명령은 `docs/12-DEPLOYMENT.md` 참조. 아래 Phase 1 기능은 여전히 미구현이다.
 
-- [ ] invite code 해시 검증·만료·사용량 제한.
-- [ ] OpenRouter OAuth start/callback + PKCE S256 + state/browser binding.
-- [ ] API Key AES-GCM 암호화 저장·사용, user_id 매핑, session/logout.
-- [ ] 사용자별 권한 미들웨어, CORS/cookie/CSRF 테스트.
-- [ ] no-key/expired-key/no-credits/error handling UX.
+- [x] invite code 해시 검증·만료·사용량 제한.
+- [x] OpenRouter OAuth start/callback + PKCE S256 + state/browser binding.
+- [x] API Key AES-GCM 암호화 저장·사용, user_id 매핑, session/logout.
+- [x] 사용자별 권한 미들웨어, CORS/cookie/CSRF 테스트.
+- [x] no-key/expired-key/no-credits/error handling UX.
 
 **DoD:** 테스트 모드에서 로그인/로그아웃 및 타 계정 접근 차단 확인; key가 network JSON/log에 노출되지 않음.
+
+Phase 1 구현(2026-11-11): SQLite/D1 계약 기반 Mock OAuth 성공·state 단일 사용·browser mismatch·TTL·user_id 누락·초대 만료/사용량·rate limit·CSRF/위조 세션·로그아웃·AES context/version 검증. 단위 테스트 9개 통과. `/beta`와 계정 설정/연결 상태 UX 및 두 자체 호스팅 글꼴 추가. 실제 외부 OAuth 로그인/유료 호출은 미검증이며 완료로 표시하지 않는다. production 암호화 secret/초대 bootstrap과 additive migration 적용은 배포 명령에 포함했다.
 
 ## Phase 2 — 프로젝트/상품 업로드
 

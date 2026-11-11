@@ -6,7 +6,7 @@
   --color-accent: #dbe9a2;
   --color-surface: #fffefa;
   --color-studio: #e7e8df;
-  --font-sans: "Segoe UI", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
-  --font-editorial: Georgia, "Times New Roman", serif;
+  --font-sans: "Pretendard", "Segoe UI", "Malgun Gothic", sans-serif;
+  --font-editorial: "Paperlogy", "Pretendard", sans-serif;
   --radius-panel: 1rem;
 }

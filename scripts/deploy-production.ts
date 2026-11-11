@@ -28,6 +28,7 @@ async function run(
     cwd?: string;
     env?: Record<string, string>;
     privateOutput?: boolean;
+    input?: string;
   } = {},
 ) {
   const child = Bun.spawn(args, {
@@ -40,8 +41,10 @@ async function run(
     },
     stdout: "pipe",
     stderr: "pipe",
-    stdin: "ignore",
+    stdin: "pipe",
   });
+  child.stdin.write(options.input ?? "");
+  child.stdin.end();
   const [out, error, code] = await Promise.all([
     new Response(child.stdout).text(),
     new Response(child.stderr).text(),
@@ -234,6 +237,8 @@ apiConfig.name = production.apiWorker;
 apiConfig.main = resolve(root, "apps/api/src/index.ts");
 apiConfig.routes = patterns.map((pattern) => ({ pattern, zone_id: zone.id }));
 apiConfig.vars.ALLOWED_WEB_ORIGINS = origin;
+apiConfig.vars.APP_ENV = "production";
+apiConfig.vars.ENABLE_DEMO = "false";
 apiConfig.vars.OPENROUTER_CALLBACK_URL = `${origin}/auth/openrouter/callback`;
 apiConfig.d1_databases = [
   {
@@ -274,6 +279,101 @@ await writeFile(
 );
 console.info(
   "Generated production configs under ignored .wrangler/production/; R2 public access is disabled.",
+);
+
+// Additive, tracked schema changes only. Secret values travel over stdin,
+// never shell arguments or Wrangler output; preserve an existing server key.
+await run(
+  "Production migrations",
+  [
+    "node",
+    cli,
+    "d1",
+    "migrations",
+    "apply",
+    production.database,
+    "--remote",
+    "--config",
+    apiConfigPath,
+  ],
+  { privateOutput: true },
+);
+const settings = await api<{ bindings: { name: string; type: string }[] }>(
+  `${accountPath}/workers/scripts/${production.apiWorker}/settings`,
+);
+if (
+  !settings.bindings.some(
+    (binding) =>
+      binding.name === "APP_ENCRYPTION_KEY_B64" &&
+      binding.type === "secret_text",
+  )
+) {
+  const backupPath = resolve(stateDir, "encryption-key.json");
+  let secret: string;
+  if (await Bun.file(backupPath).exists()) {
+    const backup = JSON.parse(await readFile(backupPath, "utf8")) as {
+      key: string;
+    };
+    secret = backup.key;
+  } else {
+    secret = btoa(
+      String.fromCharCode(...crypto.getRandomValues(new Uint8Array(32))),
+    );
+    await writeFile(backupPath, JSON.stringify({ version: "v1", key: secret }));
+  }
+  await run(
+    "Production encryption secret",
+    [
+      "node",
+      cli,
+      "secret",
+      "put",
+      "APP_ENCRYPTION_KEY_B64",
+      "--config",
+      apiConfigPath,
+    ],
+    { input: secret, privateOutput: true },
+  );
+}
+const activeInvites = await api<{ results: { n: number }[] }[]>(
+  `${accountPath}/d1/database/${database.uuid}/query`,
+  {
+    method: "POST",
+    body: JSON.stringify({
+      sql: "SELECT count(*) n FROM invite_codes WHERE expires_at>? AND used_count<max_uses",
+      params: [Date.now()],
+    }),
+  },
+);
+if (activeInvites[0]?.results[0]?.n === 0) {
+  const invite = `PS-${btoa(
+    String.fromCharCode(...crypto.getRandomValues(new Uint8Array(24))),
+  )
+    .replaceAll("+", "-")
+    .replaceAll("/", "_")
+    .replaceAll("=", "")}`;
+  const inviteHash = Array.from(
+    new Uint8Array(
+      await crypto.subtle.digest("SHA-256", new TextEncoder().encode(invite)),
+    ),
+    (byte) => byte.toString(16).padStart(2, "0"),
+  ).join("");
+  await api(`${accountPath}/d1/database/${database.uuid}/query`, {
+    method: "POST",
+    body: JSON.stringify({
+      sql: "INSERT INTO invite_codes (id,code_hash,max_uses,used_count,expires_at,created_at) VALUES (?,?,10,0,?,?)",
+      params: [
+        crypto.randomUUID(),
+        inviteHash,
+        Date.now() + 30 * 86400000,
+        Date.now(),
+      ],
+    }),
+  });
+  await writeFile(resolve(stateDir, "beta-invite.txt"), invite);
+}
+console.info(
+  "Production migrations and encryption secret ready. Beta invitation is stored privately under .wrangler/production/.",
 );
 
 // Build first, then publish the web origin and API routes. Never use --env:

@@ -4,8 +4,8 @@ export const healthSchema = z.object({
   data: z.object({
     status: z.literal("ok"),
     service: z.literal("photo-studio-api"),
-    phase: z.literal(0),
-    aiMode: z.literal("mock"),
+    phase: z.number().int().min(0),
+    aiMode: z.enum(["mock", "openrouter"]),
   }),
 });
 
