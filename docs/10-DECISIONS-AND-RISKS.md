@@ -139,3 +139,5 @@ ADR-023에 따라 파일명 대신 동의된 기존 상품 분석의 suggestedTi
 ADR-024에 따라 생성 확인/비용 동의를 유일한 촬영 실행 승인으로 삼고 별도 저장/승인 버튼을 제거했다. 편집은 화면 메모리에 두고 생성 창에서 고정한다. 새 분석/기획은 새 서버 결과를 사용하며 단순 polling/탭 전환으로 draft를 잃지 않는다. 페이지를 떠나면 생성 전 편집은 저장되지 않고, ‘저장된 분석으로 기획 다시 만들기’는 기존 서버 분석을 사용한다.
 
 생성 job 등록과 분석/계획 저장은 공식 D1 batch의 rollback 보장을 사용하며, 신규 job ID가 실제 생성된 때만 설정을 갱신한다. 동의/소유권/유효성 오류는 저장 전 거부하고 idempotent replay는 나중에 변경된 저장값을 덮지 않는다. 실제 Workflow에는 같은 요청의 고정 snapshot을 넘긴다. 내부 approved 및 기존 PATCH는 호환 이력이며 UI 단계가 아니다. 유료 자동 실행/재시도나 데이터 초기화는 없다.
+
+앱 df345fb commit/push 및 web/API/Workflow production 배포 완료. format/lint/typecheck/build, 단위57/57, 최신 local/production desktop/mobile 각6/6 및 wrapper exit0, 공개 smoke를 통과했다. 실제 D1/Workflow Mock 흐름에서 수정값 저장+생성 연결을 확인했고 UI 캡처에 저장/승인 버튼이 없는 것을 확인했다. 합성 계정/사진 정리 완료, 실제 사용자 연결/자료 보존. 새 흐름의 실제 유료 생성은 자동으로 수행하지 않았으며 미검증으로 남긴다.

@@ -250,5 +250,5 @@ production desktop/mobile 전체 Mock E2E **4/4 통과**: 저장된 분석 재�
 
 - [x] 상품 이해/촬영 콘셉트의 저장·승인 액션 제거. 공유 draft와 생성 확인 시 snapshot, 별도 비용 동의 유지.
 - [x] generate에서 editedAnalysis/editedPlan 검증, job+설정 D1 atomic batch 저장 후 dispatch, 조건부 신규 job ID로 replay/충돌 보호.
-- [ ] 최종 check/브라우저 검증, commit/push, 운영 배포 및 회귀 확인.
+- [x] format/lint/typecheck/build 통과, 단위 57/57: 미승인 계획 직접 생성, 수정 snapshot, 동의/검증/owner 거부 무저장, 중복 요청 후속값 보호, 저장 실패 시 job/분석 rollback을 검사했다. 최신 local/production desktop/mobile 각각 6/6, wrapper exit 0. 별도 저장/승인 버튼 없음·탭 전환 draft 유지·생성 시 editedAnalysis/editedPlan 전송/실제 저장·생성/개선/삭제를 검증하고 화면을 점검했다. df345fb commit/push 및 web/API/Workflow 배포, 공개 smoke 통과. DB 스키마/사용자 자료/연결 초기화와 추가 유료 AI 호출 없음.
 - [ ] 새 흐름의 실제 사용자 승인 유료 생성 검증. Mock 검사와 구분한다.
