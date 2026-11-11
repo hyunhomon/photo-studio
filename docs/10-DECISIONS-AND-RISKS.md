@@ -162,3 +162,6 @@ b9abd66 commit/push, API/Workflow 우선→웹 배포 완료. format/lint/typech
 ## 2026-11-12 — 중앙 업로드와 시각적 크롬 정리
 
 ADR-027로 초기 상품명 입력·공통 상단 헤더를 제거한다. 사진 입력 3개를 중앙 같은 행에 배치하고 박스 내 캐러셀, 하단 등록 버튼을 제공한다. 이름은 기존 분석 명명 경로를 유지한다. 사용자 지시로 모든 scrollbar/focus ring을 숨기며 입력 ring을 남긴 ADR-025 예외를 대체한다. 의미적 버튼·탭 이동·Dialog 초점 복귀·실제 스크롤은 보존하지만 시각적 초점/스크롤 단서는 약해진다. 랜딩은 제공한 Chainly의 중앙 CTA와 주변 카드 구도를 직접 확인해 자체 벡터와 기존 다크/네온 톤으로 적용한다. 실제 촬영 결과·고객 사례로 가장하지 않는다. 이번 변경은 웹 전용이며 DB/사용자 연결/이미지/AI 프롬프트를 수정하거나 초기화하지 않는다.
+
+
+c62ef8d commit/push 후 웹 Worker만 배포했다. 최종 format/lint/typecheck/test/build 통과(타입 진단/린트 경고 0, 단위59/59), 최신 local/production desktop/mobile 각각6/6 및 운영 wrapper exit0. 운영 HTTPS/CORS/무초대 OAuth/폰트/반응형 smoke와 화면 캡처를 확인했다. 이름 없는 등록·3종 가로 입력·프리뷰 경계/캐러셀 append/삭제·인물 입력·전체 헤더 없음·입력 ring 없음·내부 스크롤 유지·생성/개선/삭제를 검증했다. 360~1440px 랜딩 overflow와 CTA 줄바꿈도 점검했다. 합성 계정/사진 정리 후 실사용 계정/연결/세션은 그대로이며 API/Workflow 배포나 D1 migration/초기화, secret 변경, 유료 추론은 수행하지 않았다.

@@ -275,4 +275,4 @@ production desktop/mobile 전체 Mock E2E **4/4 통과**: 저장된 분석 재�
 - [x] 동일 행의 상품/레퍼런스/인물 입력, 박스 내부 캐러셀/이전·다음/스와이프/삭제·참조 교체와 아래 등록 버튼. 기존 업로드 권한/용량/무AI 정책 유지.
 - [x] 실제 Chainly 레퍼런스 카드 배치 확인 후 중앙 헤드라인/CTA·주변 카드·보드 레이아웃을 자체 벡터/기존 다크·네온 폰트로 구현. 일러스트는 실제 생성 결과로 표시하지 않는다.
 - [x] 최종 format/lint/typecheck/test/build 통과(진단/린트 경고 0, 단위 59/59), local desktop/mobile Mock 6/6. 이름 없는 등록·3종 입력 배치·박스 내 미리보기·캐러셀 append/삭제·인물 입력·헤더 없음·입력 ring 없음·독립 스크롤·생성/개선/삭제 검증. 360~1440px 랜딩 가로 넘침/모바일 CTA 줄바꿈 없음, 화면 캡처 점검.
-- [ ] production 웹 배포·Mock 브라우저·공개 smoke 검증.
+- [x] c62ef8d commit/push 및 웹 전용 production 배포 완료. 운영 desktop/mobile Mock 6/6, wrapper exit 0 및 공개 HTTPS/CORS/OAuth/폰트/반응형 smoke 통과. 운영 캡처 점검, 합성 계정/사진 정리 완료. 실제 계정/연결/세션 유지(읽기 전용 집계). API/Workflow/D1 migration/실사용 자료 초기화·secret 변경·유료 AI 호출 없음.
