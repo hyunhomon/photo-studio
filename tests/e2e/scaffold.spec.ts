@@ -40,6 +40,16 @@ test("Mock: connect, upload, plan, generate, review, export and delete", async (
       unexpected.push("off-origin request");
   });
   await page.goto("/");
+  await page.emulateMedia({ colorScheme: "light" });
+  await expect(page.locator("html")).toHaveCSS("color-scheme", "dark");
+  await expect(page.locator("html")).toHaveCSS(
+    "background-color",
+    "rgb(11, 12, 14)",
+  );
+  await page.screenshot({
+    path: `.tmp/${productionOrigin ? "production-" : ""}dark-landing-${test.info().project.name}.png`,
+    fullPage: true,
+  });
   await expect(page.getByRole("heading", { level: 1 })).toContainText(
     "옷 한 장에서",
   );
@@ -51,6 +61,11 @@ test("Mock: connect, upload, plan, generate, review, export and delete", async (
   await expect(page.getByRole("heading", { level: 1 })).toContainText(
     "나의 프로젝트",
   );
+  await page.getByRole("button", { name: "새 프로젝트", exact: true }).click();
+  await page.keyboard.press("Escape");
+  await expect(
+    page.getByRole("button", { name: "새 프로젝트", exact: true }),
+  ).toBeFocused();
   await page.getByRole("button", { name: "새 프로젝트", exact: true }).click();
   await page
     .getByLabel("프로젝트 이름", { exact: true })

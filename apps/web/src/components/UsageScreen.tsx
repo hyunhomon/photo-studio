@@ -117,7 +117,7 @@ export default function UsageScreen() {
                       </div>
                       <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-line">
                         <div
-                          className="h-full bg-[#75835e]"
+                          className="h-full bg-primary"
                           style={{
                             width: `${(100 * s.calls) / Math.max(1, ...data.stages.map((v) => v.calls))}%`,
                           }}
@@ -134,7 +134,7 @@ export default function UsageScreen() {
                 </div>
               )}
             </section>
-            <section className="rounded-panel border border-line bg-[#eff0e8] p-6">
+            <section className="rounded-panel border border-line bg-surface p-6">
               <h2 className="text-lg">품질과 선택</h2>
               <dl className="mt-5 space-y-4 text-sm">
                 {[

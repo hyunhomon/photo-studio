@@ -64,7 +64,7 @@ export default function AccountSettings() {
       {error && (
         <p
           role="alert"
-          className="mt-5 rounded-lg bg-red-50 p-4 text-sm text-red-800"
+          className="mt-5 rounded-lg bg-danger-surface p-4 text-sm text-danger"
         >
           {error}
         </p>
@@ -194,6 +194,7 @@ export default function AccountSettings() {
         </label>
         <Button
           className="mt-6 w-full"
+          variant="danger"
           disabled={busy || confirmation !== "삭제"}
           onClick={() => void erase()}
         >

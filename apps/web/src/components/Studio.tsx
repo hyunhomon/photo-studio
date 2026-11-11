@@ -74,7 +74,7 @@ export default function Studio() {
             <a
               key={project.id}
               href={`/studio/projects/${project.id}`}
-              className="group rounded-panel border border-line bg-surface p-6 transition-colors hover:border-[#87916f]"
+              className="group rounded-panel border border-line bg-surface p-6 transition-colors hover:border-primary/60"
             >
               <div className="flex h-36 items-center justify-center rounded-xl bg-studio">
                 <FolderOpen size={48} strokeWidth={0.8} aria-hidden="true" />
@@ -95,7 +95,7 @@ export default function Studio() {
           ))}
         </div>
       ) : (
-        <section className="my-7 grid min-h-[390px] place-items-center rounded-panel border border-dashed border-[#c4c9b8] bg-surface/70 px-6 py-12 text-center">
+        <section className="my-7 grid min-h-[390px] place-items-center rounded-panel border border-dashed border-line bg-surface/70 px-6 py-12 text-center">
           <div className="max-w-md">
             <div className="mx-auto mb-7 grid size-20 place-items-center rounded-2xl border border-line bg-paper">
               <FolderPlus size={32} strokeWidth={1} aria-hidden="true" />
@@ -189,7 +189,7 @@ export default function Studio() {
             />
           </div>
           {error && (
-            <p role="alert" className="text-sm text-red-800">
+            <p role="alert" className="text-sm text-danger">
               {error}
             </p>
           )}

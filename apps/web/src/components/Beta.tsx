@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { ArrowRight, Check, LockKeyhole } from "lucide-react";
-import { Button } from "@photo-studio/ui";
+import { Button, BrandLockup } from "@photo-studio/ui";
 import { errorMessage, request } from "../lib/api";
 
 const messages: Record<string, string> = {
@@ -57,6 +57,9 @@ export default function Beta() {
       className="page-width grid min-h-[85vh] items-center gap-12 py-12 lg:grid-cols-2 lg:gap-24"
     >
       <div>
+        <a href="/" aria-label="Photo Studio 홈" className="mb-14 inline-flex">
+          <BrandLockup />
+        </a>
         <p className="eyebrow mb-6 text-muted">
           AN INVITATION TO YOUR NEXT COLLECTION
         </p>
@@ -76,7 +79,7 @@ export default function Beta() {
             "비용 확인 후 분석과 생성을 각각 실행",
           ].map((t) => (
             <li key={t} className="flex items-center gap-3">
-              <Check size={17} className="text-[#526a2b]" aria-hidden="true" />
+              <Check size={17} className="text-primary" aria-hidden="true" />
               {t}
             </li>
           ))}
@@ -89,7 +92,12 @@ export default function Beta() {
         }}
         className="rounded-panel border border-line bg-surface p-7 shadow-sm sm:p-10"
       >
-        <LockKeyhole size={24} strokeWidth={1.5} aria-hidden="true" />
+        <LockKeyhole
+          size={24}
+          className="text-primary"
+          strokeWidth={1.5}
+          aria-hidden="true"
+        />
         <h2 className="mt-5 text-2xl">스튜디오 연결</h2>
         <p className="mt-3 text-sm leading-6 text-muted">
           이미 참여 중이라면 초대 코드 없이 다시 연결할 수 있습니다.
@@ -119,7 +127,7 @@ export default function Beta() {
             type="checkbox"
             checked={accepted}
             onChange={(e) => setAccepted(e.target.checked)}
-            className="mt-1 size-4 accent-[#526a2b]"
+            className="mt-1 size-4 accent-primary"
             required
           />
           <span>
@@ -130,7 +138,7 @@ export default function Beta() {
         {error && (
           <p
             role="alert"
-            className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-800"
+            className="mb-4 rounded-lg bg-danger-surface p-3 text-sm text-danger"
           >
             {error}
           </p>

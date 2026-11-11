@@ -109,7 +109,7 @@ export default function GenerationPanel({
       {error && (
         <p
           role="alert"
-          className="mb-5 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800"
+          className="mb-5 rounded-xl border border-danger-line bg-danger-surface p-4 text-sm text-danger"
         >
           {error}
         </p>
@@ -179,7 +179,7 @@ export default function GenerationPanel({
                 key={r.asset.id}
                 aria-pressed={r.asset.id === result.asset.id}
                 aria-label={`결과 ${results.length - i} 선택`}
-                className={`shrink-0 overflow-hidden rounded-lg border-2 ${r.asset.id === result.asset.id ? "border-ink" : "border-transparent"}`}
+                className={`shrink-0 overflow-hidden rounded-lg border-2 ${r.asset.id === result.asset.id ? "border-primary" : "border-transparent"}`}
                 onClick={() => setSelected(r.asset.id)}
               >
                 <img
@@ -277,7 +277,7 @@ export default function GenerationPanel({
                         <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-line">
                           <div
                             style={{ width: `${s.value * 100}%` }}
-                            className="h-full rounded-full bg-[#75835e]"
+                            className="h-full rounded-full bg-primary"
                           />
                         </div>
                       </div>
@@ -287,7 +287,7 @@ export default function GenerationPanel({
                     {result.quality.flaggedIssues.map((issue) => (
                       <li
                         key={`${issue.code}-${issue.reason}`}
-                        className={`rounded-lg p-3 text-xs leading-6 ${issue.severity === "high" ? "bg-[#f3e6dd]" : "bg-studio"}`}
+                        className={`rounded-lg p-3 text-xs leading-6 ${issue.severity === "high" ? "bg-warning-surface text-warning" : "bg-studio"}`}
                       >
                         <span className="font-semibold">
                           {issue.severity === "high" ? "주의" : "확인"} ·{" "}
@@ -337,7 +337,7 @@ export default function GenerationPanel({
               </div>
               <a
                 href={`${apiBase}/api/v1/assets/${result.asset.id}/download`}
-                className="mt-3 flex min-h-11 items-center justify-center gap-2 rounded-full border border-line px-4 py-3 text-xs font-semibold"
+                className="mt-3 flex min-h-11 items-center justify-center gap-2 rounded-lg border border-control px-4 py-3 text-xs font-semibold hover:bg-elevated"
               >
                 <ArrowDownToLine size={14} aria-hidden="true" />
                 PNG 다운로드
@@ -428,7 +428,7 @@ export default function GenerationPanel({
         <label className="mt-5 flex items-start gap-3 text-sm leading-6">
           <input
             type="checkbox"
-            className="mt-1 size-4 accent-ink"
+            className="mt-1 size-4 accent-primary"
             checked={consent}
             onChange={(e) => setConsent(e.target.checked)}
           />

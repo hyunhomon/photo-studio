@@ -129,7 +129,11 @@ export default function ProductScreen({ id }: { id: string }) {
               <Button variant="secondary" onClick={() => setRemove(false)}>
                 취소
               </Button>
-              <Button onClick={() => void drop()} disabled={busy}>
+              <Button
+                variant="danger"
+                onClick={() => void drop()}
+                disabled={busy}
+              >
                 상품 영구 삭제
               </Button>
             </div>

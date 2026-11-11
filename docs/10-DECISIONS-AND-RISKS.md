@@ -67,3 +67,7 @@ ADR-014를 추가했다. 사용자 상태를 deleting으로 고정해 계정 삭
 D1 공식 limits의 Free 50 queries/invocation 및 query당 100 bound parameters를 고려해 상품/작업/결과 목록과 다건 삭제·GC를 batch로 묶었다. 61개 상품의 조회/비공개 사진 삭제를 단위 통합 검사에 추가했다. 결과 갤러리는 최근 100컷, 작업 기록은 최근 50개를 표시하며 전체 기록은 내보내기로 제공한다.
 
 원격 Mock E2E 4개 통과 후 삭제 복구를 추가 점검했다. R2 장애 뒤 세션이 만료돼도 시간별 cleanup이 deleting 계정과 암호화 키/관계 데이터를 마무리하도록 보완하고 회귀 테스트를 추가했다.
+
+## 2026-11-11 — 다크 네온 UI refine
+
+사용자 첨부 레퍼런스에 따라 다크 전용·형광 초록 primary(#00F59B)로 전환했다(ADR-015). 기존 Headless UI Dialog/Listbox와 Pretendard/Paperlogy, 비용 동의·인증·작업 로직을 유지한다. 모든 상태/포커스 색상을 semantic token으로 옮기고 자체 P/셔터 심볼·기울어진 워드마크·SVG outline 및 favicon을 추가했다. 고객 사진에는 반전/색 필터를 적용하지 않는다. 주요 텍스트 대비 6.74:1 이상, primary 버튼 텍스트 13.08:1, 입력 경계 3.27:1을 확인했다. OS light에서도 dark 유지, Dialog ESC/포커스 복귀 및 desktop/mobile 전체 Mock E2E 4개 통과. 사용자 실제 테스트를 보호하기 위해 웹 Worker만 배포하는 명령을 추가했다.

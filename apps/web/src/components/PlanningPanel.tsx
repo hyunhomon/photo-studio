@@ -238,7 +238,7 @@ export function PlanEditor({
 }) {
   const [v, set] = useState(plan.spec);
   return (
-    <section className="rounded-panel border border-line bg-[#eff0e8] p-6">
+    <section className="rounded-panel border border-line bg-surface p-6">
       <div className="flex items-center justify-between gap-3">
         <h2 className="text-xl">촬영 콘셉트</h2>
         <span className="rounded-full border border-line px-3 py-1.5 text-[10px]">
@@ -404,7 +404,7 @@ export default function PlanningPanel({
       {error && (
         <p
           role="alert"
-          className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800"
+          className="rounded-xl border border-danger-line bg-danger-surface p-4 text-sm text-danger"
         >
           {error}
         </p>
@@ -523,7 +523,7 @@ export default function PlanningPanel({
         <label className="mt-5 flex items-start gap-3 text-sm leading-6">
           <input
             type="checkbox"
-            className="mt-1 size-4 accent-ink"
+            className="mt-1 size-4 accent-primary"
             checked={consent}
             onChange={(e) => setConsent(e.target.checked)}
           />

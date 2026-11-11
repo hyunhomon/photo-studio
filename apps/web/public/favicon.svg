@@ -1,1 +1,1 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><title>Photo Studio</title><rect width="64" height="64" rx="14" fill="#242621"/><path d="M19 44V20h13c13 0 13 17 0 17h-8m0-12v19" fill="none" stroke="#dbe9a2" stroke-width="4"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><title>Photo Studio</title><rect width="64" height="64" rx="12" fill="#0b0c0e"/><g transform="translate(4 4)" fill="#00f59b"><path fill-rule="evenodd" d="M18 4H52L44 32H27L20 52H4L18 4ZM29 15L27 23H35L38 15H29Z"/><path d="M34 38H49L45 52H30L34 38Z"/></g></svg>

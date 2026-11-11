@@ -23,6 +23,7 @@
 
 @layer base {
   html {
+    color-scheme: dark;
     background: var(--color-paper);
     color: var(--color-ink);
     scroll-behavior: smooth;
@@ -36,6 +37,11 @@
   h2 {
     font-family: var(--font-editorial);
   }
+  h1,
+  h2,
+  h3 {
+    word-break: keep-all;
+  }
   button,
   a {
     -webkit-tap-highlight-color: transparent;
@@ -45,12 +51,12 @@
     cursor: pointer;
   }
   :focus-visible {
-    outline: 3px solid #526a2b;
+    outline: 2px solid var(--color-primary);
     outline-offset: 5px;
   }
   ::selection {
     background: var(--color-accent);
-    color: var(--color-ink);
+    color: var(--color-on-primary);
   }
 }
 
@@ -58,15 +64,17 @@
   .studio-input {
     width: 100%;
     min-height: 44px;
-    border: 1px solid var(--color-line);
-    background: var(--color-surface);
+    border: 1px solid var(--color-control);
+    background: var(--color-paper);
     border-radius: 0.65rem;
     padding: 0.75rem 1rem;
     font-size: 0.875rem;
     color: var(--color-ink);
   }
   .studio-input:focus {
-    border-color: #526a2b;
+    border-color: var(--color-primary);
+    outline: 2px solid color-mix(in srgb, var(--color-primary) 16%, transparent);
+    outline-offset: 1px;
   }
   .eyebrow {
     font-size: 0.65rem;
@@ -83,22 +91,61 @@
     align-items: center;
     justify-content: center;
     gap: 0.75rem;
-    border-radius: 999px;
+    border-radius: 0.5rem;
     padding: 0.8rem 1.5rem;
-    background: var(--color-ink);
-    color: var(--color-paper);
+    background: var(--color-primary);
+    color: var(--color-on-primary);
     font-size: 0.875rem;
     font-weight: 600;
     transition: background 150ms;
   }
   .pill-link:hover {
-    background: #44483a;
+    background: var(--color-primary-hover);
   }
   .fine-grid {
     background-image:
-      linear-gradient(#ffffff30 1px, transparent 1px),
-      linear-gradient(90deg, #ffffff30 1px, transparent 1px);
+      linear-gradient(var(--color-line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--color-line) 1px, transparent 1px);
     background-size: 42px 42px;
+  }
+  .brand-wordmark {
+    font-family: var(--font-editorial);
+    font-size: 1.3rem;
+    font-weight: 800;
+    font-style: italic;
+    letter-spacing: -0.07em;
+    line-height: 0.95;
+    -webkit-text-stroke: 0.25px currentColor;
+  }
+  .studio-button {
+    font-family: var(--font-sans);
+  }
+  .studio-button:not(:disabled):active,
+  .pill-link:active {
+    transform: translateY(1px);
+  }
+  .studio-input::placeholder {
+    color: var(--color-muted);
+    opacity: 0.6;
+  }
+  input[type="checkbox"] {
+    accent-color: var(--color-primary);
+  }
+  .studio-frame {
+    background: var(--color-surface);
+    box-shadow: 0 24px 80px rgb(0 0 0 / 25%);
+  }
+  .signal-strip {
+    clip-path: polygon(
+      0 12%,
+      43% 0,
+      44% 12%,
+      100% 0,
+      100% 88%,
+      65% 100%,
+      64% 88%,
+      0 100%
+    );
   }
 }
 

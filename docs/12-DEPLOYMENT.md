@@ -19,6 +19,8 @@ production용 Astro를 다시 빌드해 공개 API URL을 같은 origin으로 �
 
 ## 환경 설정
 
+UI만 변경할 때는 기존 production 설정을 준비한 머신에서 `bun run deploy:web`을 사용한다. 검사를 거쳐 웹 Worker만 빌드·게시하며 API 배포, D1 migration, secret 및 진행 중 Workflow는 변경하지 않는다. 새 머신이나 인프라 변경은 전체 `deploy` 절차를 먼저 따른다.
+
 | 설정 | production |
 |---|---|
 | APP_ENV | production |

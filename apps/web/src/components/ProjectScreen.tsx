@@ -112,7 +112,7 @@ export default function ProjectScreen({ id }: { id: string }) {
           {project.status === "deleting" && (
             <div
               role="alert"
-              className="mt-6 rounded-lg bg-amber-50 p-4 text-sm text-amber-900"
+              className="mt-6 rounded-lg bg-warning-surface p-4 text-sm text-warning"
             >
               삭제 작업을 완료하지 못했습니다. 프로젝트 삭제를 다시 실행해
               주세요.
@@ -131,9 +131,9 @@ export default function ProjectScreen({ id }: { id: string }) {
                 <a
                   href={`/studio/products/${product.id}`}
                   key={product.id}
-                  className="group overflow-hidden rounded-panel border border-line bg-surface transition-colors hover:border-[#87916f]"
+                  className="group overflow-hidden rounded-panel border border-line bg-surface transition-colors hover:border-primary/60"
                 >
-                  <div className="grid aspect-[4/3] place-items-center bg-[#e9e9e2] p-4">
+                  <div className="grid aspect-[4/3] place-items-center bg-studio p-4">
                     {product.assets.find((a) => a.kind === "input") ? (
                       <img
                         src={`${apiBase}/api/v1/assets/${product.assets.find((a) => a.kind === "input")?.id}/content`}
@@ -209,7 +209,11 @@ export default function ProjectScreen({ id }: { id: string }) {
               >
                 취소
               </Button>
-              <Button onClick={() => void mutate(true)} disabled={busy}>
+              <Button
+                variant="danger"
+                onClick={() => void mutate(true)}
+                disabled={busy}
+              >
                 {busy ? "삭제 중…" : "영구 삭제"}
               </Button>
             </div>

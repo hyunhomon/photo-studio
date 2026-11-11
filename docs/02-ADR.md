@@ -91,3 +91,10 @@
 - 계정 삭제는 사용자와 프로젝트를 deleting으로 먼저 표시한다. 새 작업을 차단하고 실행 취소·비공개 R2·관계 데이터를 정리하며 실패한 삭제는 기존 세션으로 재시도한다. 종료 후 모든 앱 세션과 암호화 연결을 삭제한다.
 - 이미 진행 중인 저장의 늦은 도착을 정리하기 위해 독립된 media_purges prefix tombstone을 최소 24시간 보관하고 시간별 cron에서 재정리한다. 다른 계정의 prefix를 삭제하지 않도록 범위를 검증한다.
 - production E2E는 관리 권한으로 만든 임시 is_test 계정에만 Mock을 허용한다. 고객 OAuth 계정은 실제 BYOK만 사용하며 provider 미설정 시 Mock으로 위장하지 않는다. 합성 계정과 사진은 검사 후 삭제한다.
+
+## ADR-015: 다크 전용 형광 초록 UI와 브랜드 — Accepted (사용자 지정, 2026-11-11)
+- 사용자가 제공한 치지직 레퍼런스를 바탕으로 다크 전용 팔레트와 primary `#00F59B`를 적용한다. 기존 옅은 에디토리얼 색상 제안은 이 사용자 지시로 대체한다.
+- Tailwind v4 semantic token에 모든 UI 배경/텍스트/포커스/상태 색을 모은다. 경고·파괴적 동작은 별도의 다크 배경/상태 토큰으로 구분한다. 사진 원본/생성 결과에는 테마 필터를 적용하지 않는다.
+- Pretendard 본문, Paperlogy 주요 헤드라인을 유지한다. P/셔터를 결합한 독자적 벡터 심볼과 기울어진 워드마크를 사용하며, favicon 및 자체 완결 SVG lockup을 제공한다. Paperlogy outline은 기존 OFL 글꼴에서 추출한다.
+- Headless UI Dialog/Listbox와 semantic HTML·키보드 포커스를 유지한다. 테마 전환 없이 OS가 light여도 dark로 표시한다.
+- 사용자 테스트 중 API/Workflow를 재배포하지 않도록 `deploy:web`으로 검증된 production 웹 Worker만 게시한다. 계정·존·도메인 pin을 검사하고 API·DB·secret은 변경하지 않는다.

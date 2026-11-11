@@ -1,12 +1,26 @@
 @theme {
-  --color-paper: #f5f3ed;
-  --color-ink: #242621;
-  --color-muted: #66695f;
-  --color-line: #d9dcd1;
-  --color-accent: #dbe9a2;
-  --color-surface: #fffefa;
-  --color-studio: #e7e8df;
+  --color-paper: #0b0c0e;
+  --color-ink: #f3f5f7;
+  --color-muted: #a2a8b1;
+  --color-line: #2c3037;
+  --color-control: #606a77;
+  --color-accent: #00f59b;
+  --color-primary: #00f59b;
+  --color-primary-hover: #63ffbc;
+  --color-on-primary: #04140d;
+  --color-surface: #15171b;
+  --color-studio: #1e2127;
+  --color-sidebar: #101114;
+  --color-elevated: #252930;
+  --color-accent-soft: #102a20;
+  --color-accent-line: #24563e;
+  --color-warning: #ffd28a;
+  --color-warning-surface: #2b2319;
+  --color-danger: #ff8b9c;
+  --color-danger-surface: #2d1b22;
+  --color-danger-line: #65303e;
+  --color-overlay: #000000;
   --font-sans: "Pretendard", "Segoe UI", "Malgun Gothic", sans-serif;
   --font-editorial: "Paperlogy", "Pretendard", sans-serif;
-  --radius-panel: 1rem;
+  --radius-panel: 0.875rem;
 }

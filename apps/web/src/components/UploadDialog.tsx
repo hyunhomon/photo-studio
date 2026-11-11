@@ -87,7 +87,7 @@ export default function UploadDialog({
             />
           </div>
         )}
-        <label className="relative flex min-h-40 cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-[#aeb69e] bg-paper p-6 text-center focus-within:outline-2 focus-within:outline-offset-4 focus-within:outline-[#526a2b]">
+        <label className="relative flex min-h-40 cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-line bg-paper p-6 text-center focus-within:outline-2 focus-within:outline-offset-4 focus-within:outline-primary">
           <ImagePlus size={28} strokeWidth={1.5} aria-hidden="true" />
           <span className="mt-4 text-sm font-semibold">
             클릭하거나 사진을 여기에 놓으세요
@@ -118,7 +118,7 @@ export default function UploadDialog({
           </p>
         )}
         {error && (
-          <p role="alert" className="text-sm text-red-800">
+          <p role="alert" className="text-sm text-danger">
             {error}
           </p>
         )}

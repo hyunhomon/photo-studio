@@ -11,6 +11,7 @@ import {
 } from "@headlessui/react";
 import { X } from "lucide-react";
 import type { ButtonHTMLAttributes, ReactNode } from "react";
+export { BrandLockup, BrandMark } from "./brand";
 
 export function Button({
   className = "",
@@ -18,12 +19,20 @@ export function Button({
   type = "button",
   ...props
 }: ButtonHTMLAttributes<HTMLButtonElement> & {
-  variant?: "primary" | "secondary";
+  variant?: "primary" | "secondary" | "danger";
 }) {
+  const variants = {
+    primary:
+      "border border-primary bg-primary text-on-primary hover:border-primary-hover hover:bg-primary-hover",
+    secondary:
+      "border border-control bg-surface text-ink hover:border-muted hover:bg-elevated",
+    danger:
+      "border border-danger-line bg-danger-surface text-danger hover:border-danger",
+  };
   return (
     <button
       type={type}
-      className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-full px-6 py-3 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${variant === "primary" ? "bg-ink text-paper hover:bg-ink/85" : "border border-line bg-transparent text-ink hover:bg-studio"} ${className}`}
+      className={`studio-button inline-flex min-h-11 items-center justify-center gap-2 rounded-lg px-6 py-3 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${variants[variant]} ${className}`}
       {...props}
     />
   );
@@ -58,7 +67,7 @@ export function Select({
             <ListboxOption
               key={option.value}
               value={option.value}
-              className="cursor-pointer rounded-lg px-4 py-3 text-sm data-focus:bg-studio data-selected:font-semibold"
+              className="cursor-pointer rounded-lg px-4 py-3 text-sm data-focus:bg-accent-soft data-focus:text-primary data-selected:font-semibold data-selected:text-primary"
             >
               {option.label}
             </ListboxOption>
@@ -84,9 +93,9 @@ export function Modal({
 }) {
   return (
     <Dialog open={open} onClose={onClose} className="fixed inset-0 z-50">
-      <DialogBackdrop className="fixed inset-0 bg-ink/45 backdrop-blur-sm" />
+      <DialogBackdrop className="fixed inset-0 bg-overlay/80 backdrop-blur-sm" />
       <div className="fixed inset-0 flex items-center justify-center overflow-y-auto p-5">
-        <DialogPanel className="relative max-h-[calc(100dvh-2.5rem)] w-full max-w-lg overflow-y-auto rounded-panel border border-line bg-paper p-7 shadow-xl sm:p-10">
+        <DialogPanel className="relative max-h-[calc(100dvh-2.5rem)] w-full max-w-lg overflow-y-auto rounded-panel border border-line bg-surface p-7 shadow-2xl sm:p-10">
           <button
             type="button"
             aria-label="닫기"
@@ -95,7 +104,9 @@ export function Modal({
           >
             <X size={20} aria-hidden="true" />
           </button>
-          <p className="eyebrow mb-5">PHOTO STUDIO / EARLY ACCESS</p>
+          <p className="eyebrow mb-5 text-primary">
+            PHOTO STUDIO / YOUR NEXT SHOT
+          </p>
           <DialogTitle className="pr-5 text-2xl font-semibold tracking-tight">
             {title}
           </DialogTitle>
