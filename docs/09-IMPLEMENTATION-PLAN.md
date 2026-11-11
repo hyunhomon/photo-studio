@@ -1,5 +1,7 @@
 # Implementation Plan — Codex 실행용
 
+> 현재 상태(2026-11-11): Phase 0–5의 MVP 기능 구현 및 production 배포 완료. 실제 외부 계정 OAuth·유료 의류 품질 검증은 미실행이다. 아래 Phase 0 기록은 해당 시점의 이력이다.
+
 **원칙:** 각 Phase는 작동하는 결과, 테스트, 문서 업데이트까지 완료한다. 외부 유료 AI 실제 호출은 사용자가 명시적으로 승인하기 전에는 실행하지 않는다.
 
 ## Phase 0 — 모노레포/도구/인프라 로컬 기반
@@ -107,13 +109,26 @@ Phase 5 구현(2026-11-11): 내 사용자별 비용 부분합/미확인 수·단
 
 ## 최종 릴리스 체크
 
-- [x] 웹과 API 모두 배포 가능 (production Phase 0 Mock 배포 검증)
-- [ ] 초대 코드 베타 보호
-- [ ] OAuth PKCE와 암호화 키 저장
-- [ ] 사진 1장으로 처음부터 끝까지 동작
-- [ ] 모델컷/가상 로케이션컷 사용 시나리오
-- [ ] 유료 AI 분석 및 이미지 생성 호출 모두 사용자 확인 필수
-- [ ] 비용·시간·채택/폐기/사유 로그 확인
-- [ ] 타인 프로젝트/이미지 접근 차단
-- [ ] 중복 유료 호출 방어
-- [ ] 고객의 실제 촬영비 및 절감액 기록 양식 준비
+- [x] 웹/API/Workflow production 배포, 실제 HTTPS UI와 D1/private R2 검증.
+- [x] 초대 코드 베타 보호 (운영 invalid invite 403, 사용량/TTL은 단위 검증).
+- [x] OAuth PKCE/state/browser binding와 암호화 키 저장 구현 (실제 OAuth 계정 교환은 미검증).
+- [x] 사진 1장 → 분석/기획 → 수정·승인 → 생성/평가 → 검수 → 다운로드 → 삭제, local/production Mock 전체 흐름.
+- [x] 스튜디오/가상 로케이션 촬영 모드, 승인된 콘셉트 snapshot.
+- [x] 분석과 생성 각각 별도 비용 안내·명시적 동의 필수.
+- [x] 실제 비용/미확인 수, 시간, 품질 참고값, 채택/폐기/사유, 재생성 연결 기록.
+- [x] 타인 프로젝트/사진 접근 차단 (운영 A/B 검증 포함).
+- [x] 중복/불확실 과금 호출 방어 (fake provider 타임아웃·재실행·R2 오류 검증).
+- [x] 고객별 실제 촬영비·대체 범위 인터뷰 양식, 운영 집계 방법.
+- [ ] 실제 OpenRouter 계정 OAuth 로그인 및 funded 계정으로 유료 분석·생성·평가 smoke.
+- [ ] 실제 의류 보존 품질, 최대 크기/다중 업로드 부하, 키 회전·백업 복구 리허설.
+
+### 최종 검증 기록 — 2026-11-11
+
+- 실행: format/lint/typecheck/unit/build 전체 통과. Bun **25 pass / 0 fail**. Astro 진단 0 errors / 0 warnings / 0 hints.
+- workerd binding smoke: D1 SELECT, R2 write/read/delete, durable Mock Workflow 통과.
+- local desktop/mobile E2E **4 pass**. 실제 이미지 naturalWidth 디코딩도 확인한다.
+- production: migrations·AES secret·제한된 초대·비공개 R2·도메인/routes·Workflow 배포 검증 완료. 공개 HTTPS/CORS/인증 게이트/폰트/반응형 검사 통과.
+- production desktop/mobile Mock 전체 E2E **4 pass**: 원격 D1/R2/Workflow, 사용자 A/B 접근 차단, PKCE/callback browser 거부, 분석/기획/승인/생성/평가/채택/폐기/재생성/PNG·JSON 다운로드/삭제. 합성 계정과 사진 정리 완료. 유료 AI 호출 없음.
+- 삭제 중 세션 만료 시에도 cron이 계정·키를 마무리 삭제하도록 회귀 테스트를 추가하고 재배포했다. production 최종 코드 commit: `72f0643`.
+- UI는 Pretendard + Paperlogy 자체 호스팅, Headless UI Dialog/Listbox 및 Tailwind 토큰을 사용한다. 로컬 포트 분리에 따른 CORP 차단을 실제 브라우저 캡처로 발견·수정했으며 production same-origin 정책은 유지한다.
+- 실제 외부 계정/유료 이미지 테스트는 자동 실행하지 않았다. 관련 준비와 사람 검증 체크리스트는 `docs/13-BETA-OPERATIONS.md`에 남긴다.
