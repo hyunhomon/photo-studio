@@ -19,11 +19,9 @@ test("planning derives editable photographic choices from a selected visual refe
         content
           .filter((part: { type: string }) => part.type === "image_url")
           .map((part: { image_url: { url: string } }) => part.image_url.url),
-      ).toEqual(["synthetic-look-reference"]);
+      ).toEqual(["synthetic-person-reference", "synthetic-look-reference"]);
       expect(content[0].text).toContain("lighting");
-      expect(content[0].text).toContain(
-        "Do not copy the reference person's identity",
-      );
+      expect(content[0].text).toContain("Reconstruct its camera viewpoint");
       return Response.json({
         choices: [
           {
@@ -51,7 +49,10 @@ test("planning derives editable photographic choices from a selected visual refe
     mockAnalysisFixture,
     null,
     "Synthetic request",
-    { lookImage: "synthetic-look-reference" },
+    {
+      personImage: "synthetic-person-reference",
+      lookImage: "synthetic-look-reference",
+    },
   );
   expect(response.value.referenceNotes).toBe(
     "Synthetic side light and restrained contrast",

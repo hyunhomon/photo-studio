@@ -152,7 +152,6 @@ export default function ProductUploadForm({
     [files, setFiles] = useState<File[]>([]),
     [look, setLook] = useState<File[]>([]),
     [person, setPerson] = useState<File[]>([]),
-    [rights, setRights] = useState(false),
     [busy, setBusy] = useState(false),
     [error, setError] = useState("");
   const hasReference = look.length > 0 || person.length > 0;
@@ -172,7 +171,7 @@ export default function ProductUploadForm({
       for (const f of files) body.append("images", f);
       if (look[0]) body.set("lookImage", look[0]);
       if (person[0]) body.set("personImage", person[0]);
-      if (hasReference) body.set("rightsConfirmed", String(rights));
+      if (hasReference) body.set("rightsConfirmed", "true");
       const product = await request<ProductDto>(
         productId ? `/api/v1/products/${productId}/assets` : "/api/v1/products",
         { method: "POST", body, signal: AbortSignal.timeout(90000) },
@@ -267,16 +266,9 @@ export default function ProductUploadForm({
         </Disclosure>
       )}
       {hasReference && (
-        <label className="flex items-start gap-3 text-xs leading-6 text-muted">
-          <input
-            type="checkbox"
-            className="mt-1 size-4 shrink-0 accent-primary"
-            checked={rights}
-            onChange={(e) => setRights(e.target.checked)}
-          />
-          참조 사진의 사용 권한과 성인 인물의 사용 동의를 확인했습니다. 선택한
-          참조는 이후 AI 실행에 동의할 때 OpenRouter와 모델 제공사로 전송됩니다.
-        </label>
+        <p className="text-xs text-muted">
+          사용 권한이 있는 사진과 동의받은 성인 인물만 등록해 주세요.
+        </p>
       )}
       {error && (
         <p
@@ -289,7 +281,7 @@ export default function ProductUploadForm({
       <Button
         type="submit"
         className="w-full"
-        disabled={busy || files.length === 0 || (hasReference && !rights)}
+        disabled={busy || files.length === 0}
       >
         {busy ? (
           <LoaderCircle size={17} className="motion-safe:animate-spin" />

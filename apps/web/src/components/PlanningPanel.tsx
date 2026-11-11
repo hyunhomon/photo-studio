@@ -1,13 +1,9 @@
 import { useCallback, useEffect, useState, useId, useRef } from "react";
-import {
-  CheckCircle2,
-  Clock3,
-  ScanSearch,
-  SlidersHorizontal,
-} from "lucide-react";
+import { Clock3, ScanSearch, SlidersHorizontal } from "lucide-react";
 import { TabGroup, TabList, Tab, TabPanels, TabPanel } from "@headlessui/react";
+import ShotChoice, { framingOptions, angleOptions } from "./ShotChoice";
 import type { ReactNode } from "react";
-import { Button, Modal, Select } from "@photo-studio/ui";
+import { Button, Select } from "@photo-studio/ui";
 import type {
   JobDto,
   PipelineDto,
@@ -18,7 +14,7 @@ import type {
   ShootPlan,
   StudioDraft,
 } from "@photo-studio/schemas";
-import { apiBase, errorMessage, type Me, request } from "../lib/api";
+import { errorMessage, type Me, request } from "../lib/api";
 
 export const jobLabels: Record<string, string> = {
   queued: "작업 대기",
@@ -288,12 +284,14 @@ export function PlanEditor({
             value={v.model.pose}
             onChange={(s) => set({ ...v, model: { ...v.model, pose: s } })}
           />
-          <Field
+          <ShotChoice
+            choices={framingOptions}
             label="프레이밍"
             value={v.camera.framing}
             onChange={(s) => set({ ...v, camera: { ...v.camera, framing: s } })}
           />
-          <Field
+          <ShotChoice
+            choices={angleOptions}
             label="카메라 각도"
             value={v.camera.angle}
             onChange={(s) => set({ ...v, camera: { ...v.camera, angle: s } })}
@@ -318,6 +316,25 @@ export function PlanEditor({
             onChange={(s) => set({ ...v, lighting: s })}
           />
         </fieldset>
+        {plan.lookReferenceId && (
+          <Select
+            label="레퍼런스 반영"
+            value={v.camera.referenceComposition}
+            onChange={(mode) =>
+              set({
+                ...v,
+                camera: {
+                  ...v.camera,
+                  referenceComposition: mode as "match" | "inspire",
+                },
+              })
+            }
+            options={[
+              { value: "match", label: "구도·포즈·배경 배치 그대로" },
+              { value: "inspire", label: "빛·톤만 참고" },
+            ]}
+          />
+        )}
         <div className="mt-5 grid gap-4">
           <div>
             <p className="mb-2 text-xs text-muted">배경 분리</p>
@@ -350,8 +367,8 @@ export function PlanEditor({
             multiline
           />
           <p className="text-[11px] leading-6 text-muted">
-            나이대, 머리 모양, 표정과 개성을 적어 주세요. 묘사는 가상 성인
-            인물의 방향을 정하며, 특정 인물의 동일성을 보장하지 않습니다.
+            인물 참조가 있으면 해당 얼굴을 우선합니다. 여기에서는 표정과 스타일
+            등 추가 요청을 조정해 주세요.
           </p>
           <Field
             label="소재 표현 지시 (선택)"
@@ -383,12 +400,14 @@ export default function PlanningPanel({
   referencesPanel,
   draft,
   onDraft,
+  executionPending,
 }: {
   product: ProductDto;
   me: Me;
   onRefresh: () => void;
   onPipeline?: (data: PipelineDto) => void;
   referencesPanel?: ReactNode;
+  executionPending: boolean;
   draft: StudioDraft;
   onDraft: (value: StudioDraft) => void;
 }) {
@@ -400,10 +419,7 @@ export default function PlanningPanel({
     [presets, setPresets] = useState<PresetDto[]>([]),
     [preset, setPreset] = useState(""),
     [description, setDescription] = useState("");
-  const [consent, setConsent] = useState(false),
-    [reuseAnalysis, setReuseAnalysis] = useState(false),
-    [open, setOpen] = useState(false),
-    [busy, setBusy] = useState(false),
+  const [busy, setBusy] = useState(false),
     [error, setError] = useState("");
   const refresh = useCallback(async () => {
     const d = await request<PipelineDto>(
@@ -421,9 +437,9 @@ export default function PlanningPanel({
       .then(setPresets)
       .catch((e) => setError(errorMessage(e)));
   }, []);
-  const active = data.jobs.some((j) =>
-    ["queued", "running"].includes(j.status),
-  );
+  const active =
+    executionPending ||
+    data.jobs.some((j) => ["queued", "running"].includes(j.status));
   useEffect(() => {
     if (!active) return;
     const timer = setInterval(() => {
@@ -445,6 +461,31 @@ export default function PlanningPanel({
     } finally {
       setBusy(false);
     }
+  }
+  function start(reuseAnalysis: boolean) {
+    requestId.current = crypto.randomUUID();
+    void action(() =>
+      request(
+        `/api/v1/products/${product.id}/plan`,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            consent: true,
+            reuseAnalysis,
+            editedAnalysis: reuseAnalysis ? draft.analysis : undefined,
+            idempotencyKey: requestId.current,
+            presetId: preset || null,
+            description,
+            lookReferenceId: useLook ? (lookReference?.id ?? null) : null,
+            personReferenceId:
+              product.assets.find((a) => a.kind === "person_reference")?.id ??
+              null,
+            referenceConsent: true,
+          }),
+        },
+        me.csrf,
+      ),
+    );
   }
   const plan = data.plans[0];
   useEffect(() => {
@@ -487,15 +528,15 @@ export default function PlanningPanel({
               </p>
               <div className="mt-5 grid gap-4">
                 {lookReference && (
-                  <label className="flex items-start gap-3 rounded-xl bg-paper p-3 text-xs leading-6">
-                    <input
-                      type="checkbox"
-                      checked={useLook}
-                      onChange={(e) => setUseLook(e.target.checked)}
-                      className="mt-1 size-4 shrink-0 accent-primary"
-                    />
-                    촬영 레퍼런스의 구도·빛·분위기로 기획하기
-                  </label>
+                  <Select
+                    label="기획 레퍼런스"
+                    value={useLook ? "use" : "omit"}
+                    onChange={(v) => setUseLook(v === "use")}
+                    options={[
+                      { value: "use", label: "등록한 촬영 구도로 기획" },
+                      { value: "omit", label: "참조 없이 기획" },
+                    ]}
+                  />
                 )}
                 <Select
                   label="사용할 브랜드 프리셋"
@@ -517,10 +558,7 @@ export default function PlanningPanel({
                 className="mt-5"
                 disabled={busy || active}
                 onClick={() => {
-                  setReuseAnalysis(false);
-                  setConsent(false);
-                  requestId.current = crypto.randomUUID();
-                  setOpen(true);
+                  start(false);
                 }}
               >
                 <SlidersHorizontal size={15} aria-hidden="true" />
@@ -528,26 +566,23 @@ export default function PlanningPanel({
               </Button>
               {product.analysis && (
                 <div className="mt-4 border-t border-line pt-4">
-                  <p className="text-xs leading-6 text-muted">
-                    완료된 상품 분석을 그대로 사용해 촬영 기획만 새로 요청할 수
-                    있습니다. 다음 화면에서 기획 1회 비용 안내를 확인한 뒤
-                    실행합니다.
-                  </p>
                   <Button
                     className="mt-3"
                     variant="secondary"
                     disabled={busy || active}
                     onClick={() => {
-                      setReuseAnalysis(true);
-                      setConsent(false);
-                      requestId.current = crypto.randomUUID();
-                      setOpen(true);
+                      start(true);
                     }}
                   >
                     이 분석으로 기획 다시 만들기
                   </Button>
                 </div>
               )}
+              <p className="text-xs text-muted">
+                {me.mode === "mock"
+                  ? "Mock · 외부 비용 없음"
+                  : "실행 시 사진·요청을 OpenRouter에 전송하며 AI 사용료가 발생합니다."}
+              </p>
             </section>
             {referencesPanel}
           </TabPanel>
@@ -592,94 +627,6 @@ export default function PlanningPanel({
           <JobStatus job={data.jobs[0]} />
         </div>
       )}
-      <Modal
-        open={open}
-        onClose={() => setOpen(false)}
-        title={
-          reuseAnalysis
-            ? "기존 분석으로 촬영 기획만 만들까요?"
-            : "상품 분석·기획을 시작할까요?"
-        }
-        description={
-          reuseAnalysis
-            ? me.mode === "mock"
-              ? "저장된 분석으로 Mock 기획 1회를 실행합니다. 외부 AI 비용은 없습니다."
-              : "저장된 상품 분석과 설명으로 촬영 기획 1회를 요청합니다. 사진 분석은 다시 호출하지 않습니다. 새 기획 비용이 내 OpenRouter 크레딧에서 차감됩니다."
-            : me.mode === "mock"
-              ? "Mock 분석과 기획을 각각 한 번 실행합니다. 외부 전송이나 비용 없이 합성 결과를 만듭니다."
-              : "상품 사진과 설명을 OpenRouter에 전송합니다. 상품 분석 1회와 촬영 기획 1회의 AI 호출 비용이 내 OpenRouter 크레딧에서 차감됩니다."
-        }
-      >
-        {useLook && lookReference && (
-          <div className="mt-4 flex items-start gap-3 rounded-lg bg-studio p-3 text-xs leading-6">
-            <img
-              src={`${apiBase}/api/v1/assets/${lookReference.id}/content`}
-              alt="기획에 사용할 촬영 레퍼런스"
-              className="h-20 w-16 shrink-0 rounded-md object-contain"
-            />
-            <p>
-              선택한 촬영 레퍼런스를 기획 호출에 함께 전송합니다. 추가 AI 단계
-              없이 빛·무드·구도를 읽고, 의류 원본과 구분해 반영합니다.
-            </p>
-          </div>
-        )}
-        <p className="mt-4 text-xs text-muted">
-          분석·기획 모델: {me.models.analysis}
-        </p>
-        <p className="mt-5 text-xs leading-7 text-muted">
-          정확한 비용은 입력·출력과 모델에 따라 달라 사전에 확정할 수 없습니다.
-          제공된 실제 비용만 기록하며 누락된 비용은 미확인으로 표시합니다.{" "}
-          <a
-            className="underline"
-            href="https://openrouter.ai/models"
-            target="_blank"
-            rel="noreferrer"
-          >
-            모델 요금 확인
-          </a>
-        </p>
-        <label className="mt-5 flex items-start gap-3 text-sm leading-6">
-          <input
-            type="checkbox"
-            className="mt-1 size-4 accent-primary"
-            checked={consent}
-            onChange={(e) => setConsent(e.target.checked)}
-          />
-          {reuseAnalysis
-            ? "기존 분석 사용과 기획 1회 비용 안내를 확인했습니다."
-            : "사진 전송과 분석·기획 비용 안내를 확인했습니다."}
-        </label>
-        <Button
-          className="mt-6 w-full"
-          disabled={!consent || busy}
-          onClick={() =>
-            void action(async () => {
-              await request(
-                `/api/v1/products/${product.id}/plan`,
-                {
-                  method: "POST",
-                  body: JSON.stringify({
-                    consent: true,
-                    reuseAnalysis,
-                    idempotencyKey: requestId.current,
-                    presetId: preset || null,
-                    description,
-                    lookReferenceId: useLook
-                      ? (lookReference?.id ?? null)
-                      : null,
-                    referenceConsent: Boolean(useLook && lookReference),
-                  }),
-                },
-                me.csrf,
-              );
-              setOpen(false);
-            })
-          }
-        >
-          <CheckCircle2 size={16} aria-hidden="true" />
-          {reuseAnalysis ? "동의하고 기획만 시작" : "동의하고 분석·기획 시작"}
-        </Button>
-      </Modal>
     </div>
   );
 }

@@ -50,6 +50,7 @@ export interface PlanSnapshot {
   analysisModel: string;
   imageModel: string;
   lookReferenceId?: string | null;
+  personReferenceId?: string | null;
   referenceConsent?: boolean;
   /** Legacy snapshots only; no evaluator is invoked (ADR-019). */
   evaluationModel?: string;
@@ -481,7 +482,10 @@ export async function runPlanStage(
   try {
     await jobActive(env, job);
     const snapshot = JSON.parse(job.requestJson) as PlanSnapshot;
-    if (snapshot.lookReferenceId && !snapshot.referenceConsent)
+    if (
+      (snapshot.lookReferenceId || snapshot.personReferenceId) &&
+      !snapshot.referenceConsent
+    )
       throw new ProviderError("REFERENCE_CONSENT_REQUIRED");
     if (stage === "analysis" && snapshot.analysisSnapshot) return;
     const adapter = await (deps.adapter ?? resolveAdapter)(env, job);
@@ -523,6 +527,9 @@ export async function runPlanStage(
       const lookImage = snapshot.lookReferenceId
         ? (await imageData(env, job, [snapshot.lookReferenceId]))[0]
         : undefined;
+      const personImage = snapshot.personReferenceId
+        ? (await imageData(env, job, [snapshot.personReferenceId]))[0]
+        : undefined;
       const plan = await paidStage(
         env,
         job,
@@ -534,7 +541,7 @@ export async function runPlanStage(
             analysis,
             snapshot.preset,
             snapshot.description,
-            { lookImage },
+            { lookImage, personImage },
           ),
       );
       const versions = await env.DB.prepare(
@@ -641,32 +648,41 @@ export function pipelineRoutes() {
         409,
       );
     await rateLimit(c, `analysis:${userId}`, 20);
-    if (input.lookReferenceId) {
+    for (const [id, kind] of [
+      [input.lookReferenceId, "look_reference"],
+      [input.personReferenceId, "person_reference"],
+    ] as const) {
+      if (!id) continue;
       const reference = await createDb(c.env.DB)
         .select({ id: assets.id })
         .from(assets)
         .where(
           and(
-            eq(assets.id, input.lookReferenceId),
+            eq(assets.id, id),
             eq(assets.userId, userId),
             eq(assets.productId, p.id),
-            eq(assets.kind, "look_reference"),
+            eq(assets.kind, kind),
           ),
         )
         .get();
       if (!reference) throw notFound();
-      const total = await c.env.DB.prepare(
-        "SELECT coalesce(sum(size_bytes),0) n FROM assets WHERE user_id=? AND product_id=? AND (kind='input' OR id=?)",
-      )
-        .bind(userId, p.id, input.lookReferenceId)
-        .first<{ n: number }>();
-      if ((total?.n ?? 0) > 12 * 1024 * 1024)
-        throw new AppError(
-          "SOURCE_TOO_LARGE",
-          "의류와 선택한 기획 레퍼런스의 합계는 12MB 이하여야 합니다. 사진 크기를 줄여 주세요. AI는 호출하지 않았습니다.",
-          409,
-        );
     }
+    const total = await c.env.DB.prepare(
+      "SELECT coalesce(sum(size_bytes),0) n FROM assets WHERE user_id=? AND product_id=? AND (kind='input' OR id=? OR id=?)",
+    )
+      .bind(
+        userId,
+        p.id,
+        input.lookReferenceId ?? "",
+        input.personReferenceId ?? "",
+      )
+      .first<{ n: number }>();
+    if ((total?.n ?? 0) > 12 * 1024 * 1024)
+      throw new AppError(
+        "SOURCE_TOO_LARGE",
+        "사진 합계는 12MB 이하여야 합니다. AI는 호출하지 않았습니다.",
+        409,
+      );
     let preset: PresetInput | null = null;
     if (input.presetId) {
       const row = await createDb(c.env.DB)
@@ -681,7 +697,7 @@ export function pipelineRoutes() {
       ...(input.reuseAnalysis
         ? {
             analysisSnapshot: productAnalysisSchema.parse(
-              JSON.parse(p.analysisJson ?? "null"),
+              input.editedAnalysis ?? JSON.parse(p.analysisJson ?? "null"),
             ),
           }
         : {}),
@@ -689,6 +705,7 @@ export function pipelineRoutes() {
       preset,
       description: input.description,
       lookReferenceId: input.lookReferenceId,
+      personReferenceId: input.personReferenceId,
       referenceConsent: input.referenceConsent,
       analysisModel: c.get("identity").isTest
         ? "mock/analyzer-planner-v1"

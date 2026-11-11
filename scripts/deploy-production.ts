@@ -388,14 +388,7 @@ if (changeset.conflicting.length || changeset.removed.length)
   );
 builtWeb.routes = desiredRoutes;
 await writeFile(builtWebPath, JSON.stringify(builtWeb, null, 2));
-await run("Production web domain publish", [
-  "node",
-  cli,
-  "deploy",
-  "--config",
-  builtWebPath,
-]);
-console.info(`Published web Worker at ${origin}.`);
+// Additive API contracts must be live before the new browser bundle.
 await run("Production API deployment", [
   "node",
   cli,
@@ -405,6 +398,14 @@ await run("Production API deployment", [
 ]);
 console.info("Published API routes and production Workflow binding.");
 
+await run("Production web domain publish", [
+  "node",
+  cli,
+  "deploy",
+  "--config",
+  builtWebPath,
+]);
+console.info(`Published web Worker at ${origin}.`);
 // Read-only infrastructure verification; do not run a provider or create jobs.
 const query = await api<{ results: { ok: number }[] }[]>(
   `${accountPath}/d1/database/${database.uuid}/query`,

@@ -113,6 +113,7 @@ export const shootPlanSchema = z
       .object({
         framing: shortText,
         angle: shortText,
+        referenceComposition: z.enum(["match", "inspire"]).default("match"),
         backgroundSeparation: z
           .enum(["gentle", "balanced", "separated"])
           .default("gentle"),
@@ -164,6 +165,8 @@ export const planRequestSchema = z
   .object({
     consent: z.literal(true),
     reuseAnalysis: z.boolean().default(false),
+    editedAnalysis: productAnalysisSchema.optional(),
+    personReferenceId: z.uuid().nullable().default(null),
     idempotencyKey: z.uuid(),
     presetId: z.uuid().nullable().default(null),
     description: z.string().trim().max(1000).default(""),
@@ -171,9 +174,14 @@ export const planRequestSchema = z
     referenceConsent: z.boolean().default(false),
   })
   .strict()
-  .refine((value) => !value.lookReferenceId || value.referenceConsent, {
-    message: "A planning reference requires explicit processing consent",
-  });
+  .refine(
+    (value) =>
+      !(value.lookReferenceId || value.personReferenceId) ||
+      value.referenceConsent,
+    {
+      message: "A planning reference requires explicit processing consent",
+    },
+  );
 
 export const qualitySchema = z
   .object({

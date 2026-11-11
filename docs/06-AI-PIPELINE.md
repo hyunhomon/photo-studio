@@ -92,11 +92,11 @@
 
 ADR-020의 `studio-v4-retail` / `photo-v2-retail`부터 상품 전체/명시적 전신/명시적 접사에 맞춰 근사 화각과 거리를 연결한다. 새 배경 분리 기본값은 gentle이며 기존 명시적 값은 유지한다. 상품 분석을 생성 job의 `analysisSnapshot`에 고정하고 소재 추정/불확실성을 그대로 전달한다. 이전 컷은 가상 인물의 특징용이며 crop/피부 보정/노출/blur를 그대로 복제하지 않는다. 요청한 교정과 상품 가시성을 위해 재프레이밍할 수 있다. 외부 쇼핑몰 사진은 시각 비교 근거일 뿐 자동으로 provider 입력이나 배포 자산으로 사용하지 않는다.
 
-ADR-021의 `studio-v5-reference` / `photo-v3-reference`는 사용자가 등록·선택·외부 처리 동의한 인물/촬영감 사진을 추가한다. 의류 1–3장→인물 0–1장→촬영감 0–1장→이전 컷 0–1장 순서를 컴파일러와 Images API payload에서 일치시킨다. 인물은 얼굴 증거, 촬영감은 톤/명암/선예도/질감의 기준이며 의류/신원 복제 역할과 분리한다. 인물 참조는 직전 생성 얼굴보다 우선한다. 모든 참조를 합한 12MB와 실제 수의 capability, 동의를 과금 전 검사한다. 분석에는 추가 참조를 넣지 않는다. 외부 URL 수집/자동 업로드/새 AI 단계는 없다. 모델의 native face-swap/style-transfer 기능을 구현했다고 표시하지 않으며 실제 결과는 사람이 확인해야 한다.
+ADR-021의 `studio-v5-reference` / `photo-v4-directed-composition`는 사용자가 등록·선택·외부 처리 동의한 인물/촬영감 사진을 추가한다. 의류 1–3장→인물 0–1장→촬영감 0–1장→이전 컷 0–1장 순서를 컴파일러와 Images API payload에서 일치시킨다. 인물은 얼굴 증거, 촬영감은 톤/명암/선예도/질감의 기준이며 의류/신원 복제 역할과 분리한다. 인물 참조는 직전 생성 얼굴보다 우선한다. 모든 참조를 합한 12MB와 실제 수의 capability, 동의를 과금 전 검사한다. 분석에는 추가 참조를 넣지 않는다. 외부 URL 수집/자동 업로드/새 AI 단계는 없다. 모델의 native face-swap/style-transfer 기능을 구현했다고 표시하지 않으며 실제 결과는 사람이 확인해야 한다.
 
 ## 참조 기반 기획 — ADR-022
 
-현재 prompt_version은 `studio-v7-product-title`이며 generation의 capture_version `photo-v3-reference`는 유지한다. 등록 폼의 인물/촬영감 참조도 단순 저장이다. 촬영감 사진을 기획 요청에서 선택하고 외부 처리에 동의해야 planning에 포함한다. 인물 참조는 분석/기획에 넣지 않는다.
+현재 prompt_version은 `studio-v8-reference-priority`이며 generation의 capture_version `photo-v4-directed-composition`는 유지한다. 등록 폼의 인물/촬영감 참조도 단순 저장이다. 촬영감 사진을 기획 요청에서 선택하고 외부 처리에 동의해야 planning에 포함한다. 인물 참조는 의류 분석에는 넣지 않고 기획과 생성에서 사용한다.
 
 서버는 선택 ID의 owner/상품/용도와 동의를 검사하고 의류+기획 참조 총 12MB를 job 생성 전 확인한다. sourceSnapshot에는 순서가 보존된 의류만 담고 별도 lookReferenceId/referenceConsent를 고정한다. 분석은 의류만 사용한다. 기존 structured planning 호출에 look image를 추가하고 조명 방향·부드러움·톤·구도·초점·포즈 리듬·표면 반응의 관찰을 referenceNotes와 편집 가능한 기획에 담는다. 정확한 카메라/EXIF를 추측하거나 참조의 얼굴·의류·로고를 복제하지 않는다. 별도 AI 추출·유료 repair·자동 재생성은 없다.
 
@@ -122,3 +122,6 @@ PlanDto.lookReferenceId는 사용한 사진의 연결이며 새 generation에 �
 - 무지 티셔츠, 로고 티셔츠, 스트라이프 셔츠, 니트, 코트, 프린트 의류.
 - 로고 왜곡/색상 변화/단추 누락/소매 길이 변화/배경 오인식 검출.
 - 유료 호출 이전 실패/유료 호출 중 타임아웃/성공 뒤 R2 실패/종료된 평가 단계 무호출.
+
+
+현재 ADR-026은 이전 tone-only/pose 금지/전체 의류 강제 정책을 대체한다. 얼굴은 인물 참조, 의류는 원본, 구도는 촬영감 참조, 편집/최신 지시는 해당 축에서 최우선이다. 바스트/버드아이 선택을 넓히거나 눈높이로 되돌리지 않는다. match는 구도/포즈/배경 배치를 재현하고 inspire는 빛·톤만 참고한다. 기획은 인물→촬영감 두 이미지를 사용하고 의류 분석은 계속 의류만 받는다. native identity-lock 기능이나 결과 품질 보장이 아니며 합성 요청 검사와 실제 품질 검증을 분리한다.

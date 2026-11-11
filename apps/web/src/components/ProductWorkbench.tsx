@@ -21,6 +21,7 @@ export default function ProductWorkbench({ id }: { id: string }) {
     [pipeline, setPipeline] = useState<PipelineDto>({ plans: [], jobs: [] }),
     [upload, setUpload] = useState(false);
   const [draft, setDraft] = useState<StudioDraft>({});
+  const [requestBusy, setRequestBusy] = useState(false);
   const refresh = useCallback(() => {
     if (me)
       void request<ProductDto>(`/api/v1/products/${id}`)
@@ -28,9 +29,9 @@ export default function ProductWorkbench({ id }: { id: string }) {
         .catch((e) => setError(errorMessage(e)));
   }, [me, id, setError]);
   useEffect(refresh, [refresh]);
-  const active = pipeline.jobs.some((j) =>
-    ["queued", "running"].includes(j.status),
-  );
+  const active =
+    requestBusy ||
+    pipeline.jobs.some((j) => ["queued", "running"].includes(j.status));
   const effectiveDraft = {
     ...draft,
     analysis:
@@ -72,6 +73,13 @@ export default function ProductWorkbench({ id }: { id: string }) {
               me={me}
               pipeline={pipeline}
               draft={effectiveDraft}
+              onBusy={setRequestBusy}
+              onQueued={(job) =>
+                setPipeline((current) => ({
+                  ...current,
+                  jobs: [job, ...current.jobs.filter((j) => j.id !== job.id)],
+                }))
+              }
               onRefresh={refresh}
             />
           </div>
@@ -83,6 +91,7 @@ export default function ProductWorkbench({ id }: { id: string }) {
               onPipeline={setPipeline}
               draft={effectiveDraft}
               onDraft={setDraft}
+              executionPending={active}
               referencesPanel={
                 <PhotoReferences
                   product={product}

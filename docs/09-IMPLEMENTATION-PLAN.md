@@ -259,3 +259,11 @@ production desktop/mobile 전체 Mock E2E **4/4 통과**: 저장된 분석 재�
 - [x] 각 이미지 하단 썸네일/확대 버튼, 폭을 채우는 사진, viewport 확대/원본 크기 전환 및 접근성 이름/ESC/포커스 복귀.
 - [x] 참조 이미지 hover/focus 삭제 overlay와 터치 노출, 내 상품+작은 검색 아이콘, 사이드바 접기 제거.
 - [x] format/lint/typecheck/build 및 단위 57/57 통과, 진단/린트 경고 0. local/production desktop/mobile 각각 6/6, 운영 wrapper exit 0. 하단 썸네일 선택·이미지 URL 교체·뷰포트 90% 이상 확대창·원본 크기 전환·ESC/포커스 복귀·입력/버튼 ring 구분·호버 참조 삭제·solid 색상·접기 없음·부모 안의 대기/독립 스크롤을 검증했다. desktop/mobile/확대 캡처를 점검했다. 6174d28 commit/push 및 웹 전용 production 배포, 공개 HTTPS/CORS/OAuth/폰트/반응형 smoke 통과. 합성 계정/사진 정리 완료. API/Workflow/D1/secret/실사용 자료 변경과 유료 AI 호출 없음.
+
+### 참조 구도·선택형 카메라·실행 동의 — 2026-11-12 (ADR-026)
+
+- [x] 상품 행 액션 배경 수정, OpenRouter 단일 강조 상태, 반복 비용/권리 체크 제거·실행 시 간단 안내.
+- [x] 인물+촬영 참조 기획 전달, 현재 편집 분석 재기획 snapshot, 자동 참조 사용과 구도 match/inspire.
+- [x] 바스트/버드아이 등 선택/직접 입력, 강제 전체 프레이밍·톤-only·재구도·이전 컷 우선 충돌 제거, 최신 개선 지시 우선.
+- [ ] 최종 check/native/브라우저, commit/push, API 우선 배포 후 운영 검증.
+- [ ] 동일 실제 참조/의류로 사용자 실행 결과의 얼굴·구도·수정 반영 비교. 합성 요청 검사를 실제 품질 합격으로 표시하지 않는다.

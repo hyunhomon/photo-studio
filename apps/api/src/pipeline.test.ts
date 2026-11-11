@@ -492,3 +492,76 @@ test("automatic titles use the consented analysis only and never overwrite a con
     (await s.call<ProductDto>(`/products/${s.product.id}`)).data.name,
   ).toBe("내가 정한 제목");
 });
+
+test("planning pins person and composition images and uses current edited analysis in one planning-only call", async () => {
+  const s = await studioFixture();
+  const first = await s.startPlan();
+  await runPlanStage(s.env, first.id, "analysis");
+  await runPlanStage(s.env, first.id, "planning");
+  await s.call(
+    `/products/${s.product.id}/references`,
+    "POST",
+    referenceForm("person_reference"),
+  );
+  const p = (
+    await s.call<ProductDto>(
+      `/products/${s.product.id}/references`,
+      "POST",
+      referenceForm("look_reference"),
+    )
+  ).data;
+  const person = p.assets.find((a) => a.kind === "person_reference"),
+    look = p.assets.find((a) => a.kind === "look_reference");
+  if (!person || !look || !p.analysis)
+    throw new Error("Missing synthetic reference");
+  const input = {
+    ...s.planInput,
+    idempotencyKey: crypto.randomUUID(),
+    reuseAnalysis: true,
+    editedAnalysis: { ...p.analysis, garmentType: "수정된 니트" },
+    personReferenceId: person.id,
+    lookReferenceId: look.id,
+    referenceConsent: true,
+  };
+  expect(
+    (
+      await s.call(`/products/${p.id}/plan`, "POST", {
+        ...input,
+        referenceConsent: false,
+      })
+    ).status,
+  ).toBe(400);
+  expect(
+    (
+      await s.call(`/products/${p.id}/plan`, "POST", {
+        ...input,
+        personReferenceId: look.id,
+      })
+    ).status,
+  ).toBe(404);
+  const second = (
+    await s.call<{ id: string }>(`/products/${p.id}/plan`, "POST", input)
+  ).data;
+  let calls = 0;
+  const adapter = mockAdapter(),
+    plan = adapter.plan;
+  adapter.plan = async (...args) => {
+    calls++;
+    expect(args[1].garmentType).toBe("수정된 니트");
+    expect(args[4]?.personImage).toStartWith("data:image/png;base64,");
+    expect(args[4]?.lookImage).toStartWith("data:image/png;base64,");
+    return plan(...args);
+  };
+  await runPlanStage(s.env, second.id, "analysis", {
+    adapter: async () => adapter,
+  });
+  await runPlanStage(s.env, second.id, "planning", {
+    adapter: async () => adapter,
+  });
+  expect(calls).toBe(1);
+  expect(
+    s.sqlite
+      .query("SELECT stage FROM generation_attempts WHERE job_id=?")
+      .all(second.id),
+  ).toEqual([{ stage: "planning" }]);
+});

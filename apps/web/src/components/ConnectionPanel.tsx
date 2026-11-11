@@ -29,13 +29,8 @@ export default function ConnectionPanel() {
         <h1 className="text-2xl">OpenRouter로 스튜디오 연결</h1>
       </div>
       <p className="mt-4 text-sm leading-7 text-muted">
-        초대 코드 없이 본인의 OpenRouter 계정으로 시작합니다. 비밀번호나 API
-        Key를 이 화면에 입력하지 않습니다.
-      </p>
-      <p className="mt-4 rounded-xl bg-paper p-4 text-xs leading-7 text-muted">
-        연결 자체로 AI가 호출되지는 않습니다. 사진 분석과 이미지 생성은 각각
-        비용 안내를 확인하고 승인한 뒤 실행되며, 비용은 내 OpenRouter 크레딧으로
-        청구됩니다.
+        내 OpenRouter 계정으로 시작합니다. 분석·생성 실행 시 사진과 요청이
+        전송되고 사용료는 내 크레딧에서 청구됩니다.
       </p>
       {error && (
         <p role="alert" className="mt-4 text-sm text-danger">

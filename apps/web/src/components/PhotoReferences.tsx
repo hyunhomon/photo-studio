@@ -21,7 +21,7 @@ const roles = [
     title: "촬영감 참조",
     button: "촬영감 사진 등록",
     description:
-      "원하는 톤·명암·선예도·질감의 기준입니다. 사진 속 얼굴과 의류를 복제하는 용도가 아닙니다.",
+      "구도·포즈·카메라 시점·배경 배치의 기준입니다. 인물과 의상은 내 참조를 사용합니다.",
   },
 ] as const;
 export default function PhotoReferences({
@@ -37,13 +37,12 @@ export default function PhotoReferences({
 }) {
   const [role, setRole] = useState<ReferenceRole | null>(null),
     [file, setFile] = useState<File | null>(null),
-    [rights, setRights] = useState(false),
     [busy, setBusy] = useState(false),
     [error, setError] = useState("");
   const [remove, setRemove] = useState<AssetDto | null>(null);
   const info = roles.find((r) => r.value === role);
   async function upload() {
-    if (!file || !role || !rights) return;
+    if (!file || !role) return;
     setBusy(true);
     setError("");
     try {
@@ -58,7 +57,6 @@ export default function PhotoReferences({
       );
       setRole(null);
       setFile(null);
-      setRights(false);
       onRefresh();
     } catch (e) {
       setError(errorMessage(e));
@@ -90,10 +88,8 @@ export default function PhotoReferences({
         촬영 참조{" "}
         <span className="ml-2 text-xs font-normal text-muted">선택 사항</span>
       </h2>
-      <p className="mt-3 text-xs leading-6 text-muted">
-        의류 원본과 역할을 나누어 보관합니다. 업로드만으로 AI를 호출하지 않으며,
-        생성할 때 사용할 사진과 외부 처리를 확인합니다. 참조가 얼굴 보존이나
-        실사 품질을 보장하지는 않습니다.
+      <p className="mt-3 text-xs text-muted">
+        인물은 얼굴 기준, 촬영감은 구도 기준으로 사용합니다.
       </p>
       {error && (
         <p
@@ -140,7 +136,6 @@ export default function PhotoReferences({
                   onClick={() => {
                     setRole(r.value);
                     setFile(null);
-                    setRights(false);
                     setError("");
                   }}
                 >
@@ -184,20 +179,11 @@ export default function PhotoReferences({
           </label>
           <p className="text-xs leading-6 text-muted">
             JPEG/PNG/WebP 한 장 · 10MB · 400만 픽셀 · 긴 변 4096px 이하. 사진은
-            비공개 저장됩니다. 실제 생성에서 선택하면 OpenRouter와 모델 제공사에
-            전달됩니다.
+            비공개 저장됩니다.
           </p>
-          <label className="flex items-start gap-3 text-sm leading-6">
-            <input
-              type="checkbox"
-              className="mt-1 size-4 accent-primary"
-              checked={rights}
-              onChange={(e) => setRights(e.target.checked)}
-            />
-            {role === "person_reference"
-              ? "사진의 사용 권한과 성인 모델의 사용 동의를 확인했습니다."
-              : "AI 참조로 사용할 권한이 있는 사진임을 확인했습니다."}
-          </label>
+          <p className="text-xs text-muted">
+            사용 권한이 있는 사진과 동의받은 성인 인물만 등록해 주세요.
+          </p>
           {error && (
             <p role="alert" className="text-sm text-danger">
               {error}
@@ -206,7 +192,7 @@ export default function PhotoReferences({
           <Button
             type="submit"
             className="w-full"
-            disabled={!file || !rights || busy || active}
+            disabled={!file || busy || active}
           >
             {busy ? "사진을 저장하고 있습니다" : "비공개로 사진 저장"}
           </Button>

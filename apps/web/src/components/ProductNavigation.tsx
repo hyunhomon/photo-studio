@@ -20,7 +20,6 @@ import {
   ArrowUpRight,
   SlidersHorizontal,
   ChartNoAxesColumn,
-  Settings2,
   X,
 } from "lucide-react";
 import type { ProductSummaryDto } from "@photo-studio/schemas";
@@ -305,7 +304,7 @@ export function ProductNavigation({
                           type="button"
                           aria-label="상품 제목 수정"
                           title="제목 수정"
-                          className="grid size-8 place-items-center rounded-md bg-sidebar hover:bg-elevated"
+                          className="grid size-8 place-items-center rounded-md bg-transparent hover:bg-control active:bg-control"
                           onClick={() => {
                             setName(product.name);
                             setError("");
@@ -318,7 +317,7 @@ export function ProductNavigation({
                           type="button"
                           aria-label="상품 삭제"
                           title="상품 삭제"
-                          className="grid size-8 place-items-center rounded-md bg-sidebar hover:bg-elevated hover:text-danger"
+                          className="grid size-8 place-items-center rounded-md bg-transparent hover:bg-control active:bg-control hover:text-danger"
                           onClick={() => {
                             setError("");
                             setAction({ product, kind: "delete" });
@@ -373,33 +372,36 @@ export function ProductNavigation({
         ))}
       </nav>
       <a
+        aria-label={
+          me?.mode === "mock"
+            ? "Mock 사용 중"
+            : me?.connected
+              ? "OpenRouter 사용 중"
+              : "OpenRouter 연결"
+        }
         href="/studio/settings"
-        title="계정과 데이터"
+        title={
+          me?.mode === "mock"
+            ? "Mock 사용 중"
+            : me?.connected
+              ? "OpenRouter 사용 중"
+              : "OpenRouter 연결"
+        }
         onClick={(event) => follow(event, "/studio/settings")}
         aria-current={section === "계정과 데이터" ? "page" : undefined}
         className={`mt-2 flex min-h-14 items-center gap-3 rounded-xl hover:bg-studio px-3`}
       >
-        <span className="grid size-8 shrink-0 place-items-center rounded-full border border-line bg-surface">
-          <Settings2 size={16} aria-hidden="true" />
-        </span>
-        <span className="min-w-0">
-          <span className="block text-xs font-medium">계정과 데이터</span>
-          <span className="mt-1 block text-[10px] text-muted">
-            {me
-              ? me.mode === "mock"
-                ? "Mock 스튜디오"
-                : me.connected
-                  ? "OpenRouter 연결됨"
-                  : "연결 필요"
-              : "스튜디오"}
-          </span>
-        </span>
-        {me?.connected && (
+        <span className="flex min-w-0 items-center gap-3 text-sm font-semibold">
           <span
-            className="ml-auto size-1.5 shrink-0 rounded-full bg-primary"
             aria-hidden="true"
+            className={`size-2 rounded-full ${me?.connected ? "bg-primary" : "bg-muted"}`}
           />
-        )}
+          {me?.mode === "mock"
+            ? "Mock 사용 중"
+            : me?.connected
+              ? "OpenRouter 사용 중"
+              : "OpenRouter 연결"}
+        </span>
       </a>
       <Modal
         open={Boolean(action)}

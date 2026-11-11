@@ -200,12 +200,6 @@ test("Mock: direct multi-photo upload, reference planning, compare, revise, expo
       exact: true,
     }),
   ).toHaveJSProperty("naturalWidth", 40);
-  await expect(
-    form.getByRole("button", { name: "상품 등록", exact: true }),
-  ).toBeDisabled();
-  await form
-    .getByLabel(/^참조 사진의 사용 권한과 성인 인물의 사용 동의를 확인했습니다/)
-    .check();
   await form.screenshot({
     path: `.tmp/product-upload-${test.info().project.name}.png`,
   });
@@ -330,24 +324,12 @@ test("Mock: direct multi-photo upload, reference planning, compare, revise, expo
   await expect(
     inspector.getByRole("tab", { name: "기획", exact: true }),
   ).toHaveAttribute("aria-selected", "true");
-  await expect(
-    page.getByLabel("촬영 레퍼런스의 구도·빛·분위기로 기획하기", {
-      exact: true,
-    }),
-  ).toBeChecked();
-  await page.getByRole("button", { name: "분석 시작", exact: true }).click();
-  await expect(
-    page.getByRole("button", { name: "동의하고 분석·기획 시작" }),
-  ).toBeDisabled();
-  await page
-    .getByLabel("사진 전송과 분석·기획 비용 안내를 확인했습니다.")
-    .check();
   const planningRequest = page.waitForRequest(
     (request) =>
       request.method() === "POST" &&
       new URL(request.url()).pathname.endsWith("/plan"),
   );
-  await page.getByRole("button", { name: "동의하고 분석·기획 시작" }).click();
+  await page.getByRole("button", { name: "분석 시작", exact: true }).click();
   expect((await planningRequest).postDataJSON()).toMatchObject({
     lookReferenceId: look.id,
     referenceConsent: true,
@@ -378,22 +360,13 @@ test("Mock: direct multi-photo upload, reference planning, compare, revise, expo
     "수정한 셔츠",
   );
   await inspector.getByRole("tab", { name: "기획", exact: true }).click();
-  await page
-    .getByRole("button", { name: "이 분석으로 기획 다시 만들기", exact: true })
-    .click();
-  await expect(
-    page.getByRole("button", { name: "동의하고 기획만 시작", exact: true }),
-  ).toBeDisabled();
-  await page
-    .getByLabel("기존 분석 사용과 기획 1회 비용 안내를 확인했습니다.")
-    .check();
   const planningOnlyResponse = page.waitForResponse(
     (response) =>
       response.request().method() === "POST" &&
       new URL(response.url()).pathname.endsWith("/plan"),
   );
   await page
-    .getByRole("button", { name: "동의하고 기획만 시작", exact: true })
+    .getByRole("button", { name: "이 분석으로 기획 다시 만들기", exact: true })
     .click();
   const planningOnly = (
     (await (await planningOnlyResponse).json()) as { data: { id: string } }
@@ -407,6 +380,17 @@ test("Mock: direct multi-photo upload, reference planning, compare, revise, expo
     (await data<ProductDto>(page, `/products/${productId}`)).analysis
       ?.garmentType,
   ).not.toBe("수정한 셔츠");
+  await page.getByRole("button", { name: "프레이밍", exact: true }).click();
+  await page
+    .getByRole("option", { name: "바스트 샷 · 가슴 위", exact: true })
+    .click();
+  await page.getByRole("button", { name: "카메라 각도", exact: true }).click();
+  await page
+    .getByRole("option", {
+      name: "버드아이 뷰 · 수직으로 내려다보기",
+      exact: true,
+    })
+    .click();
   await page.getByRole("button", { name: "배경 분리", exact: true }).click();
   await page
     .getByRole("option", { name: "분리감 있게 · 멀리 있는 배경", exact: true })
@@ -425,14 +409,6 @@ test("Mock: direct multi-photo upload, reference planning, compare, revise, expo
   await page
     .getByLabel("인물 참조 사진 선택", { exact: true })
     .setInputFiles(fixture("synthetic-person.png", 32));
-  await expect(
-    page.getByRole("button", { name: "비공개로 사진 저장", exact: true }),
-  ).toBeDisabled();
-  await page
-    .getByLabel("사진의 사용 권한과 성인 모델의 사용 동의를 확인했습니다.", {
-      exact: true,
-    })
-    .check();
   await page
     .getByRole("button", { name: "비공개로 사진 저장", exact: true })
     .click();
@@ -463,33 +439,25 @@ test("Mock: direct multi-photo upload, reference planning, compare, revise, expo
     }
     await route.fulfill({ response, json: body });
   });
-  await page.getByRole("button", { name: "이미지 생성", exact: true }).click();
-  await expect(
-    page.getByRole("button", { name: "동의하고 1장 생성" }),
-  ).toBeDisabled();
-  await expect(
-    page.getByLabel("인물 참조 사진 사용", { exact: true }),
-  ).toBeChecked();
-  await expect(
-    page.getByLabel("촬영감 참조 사진 사용", { exact: true }),
-  ).toBeChecked();
-  await page.getByLabel("인물 참조 사진 사용", { exact: true }).uncheck();
-  await page
-    .getByLabel("현재 편집 내용의 저장과 이미지 생성 비용을 확인했습니다.")
-    .check();
   const generationRequest = page.waitForRequest(
     (request) =>
       request.method() === "POST" &&
       new URL(request.url()).pathname.endsWith("/generate"),
   );
-  await page.getByRole("button", { name: "동의하고 1장 생성" }).click();
+  await page.getByRole("button", { name: "이미지 생성", exact: true }).click();
   expect((await generationRequest).postDataJSON()).toMatchObject({
     lookReferenceId: look.id,
-    personReferenceId: null,
+    personReferenceId: expect.any(String),
     referenceConsent: true,
     count: 1,
     editedAnalysis: { garmentType: "수정한 셔츠" },
-    editedPlan: { camera: { backgroundSeparation: "separated" } },
+    editedPlan: {
+      camera: {
+        backgroundSeparation: "separated",
+        framing: "바스트 샷 · 가슴 위",
+        angle: "버드아이 뷰 · 수직으로 내려다보기",
+      },
+    },
   });
   await expect
     .poll(
@@ -541,11 +509,23 @@ test("Mock: direct multi-photo upload, reference planning, compare, revise, expo
     page,
     `/products/${productId}/results`,
   );
-  expect(firstResults[0]?.personReferenceUsed).toBe(false);
+  expect(firstResults[0]?.personReferenceUsed).toBe(true);
   expect(firstResults[0]?.lookReferenceUsed).toBe(true);
+  await page.getByRole("button", { name: "결과 1 선택", exact: true }).click();
   const downloadEvent = page.waitForEvent("download");
   await page.getByRole("link", { name: "PNG 다운로드" }).click();
   expect((await downloadEvent).suggestedFilename()).toBe("photo-studio.png");
+  await inspector
+    .getByRole("tab", { name: "촬영 콘셉트", exact: true })
+    .click();
+  await page.getByRole("button", { name: "프레이밍", exact: true }).click();
+  await page
+    .getByRole("option", { name: "미디엄 샷 · 허리 위", exact: true })
+    .click();
+  await page.getByRole("button", { name: "카메라 각도", exact: true }).click();
+  await page
+    .getByRole("option", { name: "로우 앵글 · 아래에서 위로", exact: true })
+    .click();
   await page.getByRole("button", { name: "이 컷 개선", exact: true }).click();
   await page.getByRole("button", { name: "개선할 항목", exact: true }).click();
   await page
@@ -557,16 +537,10 @@ test("Mock: direct multi-photo upload, reference planning, compare, revise, expo
   await page
     .getByLabel("이번 컷에 반영할 요청 (선택)")
     .fill("Synthetic relaxed expression revision");
-  await expect(
-    page.getByLabel("인물 참조 사진 사용", { exact: true }),
-  ).toBeChecked();
-  await expect(
-    page.getByLabel("촬영감 참조 사진 사용", { exact: true }),
-  ).toBeChecked();
+  await expect(page.getByRole("checkbox")).toHaveCount(0);
   await page
-    .getByLabel("현재 편집 내용의 저장과 이미지 생성 비용을 확인했습니다.")
-    .check();
-  await page.getByRole("button", { name: "동의하고 1장 생성" }).click();
+    .getByRole("button", { name: "수정해서 생성", exact: true })
+    .click();
   await waitForWorkflow(
     page,
     page.getByRole("button", { name: "결과 2 선택", exact: true }),
@@ -578,6 +552,12 @@ test("Mock: direct multi-photo upload, reference planning, compare, revise, expo
   const revised = await data<ResultDto[]>(
     page,
     `/products/${productId}/results`,
+  );
+  await expect(
+    page.getByRole("img", { name: "Synthetic shirt 결과 비교", exact: true }),
+  ).toHaveAttribute(
+    "src",
+    new RegExp(revised[0]?.asset.id ?? "missing-latest-result"),
   );
   expect(revised[0]).toMatchObject({
     personReferenceUsed: true,
@@ -750,6 +730,20 @@ test("Mock: direct multi-photo upload, reference planning, compare, revise, expo
     has: page.getByRole("link", { name: "Synthetic shirt", exact: true }),
   });
   await row.hover();
+  const renameAction = row.getByRole("button", {
+    name: "상품 제목 수정",
+    exact: true,
+  });
+  await expect(renameAction).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
+  if (test.info().project.name === "desktop-chromium") {
+    await renameAction.hover();
+    await expect(renameAction).toHaveCSS(
+      "background-color",
+      "rgb(96, 106, 119)",
+    );
+  } else {
+    await expect(renameAction).toBeVisible();
+  }
   await row
     .getByRole("button", { name: "상품 제목 수정", exact: true })
     .click();

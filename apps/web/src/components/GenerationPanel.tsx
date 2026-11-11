@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowDownToLine, ImagePlus, RotateCcw } from "lucide-react";
 import { Button, Modal, Select } from "@photo-studio/ui";
 import type {
+  JobDto,
   PipelineDto,
   ProductDto,
   ResultDto,
@@ -31,12 +32,16 @@ export default function GenerationPanel({
   pipeline,
   draft,
   onRefresh,
+  onBusy,
+  onQueued,
 }: {
   product: ProductDto;
   me: Me;
   pipeline: PipelineDto;
   draft: StudioDraft;
   onRefresh: () => void;
+  onBusy: (value: boolean) => void;
+  onQueued: (job: JobDto) => void;
 }) {
   const [results, setResults] = useState<ResultDto[]>([]),
     [selected, setSelected] = useState(""),
@@ -46,7 +51,6 @@ export default function GenerationPanel({
     [reason, setReason] = useState("lighting_focus"),
     [note, setNote] = useState(""),
     [quality, setQuality] = useState("medium"),
-    [consent, setConsent] = useState(false),
     [busy, setBusy] = useState(false),
     [error, setError] = useState("");
   const requestId = useRef(crypto.randomUUID());
@@ -58,11 +62,20 @@ export default function GenerationPanel({
       (a) => a.kind === "person_reference",
     ),
     lookReference = product.assets.find((a) => a.kind === "look_reference");
+  const latestResult = useRef<string | null>(null),
+    refreshSequence = useRef(0);
   const refresh = useCallback(async () => {
+    const sequence = ++refreshSequence.current;
     const d = await request<ResultDto[]>(
       `/api/v1/products/${product.id}/results`,
     );
+    if (sequence !== refreshSequence.current) return;
     setResults(d);
+    if (d[0] && latestResult.current !== d[0].asset.id) {
+      latestResult.current = d[0].asset.id;
+      setSelected(d[0].asset.id);
+      setComparePrevious(false);
+    }
   }, [product.id]);
   // biome-ignore lint/correctness/useExhaustiveDependencies: each durable pipeline snapshot can add a result in D1.
   useEffect(() => {
@@ -82,6 +95,7 @@ export default function GenerationPanel({
     );
   async function action(fn: () => Promise<unknown>) {
     setBusy(true);
+    onBusy(true);
     setError("");
     try {
       await fn();
@@ -92,6 +106,7 @@ export default function GenerationPanel({
       onRefresh();
     } finally {
       setBusy(false);
+      onBusy(false);
     }
   }
   function begin(id: string | null) {
@@ -103,13 +118,55 @@ export default function GenerationPanel({
     setRegenerate(id);
     setReason("lighting_focus");
     setNote("");
-    setConsent(false);
     setUsePerson(Boolean(personReference));
-    setUseLook(
-      Boolean(lookReference && plan?.lookReferenceId === lookReference.id),
-    );
+    setUseLook(Boolean(lookReference));
     requestId.current = crypto.randomUUID();
     setOpen(true);
+  }
+  const submitting = useRef(false);
+  async function submit(id: string | null, fromRevision = false) {
+    if (busy || active || submitting.current || !plan) return;
+    submitting.current = true;
+    const current = fromRevision
+      ? submission
+      : {
+          analysis: draft.analysis ?? product.analysis ?? undefined,
+          spec:
+            draft.planId === plan.id ? (draft.spec ?? plan.spec) : plan.spec,
+        };
+    const person = fromRevision ? usePerson : Boolean(personReference),
+      look = fromRevision ? useLook : Boolean(lookReference);
+    if (!fromRevision) requestId.current = crypto.randomUUID();
+    try {
+      await action(async () => {
+        const queued = await request<JobDto>(
+          `/api/v1/products/${product.id}/generate`,
+          {
+            method: "POST",
+            body: JSON.stringify({
+              consent: true,
+              idempotencyKey: requestId.current,
+              planId: plan.id,
+              editedAnalysis: current.analysis,
+              editedPlan: current.spec,
+              quality,
+              adjustments: fromRevision ? note : "",
+              count: 1,
+              regenerationOf: id,
+              regenerationReason: id ? reason : null,
+              personReferenceId: person ? (personReference?.id ?? null) : null,
+              lookReferenceId: look ? (lookReference?.id ?? null) : null,
+              referenceConsent: true,
+            }),
+          },
+          me.csrf,
+        );
+        onQueued(queued);
+        setOpen(false);
+      });
+    } finally {
+      submitting.current = false;
+    }
   }
   const imageUrl = (id: string) => `${apiBase}/api/v1/assets/${id}/content`;
   return (
@@ -123,6 +180,17 @@ export default function GenerationPanel({
         </p>
       )}
       <div className="comparison-toolbar">
+        <div className="w-32">
+          <Select
+            label="출력 품질"
+            value={quality}
+            onChange={setQuality}
+            options={[
+              { value: "medium", label: "표준 품질" },
+              { value: "high", label: "높은 품질" },
+            ]}
+          />
+        </div>
         <h2 className="sr-only">원본과 결과</h2>
         <span className="mr-auto" />
         {result && (
@@ -145,11 +213,19 @@ export default function GenerationPanel({
             </Button>
           </>
         )}
-        <Button disabled={busy || active || !plan} onClick={() => begin(null)}>
+        <Button
+          disabled={busy || active || !plan}
+          onClick={() => void submit(null)}
+        >
           <ImagePlus size={17} aria-hidden="true" />
           이미지 생성
         </Button>
       </div>
+      <p className="mt-2 text-right text-[11px] text-muted">
+        {me.mode === "mock"
+          ? "Mock · 외부 비용 없음"
+          : "생성 1회 · OpenRouter 사용료 발생"}
+      </p>
       {generationJob?.errorCode && !activeJob && (
         <div className="mt-5">
           <JobStatus
@@ -240,180 +316,62 @@ export default function GenerationPanel({
       <Modal
         open={open}
         onClose={() => setOpen(false)}
-        title={
-          regenerate ? "한 장을 다시 생성할까요?" : "새로운 컷을 생성할까요?"
-        }
-        description={
-          me.mode === "mock"
-            ? "외부 AI 호출 없이 원본을 복사한 Mock 결과를 만듭니다. 실제 화보 생성이 아닙니다."
-            : "원본 참조와 현재 촬영 설정으로 이미지 1장을 요청합니다. 이미지 생성 1회 비용이 내 OpenRouter 크레딧에서 차감됩니다. 자동 평가 호출은 없습니다."
-        }
+        title="이 컷 개선"
+        description="바꿀 부분을 지정해 주세요. 현재 기획과 수정 지시로 새 이미지 1장을 생성합니다."
       >
         {error && (
           <p role="alert" className="mt-4 text-sm text-danger">
             {error}
           </p>
         )}
-        <div className="mt-5 rounded-xl bg-studio p-4 text-xs leading-6">
-          <p className="font-semibold">현재 촬영 설정 · 3:4 · PNG</p>
-          <p>
-            {submission.spec?.mood} / {submission.spec?.model.style}
-          </p>
-          <p>
-            {submission.spec?.location.type} · {submission.spec?.lighting}
-          </p>
-        </div>
-        <div className="mt-4">
-          <p className="mb-2 text-xs text-muted">출력 품질</p>
+        <div className="mt-5 space-y-4">
           <Select
-            label="출력 품질"
-            value={quality}
-            onChange={setQuality}
-            options={[
-              { value: "medium", label: "Medium · 표준 품질" },
-              { value: "high", label: "High · 높은 품질, 더 높은 비용 가능" },
-            ]}
+            label="개선할 항목"
+            value={reason}
+            onChange={setReason}
+            options={reasons}
           />
-        </div>
-        {regenerate && (
-          <div className="mt-4">
-            <p className="mb-2 text-xs text-muted">이번에 개선할 한 가지</p>
-            <Select
-              label="개선할 항목"
-              value={reason}
-              onChange={setReason}
-              options={reasons}
-            />
-          </div>
-        )}
-        <div className="mt-4">
           <Field
             label="이번 컷에 반영할 요청 (선택)"
             value={note}
             onChange={setNote}
             multiline
           />
-        </div>
-        {(personReference || lookReference) && (
-          <fieldset className="mt-5 space-y-3 rounded-xl border border-line bg-studio p-4">
-            <legend className="px-1 text-xs font-semibold">
-              이번 생성에 사용할 촬영 참조
-            </legend>
-            {personReference && (
-              <label className="flex items-start gap-3 text-sm">
-                <input
-                  type="checkbox"
-                  className="mt-1 size-4 accent-primary"
-                  checked={usePerson}
-                  onChange={(e) => setUsePerson(e.target.checked)}
-                />
-                <img
-                  src={imageUrl(personReference.id)}
-                  alt=""
-                  aria-hidden="true"
-                  className="h-14 w-12 rounded-md bg-surface object-contain"
-                />
-                인물 참조 사진 사용
-              </label>
-            )}
-            {lookReference && (
-              <label className="flex items-start gap-3 text-sm">
-                <input
-                  type="checkbox"
-                  className="mt-1 size-4 accent-primary"
-                  checked={useLook}
-                  onChange={(e) => setUseLook(e.target.checked)}
-                />
-                <img
-                  src={imageUrl(lookReference.id)}
-                  alt=""
-                  aria-hidden="true"
-                  className="h-14 w-12 rounded-md bg-surface object-contain"
-                />
-                촬영감 참조 사진 사용
-              </label>
-            )}
-            <p className="text-xs leading-6 text-muted">
-              선택한 사진이 OpenRouter와 모델 제공사에 전달됩니다. 인물은
-              생김새, 촬영감은 톤·명암·선예도의 기준이며 의류 원본이 항상
-              우선입니다. 결과의 얼굴·질감 보존은 보장되지 않습니다.
-            </p>
-          </fieldset>
-        )}
-        {regenerate && (
-          <p className="mt-3 text-xs leading-6 text-muted">
-            {usePerson && personReference
-              ? "선택한 인물 사진을 얼굴 기준으로 우선합니다."
-              : "이전 컷의 인물 특징을 참조합니다."}{" "}
-            빛·초점·피부 표현은 다시 구성합니다. 의류가 충분히 보이도록 구도가
-            달라질 수 있으며, 원본 의류가 보존 기준입니다.
+          {personReference && (
+            <Select
+              label="인물 참조"
+              value={usePerson ? "use" : "omit"}
+              onChange={(v) => setUsePerson(v === "use")}
+              options={[
+                { value: "use", label: "등록한 인물로 생성" },
+                { value: "omit", label: "이전 컷의 인물 유지" },
+              ]}
+            />
+          )}
+          {lookReference && (
+            <Select
+              label="촬영 참조"
+              value={useLook ? "use" : "omit"}
+              onChange={(v) => setUseLook(v === "use")}
+              options={[
+                { value: "use", label: "등록한 구도로 생성" },
+                { value: "omit", label: "참조 구도 제외" },
+              ]}
+            />
+          )}
+          <p className="text-xs text-muted">
+            {me.mode === "mock"
+              ? "Mock · 외부 비용 없음"
+              : "생성 1회 · 사진과 요청을 OpenRouter에 전송하며 사용료가 발생합니다."}
           </p>
-        )}
-        <p className="mt-4 text-xs leading-6 text-muted">
-          현재 상품 이해와 촬영 콘셉트를 함께 저장하고 이 설정으로 생성합니다.
-        </p>
-        <p className="mt-4 text-xs leading-6 text-muted">
-          이미지 모델: {me.models.image}. 예상 호출: 이미지 1회. 정확한 비용은
-          사전 확정할 수 없으며 참조 사진의 수·크기에 따라 달라질 수 있습니다.
-          응답이 불확실하면 자동 재생성을 멈춥니다.{" "}
-          <a
-            href="https://openrouter.ai/models/openai/gpt-image-2"
-            target="_blank"
-            rel="noreferrer"
-            className="underline"
+          <Button
+            className="w-full"
+            disabled={busy || active}
+            onClick={() => void submit(regenerate, true)}
           >
-            모델 요금
-          </a>
-        </p>
-        <label className="mt-5 flex items-start gap-3 text-sm leading-6">
-          <input
-            type="checkbox"
-            className="mt-1 size-4 accent-primary"
-            checked={consent}
-            onChange={(e) => setConsent(e.target.checked)}
-          />
-          현재 편집 내용의 저장과 이미지 생성 비용을 확인했습니다.
-        </label>
-        <Button
-          className="mt-5 w-full"
-          disabled={!consent || busy || active}
-          onClick={() =>
-            void action(async () => {
-              await request(
-                `/api/v1/products/${product.id}/generate`,
-                {
-                  method: "POST",
-                  body: JSON.stringify({
-                    consent: true,
-                    idempotencyKey: requestId.current,
-                    planId: plan?.id,
-                    editedAnalysis: submission.analysis,
-                    editedPlan: submission.spec,
-                    quality,
-                    adjustments: note,
-                    count: 1,
-                    regenerationOf: regenerate,
-                    regenerationReason: regenerate ? reason : null,
-                    personReferenceId: usePerson
-                      ? (personReference?.id ?? null)
-                      : null,
-                    lookReferenceId: useLook
-                      ? (lookReference?.id ?? null)
-                      : null,
-                    referenceConsent: Boolean(
-                      (usePerson && personReference) ||
-                      (useLook && lookReference),
-                    ),
-                  }),
-                },
-                me.csrf,
-              );
-              setOpen(false);
-            })
-          }
-        >
-          동의하고 1장 생성
-        </Button>
+            수정해서 생성
+          </Button>
+        </div>
       </Modal>
       <ImageViewer
         key={zoom}

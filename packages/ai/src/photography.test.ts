@@ -74,7 +74,9 @@ test("retail framing backs the camera up to show the garment while respecting ex
   );
   expect(retailFraming("얼굴 클로즈업").coverage).toBe("approved_detail");
   const requested = compilePhotographicPrompt(plan, 1);
-  expect(requested).toContain("user explicitly approved a close-up/detail");
+  expect(requested).toContain(
+    "execute the selected bust/waist-up/detail crop exactly",
+  );
   expect(requested).not.toContain("Avoid a chest-up beauty portrait");
 });
 test("retail revision releases prior retouching and crop; approved uncertain garment evidence is carried as data", () => {
@@ -83,10 +85,10 @@ test("retail revision releases prior retouching and crop; approved uncertain gar
     reason: "human_naturalness",
     garmentAnalysis: mockAnalysisFixture,
   });
-  expect(prompt).toContain("fictional-adult identity cues ONLY");
-  expect(prompt).toContain("Do not inherit its skin retouching");
+  expect(prompt).toContain("continuity of the adult, pose, framing and scene");
+  expect(prompt).toContain("Never preserve its rendering defects");
   expect(prompt).toContain("hem and sleeve ends");
-  expect(prompt).toContain("NEVER by shrinking the head");
+  expect(prompt).toContain("Never distort anatomy");
   expect(prompt).toContain("original images take precedence");
   expect(prompt).toContain(JSON.stringify(mockAnalysisFixture));
   expect(prompt).toContain("without thickening, filling or simplifying");
@@ -170,14 +172,12 @@ test("person identity and photographic look are distinct reference roles in one 
       expect(body.prompt).toContain(
         "Reference 2 is the consented adult person reference",
       );
-      expect(body.prompt).toContain("Reference 3 supplies tonal response");
+      expect(body.prompt).toContain("COMPOSITION REFERENCE: Reference 3");
       expect(body.prompt).toContain("Reference 4 is the prior generated frame");
       expect(body.prompt).toContain(
         "selected person reference overrides its face",
       );
-      expect(body.prompt).toContain(
-        "Do NOT copy its person's identity, clothing",
-      );
+      expect(body.prompt).toContain("Never copy its face, garment design");
       expect(body.n).toBe(1);
       return Response.json({
         data: [{ b64_json: btoa("synthetic"), media_type: "image/png" }],
@@ -199,4 +199,32 @@ test("person identity and photographic look are distinct reference roles in one 
     { personImage: "person", lookImage: "look", previousImage: "previous" },
   );
   expect(calls).toBe(1);
+});
+
+test("explicit bust and bird-eye edits override generic garment crops and composition references", () => {
+  const plan = mockPlan(mockAnalysisFixture);
+  plan.camera.framing = "바스트 샷 · 가슴 위";
+  plan.camera.angle = "버드아이 뷰 · 수직으로 내려다보기";
+  const prompt = compilePhotographicPrompt(plan, 1, {
+    personImage: "person",
+    lookImage: "look",
+    previousImage: "previous",
+    reason: "composition",
+    adjustments: "카메라는 머리 위에, 얼굴은 참조 인물 그대로",
+  });
+  expect(retailFraming(plan.camera.framing).coverage).toBe("upper_body");
+  expect(prompt).toContain("MATCH its framing/crop");
+  expect(prompt).toContain(plan.camera.framing);
+  expect(prompt).toContain(plan.camera.angle);
+  expect(prompt).toContain("mandatory identity evidence");
+  expect(prompt).toContain("LATEST USER REVISION (highest priority");
+  expect(prompt).not.toContain("Avoid a chest-up beauty portrait");
+  expect(prompt).not.toContain(
+    "texture bandwidth and skin-retouch strength ONLY",
+  );
+  expect(prompt).toContain("Never copy its face, garment design");
+  plan.camera.referenceComposition = "inspire";
+  expect(compilePhotographicPrompt(plan, 1, { lookImage: "look" })).toContain(
+    "Borrow lighting and tonal rendering only",
+  );
 });

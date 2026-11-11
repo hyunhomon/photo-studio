@@ -199,3 +199,15 @@
 - 참조 삭제 버튼은 이미지 오른쪽 위 hover/focus overlay이며 터치에서는 항상 보인다. 확인 Dialog와 active 작업 중 변경 차단은 유지한다.
 - 사이드바 접기 및 브라우저 접힘 저장 기능/최근 날짜 그룹을 제거한다. ‘내 상품’ 제목 옆의 검색 아이콘과 기존 Ctrl/Command+K 검색을 유지한다. 모바일 메뉴 닫기는 유지한다.
 - 사용자 명시 요청으로 시각적인 focus ring은 텍스트 입력/textarea에만 적용한다. 기존 ADR의 전역 ring 정책을 대체하되 키보드 탭/선택 상태/입력 라벨/ARIA/Dialog 포커스 제어는 유지한다. trade-off는 버튼/링크의 ring 표시가 없어진다는 것이며, 색/선택/hover/focus 노출과 의미적 동작은 유지한다. 데이터/API/AI 호출 정책 변경은 없다.
+
+## ADR-026: 실행으로 동의, 참조 구도와 명시적 촬영 지시 우선 — Accepted (사용자 지정, 2026-11-12)
+
+- 반복 OpenRouter 안내·비용 동의 체크·분석 기획 확인창을 제거한다. 버튼 옆의 짧은 전송/비용 안내와 명시적 실행 클릭이 해당 작업의 동의다. 업로드/화면 열기/편집만으로 유료 AI를 호출하지 않는다. 개선 창은 수정 항목/지시 입력용이며 별도 승인 창이 아니다. 서버의 consent/referenceConsent 및 업로드 rightsConfirmed는 해당 실행 시에만 전달한다. 원본 권한·동의받은 성인 사용 안내는 간단히 유지한다. ADR-021/022/024의 중복 체크/확인 UI를 대체하되 BYOK/owner/CSRF/ledger/무자동재시도는 유지한다.
+- 상품 행 액션은 기본 transparent로 행 배경을 보이며 hover는 다른 solid control 배경이다. 하단은 계정과 데이터 제목/설정 아이콘 대신 OpenRouter 사용 중을 큰 단일 라벨로 표시하며 계정 설정 링크는 유지한다. Mock는 Mock 사용 중으로 구분한다.
+- 확인된 설계 충돌: v3 촬영감 지시가 tone ONLY/pose 복제 금지였고, 인물 참조는 기획에 전달하지 않았으며, 전체 의류/고정 머리 비중/재구도 지시가 크롭과 수정 요청을 약화했다. 기획 재사용은 저장된 분석만 읽어 편집 중 분석이 전달되지 않았다. 이를 수정하지만 모델 출력이 임의로 참조를 벗어나는 현상의 모든 원인이라고 단정하지 않는다.
+- 같은 planning 호출에 선택한 성인 인물과 촬영 구도 이미지를 함께 전달한다(인물→구도). 의류 분석은 계속 의류만 받는다. personReferenceId/editedAnalysis를 job snapshot에 저장하며 선택 참조의 owner/상품/용도/전체 12MB를 과금 전 검사한다. 편집 분석은 재기획 snapshot에 쓰고 실제 상품 저장은 생성 시 수행한다. 새 유료 추출 단계는 없다.
+- camera.referenceComposition은 match(default)/inspire다. match는 톤뿐 아니라 크롭/시점/주제 크기·위치/포즈/배경 배치를 재현하고, inspire는 빛·톤만 참고한다. 의류는 원본, 얼굴은 선택한 인물, 구도는 촬영 참조, 명시적 편집/최신 개선 지시는 해당 축에서 최우선이다. 일반 상품 사진 기본값/수치 optics/이전 출력이 이를 덮지 않는다. 인물 참조가 있으면 일반 가상 인물 묘사로 대체하거나 혼합하지 않도록 지시한다.
+- 프레이밍/카메라 각도를 Headless UI 선택으로 제공한다. 전신/허벅지/허리/바스트/디테일 및 눈높이/로우/하이/버드아이/더치/측면/레퍼런스 유지, 기존 값·직접 입력을 지원한다. 바스트/반신은 전체 의류·머리 크기 제한으로 강제 확대하지 않는다.
+- studio-v8-reference-priority / photo-v4-directed-composition. 기존 v3 snapshot은 호환되며 기존 paid claim은 재호출하지 않는다. JSON 내 default로 이전 계획을 읽으며 DB migration은 없다. 새로운 브라우저 계약에 앞서 호환 API를 먼저 배포한다.
+- 한계: OpenRouter의 input_references와 역할/우선순위 지시를 사용한다. 네이티브 face-lock/동일 픽셀 구도 강제/학습 기능이 아니며 실제 얼굴 유사도·구도 준수 개선은 같은 입력의 사용자 실행 비교 전까지 미검증이다. 자동 품질 점수나 유료 재시도는 추가하지 않는다.
+- 공식 근거: https://openrouter.ai/docs/guides/overview/multimodal/image-generation#image-to-image-reference-images
