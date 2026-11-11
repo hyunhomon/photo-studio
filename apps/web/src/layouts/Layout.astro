@@ -1,0 +1,32 @@
+---
+import "../styles/global.css";
+interface Props {
+  title: string;
+  description?: string;
+}
+const {
+  title,
+  description = "의류 사진에서 시작하는 새로운 촬영 워크플로. 상품 분석, 촬영 기획, AI 화보와 품질 검수.",
+} = Astro.props;
+---
+
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content={description} />
+    <meta name="theme-color" content="#f5f3ed" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <title>{title} — Photo Studio</title>
+  </head>
+  <body>
+    <a
+      href="#main"
+      class="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-50 focus:bg-paper focus:p-4"
+    >
+      본문으로 바로가기
+    </a>
+    <slot />
+  </body>
+</html>

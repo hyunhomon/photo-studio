@@ -16,9 +16,9 @@
 
 - [x] 사업 방향, ADR, MVP 범위 합의
 - [x] 문서 및 프로젝트 폴더 기본 골격
-- [ ] Astro/Hono 실제 스캐폴딩
-- [ ] Cloudflare 리소스 프로비저닝
+- [x] Astro/Hono 실제 스캐폴딩 (Phase 0, 로컬 Mock 전용)
+- [x] Cloudflare production 리소스 프로비저닝 및 `photo-studio.cloby.co` 배포 (Phase 0 Mock)
 - [ ] OAuth/파이프라인 구현
 - [ ] 사용자 검증
 
-ZIP만으로 실행 가능한 앱이 생기는 것은 아니다. 이 패키지는 Codex의 구현 출발점이다.
+Phase 0 이후 로컬 실행/검증 명령은 루트 `README.md`를 따른다. 인증·업로드·유료 AI 파이프라인은 아직 구현하지 않았으며 Phase 1부터 순서대로 진행한다.

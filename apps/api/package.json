@@ -1,0 +1,22 @@
+{
+  "name": "@photo-studio/api",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev --local --ip localhost --port 8787",
+    "cf:types": "wrangler types --env-interface CloudflareBindings",
+    "typecheck": "bun run cf:types && tsc -p tsconfig.json",
+    "build": "wrangler deploy --dry-run --outdir dist"
+  },
+  "dependencies": {
+    "@photo-studio/ai": "workspace:*",
+    "@photo-studio/db": "workspace:*",
+    "@photo-studio/schemas": "workspace:*",
+    "hono": "4.13.17"
+  },
+  "devDependencies": {
+    "@types/node": "24.19.2",
+    "wrangler": "4.159.0"
+  }
+}

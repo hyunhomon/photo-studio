@@ -1,0 +1,42 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "photo-studio-api",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-11-10",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": false,
+  "preview_urls": false,
+  "observability": { "enabled": false },
+  "vars": {
+    "AI_MODE": "mock",
+    "ALLOWED_WEB_ORIGINS": "http://localhost:4321",
+    "OPENROUTER_BASE_URL": "https://openrouter.ai/api/v1",
+    "OPENROUTER_CALLBACK_URL": "http://localhost:8787/auth/openrouter/callback",
+    "OPENROUTER_IMAGE_MODEL": "openai/gpt-image-2",
+    "OPENROUTER_ANALYSIS_MODEL": "",
+    "OPENROUTER_EVALUATION_MODEL": "",
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "photo-studio-local",
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "../../packages/db/migrations",
+      "remote": false,
+    },
+  ],
+  "r2_buckets": [
+    {
+      "binding": "ASSETS",
+      "bucket_name": "photo-studio-local",
+      "remote": false,
+    },
+  ],
+  "workflows": [
+    {
+      "binding": "STUDIO_WORKFLOW",
+      "name": "photo-studio-local",
+      "class_name": "StudioWorkflow",
+    },
+  ],
+}

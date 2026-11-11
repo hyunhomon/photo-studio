@@ -31,3 +31,6 @@ outputs/
 uploads/
 .tmp/
 tmp/
+playwright-report/
+test-results/
+worker-configuration.d.ts

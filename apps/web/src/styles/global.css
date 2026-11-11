@@ -1,0 +1,81 @@
+@import "tailwindcss";
+@import "@photo-studio/ui/theme.css";
+@source "../../../../packages/ui/src";
+
+@layer base {
+  html {
+    background: var(--color-paper);
+    color: var(--color-ink);
+    scroll-behavior: smooth;
+  }
+  body {
+    margin: 0;
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  button,
+  a {
+    -webkit-tap-highlight-color: transparent;
+  }
+  button:not(:disabled),
+  a {
+    cursor: pointer;
+  }
+  :focus-visible {
+    outline: 3px solid #526a2b;
+    outline-offset: 5px;
+  }
+  ::selection {
+    background: var(--color-accent);
+    color: var(--color-ink);
+  }
+}
+
+@layer components {
+  .eyebrow {
+    font-size: 0.65rem;
+    font-weight: 600;
+    letter-spacing: 0.17em;
+  }
+  .page-width {
+    width: min(100% - 3rem, 1320px);
+    margin-inline: auto;
+  }
+  .pill-link {
+    display: inline-flex;
+    min-height: 44px;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    border-radius: 999px;
+    padding: 0.8rem 1.5rem;
+    background: var(--color-ink);
+    color: var(--color-paper);
+    font-size: 0.875rem;
+    font-weight: 600;
+    transition: background 150ms;
+  }
+  .pill-link:hover {
+    background: #44483a;
+  }
+  .fine-grid {
+    background-image:
+      linear-gradient(#ffffff30 1px, transparent 1px),
+      linear-gradient(90deg, #ffffff30 1px, transparent 1px);
+    background-size: 42px 42px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    /* biome-ignore lint/complexity/noImportantStyles: accessibility preference overrides utility transitions. */
+    transition-duration: 0.01ms !important;
+    /* biome-ignore lint/complexity/noImportantStyles: accessibility preference overrides utility animations. */
+    animation-duration: 0.01ms !important;
+  }
+}

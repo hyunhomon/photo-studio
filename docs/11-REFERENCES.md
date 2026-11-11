@@ -24,3 +24,22 @@
 - Cloudflare와 Astro의 현재 릴리스 호환성을 확인하고 정확한 버전/명령어를 기록.
 - OpenRouter OAuth가 `user_id`를 돌려주지 않는 케이스 등 실패 동작을 재현.
 - 제공자 API `usage.cost` 누락을 정상적인 '미확인'으로 처리.
+
+## Phase 0 스캐폴딩 시 재확인 (2026-11-10)
+
+- Astro Cloudflare adapter: https://docs.astro.build/en/guides/integrations-guide/cloudflare/
+  - 현재 어댑터는 Cloudflare Vite plugin 기반. `@astrojs/cloudflare/entrypoints/server`를 진입점으로 사용하며 `astro build`로 Worker를 만든다. R2 이미지 저장과 무관한 Images 서비스를 추가하지 않도록 `imageService: passthrough`를 선택했다.
+- Astro React: https://docs.astro.build/en/guides/integrations-guide/react/
+  - `react()` integration과 `client:load`로 스튜디오 island를 hydrate한다.
+- Tailwind Astro: https://tailwindcss.com/docs/installation/framework-guides/astro
+  - Tailwind v4는 `@tailwindcss/vite`와 CSS import로 설정. UI 공유 패키지는 명시적 `@source`로 탐색한다.
+- Bun workspaces: https://bun.sh/docs/pm/workspaces
+  - `workspace:*` 공유 패키지 연결 및 filter 기반 workspace script 실행.
+- Hono Worker: https://hono.dev/docs/getting-started/cloudflare-workers
+- Drizzle D1: https://orm.drizzle.team/docs/get-started/d1-new
+- Workflows local development: https://developers.cloudflare.com/workflows/build/local-development/
+- Wrangler configuration: https://developers.cloudflare.com/workers/wrangler/configuration/
+- Headless UI Dialog: https://headlessui.com/react/dialog
+  - Dialog focus trap, ESC 및 포커스 복귀 사용. 스타일은 직접 작성.
+- 버전: npm registry의 각 package `latest` metadata와 peerDependencies를 확인하고 호환 조합을 고정했다. Astro 7.4.8 / adapter 14.4.6 / React integration 7.1.5 / React 19.3.1 / Tailwind 4.3.5 / Hono 4.13.17 / Drizzle 0.45.4 / Zod 4.6.7 / Wrangler 4.159.0 / TypeScript 6.0.3. TypeScript 및 React transform 버전 선택 사유는 `10-DECISIONS-AND-RISKS.md` 참조.
+- OpenRouter 실제 OAuth/API capability, 모델 availability/단가 확인은 Phase 1/3/4의 실제 어댑터 구현 직전에 다시 수행한다. Phase 0은 유료 요청을 전혀 하지 않는다.

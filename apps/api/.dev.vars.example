@@ -1,0 +1,10 @@
+# Optional in Phase 0. Defaults live in wrangler.jsonc; no credentials needed.
+AI_MODE=mock
+ALLOWED_WEB_ORIGINS=http://localhost:4321
+OPENROUTER_BASE_URL=https://openrouter.ai/api/v1
+OPENROUTER_CALLBACK_URL=http://localhost:8787/auth/openrouter/callback
+OPENROUTER_IMAGE_MODEL=openai/gpt-image-2
+OPENROUTER_ANALYSIS_MODEL=""
+OPENROUTER_EVALUATION_MODEL=""
+# Phase 1 only: generate a private 32-byte key, never paste it into source/chat.
+# APP_ENCRYPTION_KEY_B64=

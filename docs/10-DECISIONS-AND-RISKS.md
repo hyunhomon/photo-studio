@@ -4,11 +4,11 @@ Codex는 다음 항목에 대해 개발 중 문서/실험으로 결론을 제시
 
 | 항목 | 현재 상태 | 기본 가정 / 검증 방법 |
 |---|---|---|
-| 실제 도메인 | 미정 | 로컬 URL로 먼저 구현, Cloudflare 도메인 추가 시 교체 |
+| 실제 도메인 | 확정 | `https://photo-studio.cloby.co`, production 한 환경만 사용 |
 | 분석·검수 모델 | 미정 | OpenRouter 현재 저가 멀티모달 모델 후보 가격/비전/structured output 비교 후 결정; ID 설정 가능 |
 | Cloudflare 비용 | 미측정 | D1/R2/Workflow 사용량 추정, 무료 구간 초과 비용 검증 |
 | OAuth user_id null | 검증 필요 | 계정 매핑 거부·명시적 오류; 인증 혼동 방지 |
-| API 경로 / 쿠키 도메인 | 초안 | 실제 배포 origin/cors/CSRF 검증 후 확정 |
+| API 경로 / 쿠키 도메인 | 경로/origin 확정, 세션 미구현 | 같은 hostname의 `/health*`, `/auth/*`, `/api/*`는 API Worker; cookie/CSRF는 Phase 1 검증 |
 | 이미지 입력 3장/10MB | 제안 기본값 | Cloudflare 요청 제한·사용자 품질 실험으로 조정 |
 | API 비용 표기 | 제공자 응답 가변 | `usage.cost` 유무 확인, null/estimated 분리 |
 | Workflows 과금 중복 위험 | 중요 | step 재시도 정책과 OpenRouter 결과 조회/멱등성 확인, unknown 상태 처리 |
@@ -23,3 +23,29 @@ Codex는 다음 항목에 대해 개발 중 문서/실험으로 결론을 제시
 4. **BYOK 사용자 이탈:** OpenRouter 가입/충전 단계의 이탈과 사용성 측정.
 5. **낮은 차별성:** 단순 프롬프트 대행이 아닌 자동 기획/프리셋/평가 데이터에 집중.
 6. **운영비 전가 오류:** 고객 API비용은 고객 부담이나 R2/Workers/D1 비용은 서비스 부담.
+
+## 2026-11-10 — Phase 0 구현 결정
+
+- Accepted ADR 변경 없음. Phase 0만 구현하며 인증·프로젝트 저장·업로드·실제 AI를 완성된 기능으로 표시하지 않는다.
+- Astro 7.4.8 / Cloudflare adapter 14.4.6 / React integration 7.1.5 / React 19.3.1 / Tailwind 4.3.5 / Wrangler 4.159.0을 현재 npm metadata와 공식 문서로 확인했다. TypeScript 최신 7.0.2 대신 `@astrojs/check@0.9.12`의 peer 범위(`^5 || ^6`)에 맞는 최신 6.0.3을 선택했다. React integration의 peer 범위에 맞춰 `oxc-transform-react@0.156.0`을 명시했다. 정확한 전이 의존성은 `bun.lock`으로 고정한다.
+- 루트 `.env.example`은 설정 위치 안내로 정리했다. 웹 `.env`의 공개 API URL과 API `.dev.vars`의 서버 설정을 분리한다. 개발 origin은 `http://localhost:4321`, API는 `http://localhost:8787`로 통일한다. 운영 cookie/CSRF 설계는 Phase 1에서 검증한다.
+- API의 D1 UUID는 로컬 전용 placeholder이며 원격 리소스가 아니다. D1/R2 remote binding은 끄고 공개 bucket을 만들지 않는다. 원격 배포와 실제 리소스 프로비저닝은 수행하지 않는다.
+- Drizzle 연결 factory와 migration 생성 설정만 준비한다. 실제 인증 스키마는 Phase 1, 프로젝트/상품 스키마는 Phase 2에서 추가한다. 미구현 테이블을 가짜 migration으로 완료 처리하지 않는다.
+- Mock 분석기는 합성 fixture만 반환하며 네트워크 함수를 갖지 않는다. 실제 provider 어댑터는 없고 `AI_MODE` 변경으로 활성화되지 않는다. 비용은 실제 청구가 아니므로 `actualCostUsd=null`, `costSource=unknown`으로 유지한다.
+- Workflow는 인프라 검증용 Mock step만 제공하며 자동 재시도 limit은 0이다. 운영 HTTP API에는 Workflow 실행 경로가 없다. 실제 paid attempt ledger/안전성은 Phase 3~4에서 구현해야 한다.
+- 테스트 전용 Worker 진입점에서만 D1/R2/Workflow를 검사한다. 사용자 UI에는 업로드/계정/결과 fixture를 노출하지 않고 빈 상태와 미구현 안내를 제공한다. 랜딩의 셔츠는 직접 작성한 벡터 일러스트로 실제 AI 생성 결과와 구분한다.
+- `/health`는 liveness만 확인한다. DB/모델/인증 readiness 검사나 사용량 기록 구현으로 간주하지 않는다. 실제 사용량·품질·재생성 로그는 후속 Phase에서 저장 계층과 함께 구현한다.
+- Astro 7의 `session: false`를 명시해 어댑터 기본 KV 세션을 비활성화했다. 앱 세션은 ADR대로 Phase 1의 API Worker/D1이 담당한다. 별도 KV/Cloudflare Images 리소스를 요구하지 않는다.
+- 브라우저 검증에서 SSR 직후 hydration 전 클릭 유실을 발견해 React effect가 완료되기 전에는 동작 버튼을 disabled로 유지한다. Headless UI Dialog와 API 오류 복구를 실제 Chromium에서 재검증했다.
+
+## 2026-11-10 — production 배포 결정
+
+- 사용자 요청으로 `cloby.co`의 소유 계정에 실제 배포했다. 원격 환경은 production 하나다. Phase 5의 staging 검증 제안은 production으로 변경했으며 다른 Accepted ADR 변경은 없다.
+- 웹은 `photo-studio.cloby.co` Custom Domain, API는 같은 도메인의 경로별 Worker routes를 사용한다. 두 Worker의 독립성과 기존 REST/auth 경로를 유지한다. 브라우저 origin/callback은 하나로 통일하고 별도 API DNS를 만들지 않는다.
+- D1 `photo-studio-production`, private R2 `photo-studio-production-assets`, Workflow `photo-studio-production`을 생성/연결했다. R2 managed/custom public domain은 비활성화했다. APAC location hint는 물리 위치 보장이 아니다.
+- 개인 계정명/email과 account/zone/database ID를 git/console에 남기지 않도록 원격 ID가 들어가는 Wrangler 설정은 `.wrangler/production/`에만 생성한다. OAuth token은 CLI 출력에서 메모리로 읽고 출력/파일 기록하지 않는다.
+- `infra/production.json`과 `bun run deploy`로 설정을 재생성한다. 활성 존의 소유 계정/membership과 로컬 pin을 검증해 잘못된 계정 배포를 방지한다. 이미 존재하는 리소스는 이름으로 재사용한다.
+- Wrangler의 non-interactive Custom Domain 배포는 기존 DNS overwrite를 허용할 수 있어, 게시 전 Worker domain changeset 충돌을 별도로 검사한다. 다른 Worker/도메인을 덮어쓰거나 삭제하지 않는다.
+- Astro adapter의 Windows 절대 configPath는 URL scheme 오류가 나므로 앱 기준 상대 경로를 전달한다. 로컬 build와 production build를 분리하고 공개 API URL을 production 빌드 시 주입한다.
+- Phase 0 Mock 상태만 배포했으며 초대 게이트/실제 고객 기능은 아직 없다. 실제 inference/사용자 키/미사용 암호화 secret은 추가하지 않았다. Phase 1 이후 migration/세션/CSRF/유료 호출 안전성은 별도 구현한다.
+- 기존 존이 Cloudflare Web Analytics beacon을 자동 주입하는 것을 production 브라우저 검사에서 확인했다. 존 전체 설정은 유지하고, 검사에서는 해당 beacon의 GET 및 `/cdn-cgi/rum` POST만 명시적으로 허용한다. 제공자 호출 또는 다른 외부 요청은 허용하지 않는다.

@@ -1,0 +1,9 @@
+{
+  "zone": "cloby.co",
+  "hostname": "photo-studio.cloby.co",
+  "webWorker": "photo-studio-web",
+  "apiWorker": "photo-studio-api",
+  "database": "photo-studio-production",
+  "bucket": "photo-studio-production-assets",
+  "workflow": "photo-studio-production"
+}

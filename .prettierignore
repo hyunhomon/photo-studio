@@ -1,0 +1,12 @@
+node_modules/
+bun.lock
+dist/
+.astro/
+.wrangler/
+worker-configuration.d.ts
+playwright-report/
+test-results/
+AGENTS.md
+prompts/
+docs/
+.tmp/

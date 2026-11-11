@@ -1,0 +1,12 @@
+@theme {
+  --color-paper: #f5f3ed;
+  --color-ink: #242621;
+  --color-muted: #66695f;
+  --color-line: #d9dcd1;
+  --color-accent: #dbe9a2;
+  --color-surface: #fffefa;
+  --color-studio: #e7e8df;
+  --font-sans: "Segoe UI", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  --font-editorial: Georgia, "Times New Roman", serif;
+  --radius-panel: 1rem;
+}

@@ -1,0 +1,12 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.6.6/schema.json",
+  "vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true },
+  "files": {
+    "ignoreUnknown": true,
+    "includes": ["**", "!**/worker-configuration.d.ts", "!**/*.astro"]
+  },
+  "formatter": { "enabled": false },
+  "linter": { "enabled": true, "rules": { "preset": "recommended" } },
+  "css": { "parser": { "tailwindDirectives": true } },
+  "assist": { "enabled": false }
+}
