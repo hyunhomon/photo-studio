@@ -294,4 +294,4 @@ production desktop/mobile 전체 Mock E2E **4/4 통과**: 저장된 분석 재�
 - [x] 랜딩 한정 아이보리/잉크·올리브 톤, 큰 제품 데모와 다채로운 기능 서사, 기존 커스텀 SVG/기울어진 카드 제거.
 - [x] 공개 사진 3장 출처/용량/예시 표시, 실제 AI 호출 없는 탭/선택/입력/장면 전환/확대, FAQ/실제 CTA/앵커.
 - [x] format/lint/typecheck/test/build 통과(진단/린트 경고0, 단위66/66), local desktop/mobile 8/8. 데모/FAQ/이미지/앵커/AI 호출 없음·360~1440px overflow·라이트 랜딩→다크 스튜디오 전환과 기존 전체 Mock 흐름 통과. 기능/카피 read-only 리뷰와 실제 화면 캡처 점검.
-- [ ] 웹 전용 production 배포·공개 smoke·운영 브라우저 검증.
+- [x] 8fa9a20/53738e7 commit/push, 웹 전용 production 배포 완료. 공개 HTTPS/CORS/OAuth/폰트/반응형 smoke와 운영 desktop/mobile 8/8(wrapper exit0) 통과. 신규 데모/FAQ/이미지·기존 Mock 전체 흐름·테마 분리 검증, 운영 HTML의 최신 예시 문구도 확인했다. 합성 계정/사진 정리와 실제 연결 유지. API/Workflow/DB/secret 변경·사용자 자료 초기화·OpenRouter 유료 호출 없음.
