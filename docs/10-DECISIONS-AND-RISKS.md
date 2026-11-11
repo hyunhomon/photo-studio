@@ -91,3 +91,5 @@ D1 공식 limits의 Free 50 queries/invocation 및 query당 100 bound parameters
 사용자 요청으로 ChatGPT/Codex 패턴의 프로젝트 사이드바와 중앙 생성 composer를 구현했다(ADR-018). 기존 me=null 조건은 인증 요청 전에도 연결 폼을 표시하므로 명시적 pending/unauthenticated/error 상태로 분리했다. 화면 이동은 Astro ClientRouter를 사용하고 인증 응답·개인 목록은 브라우저 저장소에 캐시하지 않는다. 접힘 boolean만 sessionStorage에 보관한다. Headless UI 검색/모바일 탐색·키보드·skeleton 및 503 재확인 경로를 검증한다. 유료 실행/서비스 인증 정책은 유지하고 웹만 배포한다.
 
 운영 지연에서 같은 프로젝트 검색 선택의 불필요한 재탐색이 새 Upload Dialog를 초기화하는 경합을 발견했다. 이미 열린 프로젝트는 검색/메뉴를 닫고 현재 화면을 유지하도록 고쳤다. API/Workflow 재실행이나 입력 자료 변경은 필요 없다. 첫 운영 결과는 5/6 통과였으며 수정 후 다시 검증한다.
+
+`f81cd8f` 재배포 후 local/production 브라우저 각 6/6과 public smoke를 통과했다. production wrapper의 정리 후 관리 D1 조회가 실패해 exit 1이었으나 독립 읽기 전용 조회로 합성 계정 0과 실제 계정 보존을 확인했다. 앱 브라우저 결과와 관리 검증의 일시 오류를 구분하며 전체 명령 exit 0으로 표시하지 않는다. 웹만 배포했고 유료 AI 호출은 하지 않았다.

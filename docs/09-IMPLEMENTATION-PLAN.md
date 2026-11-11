@@ -183,3 +183,7 @@ production desktop/mobile 전체 Mock E2E **4/4 통과**: 저장된 분석 재�
 - 합성 프로젝트만 사용한 desktop/mobile/search/drawer 캡처를 시각 점검하고 preview 계정/자료를 정리했다. 웹 전용 production 배포 후 검증 결과를 후속 기록한다. 실제 고객 AI 호출이나 API/Workflow/D1/secret 변경 없음.
 
 첫 운영 검사 5/6 통과: desktop에서 검색으로 이미 열린 프로젝트를 다시 선택한 뒤 뒤늦은 동일 URL 이동이 새로 연 업로드 Dialog를 초기화하는 경합을 발견했다. 같은 프로젝트 선택 시 이동을 생략하고 검색/메뉴만 닫도록 수정했다. 테스트를 단순 지연시키거나 실패를 숨기지 않고 실제 탐색 동작을 보완했다. 재배포 후 전체 운영 검사를 다시 실행한다.
+
+최종 `f81cd8f` 웹 전용 재배포 후 로컬/운영 브라우저 각각 **6/6 통과**, 공개 HTTPS/CORS/OAuth 오류 복구/폰트/반응형 smoke 통과. 운영에서 느린 me 응답·503 재확인, 유효 세션 전환 중 연결 폼 없음, 동일 프로젝트 검색 후 업로드, desktop/mobile ClientRouter 이동, 전체 Mock 촬영·기획 복구·다운로드·삭제를 검증했다. 단위 **33/33**, lint/format/typecheck/build 통과를 유지한다.
+
+운영 E2E의 브라우저 6개는 모두 통과했으나 wrapper의 후속 D1 관리 API 조회가 일시 실패해 명령 종료 코드는 1이었다. 별도 fresh credential의 읽기 전용 집계로 synthetic_users=0 및 실제 계정/연결/세션 보존을 확인했다. 브라우저 계정 삭제 완료와 독립 검증으로 합성 사진/계정 정리를 재확인했으며 이 wrapper 오류를 애플리케이션 검사 성공과 구분해 기록한다. API/Workflow/D1/secret 배포 및 실제 고객 AI 호출은 없었다.
