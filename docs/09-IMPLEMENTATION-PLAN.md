@@ -221,5 +221,5 @@ production desktop/mobile 전체 Mock E2E **4/4 통과**: 저장된 분석 재�
 - [x] 선택·외부 처리/비용 안내·snapshot 동의, owner/상품/용도 검증, 의류→인물→촬영감→이전 컷 순서, 최대 6장/12MB 과금 전 검사. 인물 특징/촬영감 역할 분리와 의류 우선. `studio-v5-reference` / `photo-v3-reference`.
 - [x] 참조 원본 삭제/기존 결과 보존/전체 삭제 구분, 결과 사용 여부, 이전 얼굴보다 선택한 인물 우선, 포켓 구조 보존 지시 보강. 자동 외부 사진 수집·face embedding·학습·새 AI 단계 없음.
 - [x] 최종 format/lint/typecheck/unit/build 통과: **44/44**, Astro 진단 0. native workerd HTTP OAuth/provider 계약 및 합성 manifest 6종 통과. local desktop/mobile **6/6**: 두 참조 등록/권리 동의/선택·미선택/실제 이미지 디코딩/생성 결과 사용 여부/원본·이전 비교/삭제까지 검사했다. owner·동의 누락 무과금·분석 제외·역할 순서·동시 업로드·진행 중 삭제 차단과 저장 실패 rollback 단위 검사를 포함한다. 합성 참조·동의 Dialog를 시각 점검했다.
-- [ ] production 배포·공개/desktop/mobile Mock 회귀·정리 검증 기록.
+- [x] 앱 `b07cb46` commit/push 및 production web/API/Workflow 배포 완료. 공개 HTTPS/CORS/PKCE/폰트/반응형 smoke 통과. production desktop/mobile **6/6**, wrapper exit 0. 배포된 private R2/D1/Workflow에서 두 참조의 등록/선택·제외/사용 여부/원본·이전 컷 비교/다운로드/내보내기/삭제를 검증했다. 참조·동의 UI를 시각 점검했다. 합성 계정 0, 실제 계정/연결/세션 보존, 기존 실제 결과 7건·과거 평가 5건 보존을 독립 읽기 전용 집계로 확인했다. 새 Cloudflare 리소스/파괴적 migration/자동 유료 AI 호출은 없다.
 - [ ] 권한 있는 실제 참조의 인간 승인 생성/확대 비교. 합성 계약 검사를 얼굴/질감 품질 합격으로 표시하지 않는다.

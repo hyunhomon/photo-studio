@@ -109,3 +109,5 @@ v2 앱 `1382f82` commit/push 및 production web/API/Workflow 배포 완료. form
 v2의 사용자 실행 신규 이미지가 성공했고 evaluation 없이 실제 비용이 반환됐다. 사용자는 얼굴/표정/피부가 여전히 AI 같다고 확인했다. 사용자 무신사 비교 이미지는 얼굴이 더 크게 보여도 자연스러워 보였으므로 구도/얼굴 비중 개선을 주요 실사 해결로 삼은 판단을 수정했다. 원본 대비 주머니 패널 차이도 발견해 상품 보존 실패로 기록한다. v1과 다른 상품/장소라 제어된 버전 비교 실험이 아니다.
 
 ADR-021은 인물/촬영감의 역할을 분리한 실제 visual reference 입력을 구현한다. 기존 private assets/정규화/owner/CSRF/삭제 정책을 재사용하고 사용 선택/외부 처리 동의/과금 전 검사로 제한한다. 인물 신원/학습 데이터 수집이나 native face-swap/MTF 보정 기능으로 과장하지 않는다. 코드/합성 transport의 역할 분리와 실제 모델이 이를 지키는 품질은 별개이며 원치 않는 인물·의류 혼합도 실제 검증 항목으로 남긴다. 새 모델 단계나 자동 유료 호출은 없다. 사용자 첨부 비교 사진을 자동으로 provider에 보내지 않았다.
+
+최종 앱 `b07cb46` commit/push 및 production web/API/Workflow 배포 완료. format/lint/typecheck/unit/build 44/44, native provider/OAuth 계약·합성 manifest 6종, local/production desktop/mobile 각 6/6, 공개 smoke 통과. 운영 wrapper exit 0과 참조/동의 UI를 확인했고 합성 계정 0, 실제 계정/연결/세션과 기존 실제 이미지 7건/평가 5건 보존을 독립 확인했다. 실제 인물/촬영감 참조를 선택한 v3 품질 효과는 아직 미검증이다. 폰트·다크 토큰·Headless UI·BYOK와 1회 생성/무평가/무자동재시도 정책을 유지한다.
