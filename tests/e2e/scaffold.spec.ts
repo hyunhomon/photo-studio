@@ -4,6 +4,7 @@ import { syntheticPng } from "../../apps/api/test/png";
 test("local Mock: connect, create project, secure upload, preset, delete and logout", async ({
   page,
 }) => {
+  test.setTimeout(90000);
   const errors: string[] = [];
   const unexpected: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
@@ -71,6 +72,50 @@ test("local Mock: connect, create project, secure upload, preset, delete and log
     .click();
   await page.getByRole("button", { name: "콘셉트 승인", exact: true }).click();
   await expect(page.getByText("V1 · 승인됨", { exact: true })).toBeVisible();
+  await page
+    .getByRole("button", { name: "승인된 콘셉트로 생성", exact: true })
+    .click();
+  await expect(
+    page.getByRole("button", { name: "동의하고 1장 생성" }),
+  ).toBeDisabled();
+  await page
+    .getByLabel("이미지 생성·평가 비용과 승인된 콘셉트를 확인했습니다.")
+    .check();
+  await page.getByRole("button", { name: "동의하고 1장 생성" }).click();
+  await expect(
+    page.getByText("Mock 합성 평가입니다.", { exact: false }),
+  ).toBeVisible({ timeout: 60000 });
+  await page.getByRole("button", { name: "채택", exact: true }).click();
+  await expect(page.getByText("✓ 채택한 컷", { exact: true })).toBeVisible();
+  const downloadEvent = page.waitForEvent("download");
+  await page.getByRole("link", { name: "PNG 다운로드" }).click();
+  const download = await downloadEvent;
+  expect(download.suggestedFilename()).toBe("photo-studio.png");
+  await page.getByRole("button", { name: "폐기", exact: true }).click();
+  await page.getByRole("button", { name: "폐기 사유", exact: true }).click();
+  await page.getByRole("option", { name: "로고·텍스트가 왜곡됐어요" }).click();
+  await page.getByLabel("추가 메모 (선택)").fill("Synthetic review");
+  await page
+    .getByRole("button", { name: "폐기 사유 저장", exact: true })
+    .click();
+  await expect(
+    page.getByText("폐기한 컷 · 로고·텍스트가 왜곡됐어요", { exact: true }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "사유를 남기고 재생성" }).click();
+  await page
+    .getByLabel("이미지 생성·평가 비용과 승인된 콘셉트를 확인했습니다.")
+    .check();
+  await page.getByRole("button", { name: "동의하고 1장 생성" }).click();
+  await expect(page.getByRole("button", { name: /결과 \d+ 선택/ })).toHaveCount(
+    2,
+    { timeout: 60000 },
+  );
+  await page
+    .getByRole("heading", { name: "당신의 다음 컷." })
+    .scrollIntoViewIfNeeded();
+  await page.screenshot({
+    path: `.tmp/studio-review-${test.info().project.name}.png`,
+  });
   await page.goto("/studio/presets");
   await page.getByRole("button", { name: "새 프리셋" }).click();
   await page.getByLabel("프리셋 이름", { exact: true }).fill("Synthetic brand");

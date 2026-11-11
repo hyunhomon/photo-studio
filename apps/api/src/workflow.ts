@@ -6,6 +6,7 @@ import {
 import { createMockAnalyzer } from "@photo-studio/ai";
 import type { Env } from "./env";
 import { finishFailure, runPlanStage } from "./pipeline";
+import { runGenerationStage } from "./generation";
 export type StudioWorkflowParams = { kind: string; jobId?: string };
 export class StudioWorkflow extends WorkflowEntrypoint<
   Env,
@@ -31,6 +32,17 @@ export class StudioWorkflow extends WorkflowEntrypoint<
     const id = event.payload.jobId;
     if (!id) throw new Error("Missing operation");
     try {
+      if (event.payload.kind === "generate")
+        for (const stage of ["generation", "evaluation"] as const) {
+          await step.do(
+            stage,
+            { retries: { limit: 0, delay: "1 second" }, timeout: "4 minutes" },
+            async () => {
+              await runGenerationStage(this.env, id, stage);
+              return { stored: true };
+            },
+          );
+        }
       if (event.payload.kind === "plan")
         for (const stage of ["analysis", "planning"] as const) {
           await step.do(

@@ -39,6 +39,7 @@ import { AppError, notFound } from "./errors";
 import { ownedProduct } from "./resources";
 import { decrypt, hash } from "./crypto";
 import { rateLimit } from "./auth";
+import { deleteObject } from "./storage";
 
 export type JobRow = typeof jobs.$inferSelect;
 export interface PlanSnapshot {
@@ -494,6 +495,11 @@ export async function cancelProducts(env: Env, userId: string, ids: string[]) {
           /* DB cancellation remains authoritative. */
         }
       }
+      if (job.kind === "generate")
+        await deleteObject(
+          env,
+          `${userId}/${productId}/generated/${job.id}.png`,
+        );
     }
   }
 }

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, useId } from "react";
+import { useCallback, useEffect, useState, useId, useRef } from "react";
 import {
   Check,
   CheckCircle2,
@@ -348,6 +348,7 @@ export default function PlanningPanel({
   onRefresh: () => void;
   onPipeline?: (data: PipelineDto) => void;
 }) {
+  const requestId = useRef(crypto.randomUUID());
   const [data, setData] = useState<PipelineDto>({ plans: [], jobs: [] }),
     [presets, setPresets] = useState<PresetDto[]>([]),
     [preset, setPreset] = useState(""),
@@ -363,12 +364,15 @@ export default function PlanningPanel({
     setData(d);
     onPipeline?.(d);
   }, [product.id, onPipeline]);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: parent refresh signals a mutation made in the separate generation panel.
   useEffect(() => {
     void refresh().catch((e) => setError(errorMessage(e)));
+  }, [refresh, product]);
+  useEffect(() => {
     request<PresetDto[]>("/api/v1/presets")
       .then(setPresets)
       .catch((e) => setError(errorMessage(e)));
-  }, [refresh]);
+  }, []);
   const active = data.jobs.some((j) =>
     ["queued", "running"].includes(j.status),
   );
@@ -437,6 +441,7 @@ export default function PlanningPanel({
           disabled={busy || active}
           onClick={() => {
             setConsent(false);
+            requestId.current = crypto.randomUUID();
             setOpen(true);
           }}
         >
@@ -532,7 +537,7 @@ export default function PlanningPanel({
                   method: "POST",
                   body: JSON.stringify({
                     consent: true,
-                    idempotencyKey: crypto.randomUUID(),
+                    idempotencyKey: requestId.current,
                     presetId: preset || null,
                     description,
                   }),

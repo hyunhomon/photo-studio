@@ -1,16 +1,21 @@
 import { useCallback, useEffect, useState } from "react";
 import { ArrowLeft, Plus, Trash2 } from "lucide-react";
 import { Button, Modal } from "@photo-studio/ui";
-import type { ProductDto } from "@photo-studio/schemas";
+import type { ProductDto, PipelineDto } from "@photo-studio/schemas";
 import { useAccount } from "../lib/account";
 import { apiBase, errorMessage, request } from "../lib/api";
 import WorkspaceShell from "./WorkspaceShell";
 import UploadDialog from "./UploadDialog";
 import PlanningPanel from "./PlanningPanel";
+import GenerationPanel from "./GenerationPanel";
 
 export default function ProductScreen({ id }: { id: string }) {
   const { me, error, setError } = useAccount();
   const [product, setProduct] = useState<ProductDto | null>(null);
+  const [pipeline, setPipeline] = useState<PipelineDto>({
+    plans: [],
+    jobs: [],
+  });
   const [upload, setUpload] = useState(false),
     [remove, setRemove] = useState(false),
     [busy, setBusy] = useState(false);
@@ -86,9 +91,22 @@ export default function ProductScreen({ id }: { id: string }) {
               </div>
             </section>
             {me && (
-              <PlanningPanel product={product} me={me} onRefresh={refresh} />
+              <PlanningPanel
+                product={product}
+                me={me}
+                onRefresh={refresh}
+                onPipeline={setPipeline}
+              />
             )}
           </div>
+          {me && (
+            <GenerationPanel
+              product={product}
+              me={me}
+              pipeline={pipeline}
+              onRefresh={refresh}
+            />
+          )}
           {me && (
             <UploadDialog
               open={upload}

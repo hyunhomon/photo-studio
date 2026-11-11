@@ -1,5 +1,10 @@
 import { expect, test } from "bun:test";
-import { openRouterAdapter, InvalidOutputError } from "./provider";
+import {
+  openRouterAdapter,
+  InvalidOutputError,
+  mockPlan,
+  ProviderError,
+} from "./provider";
 import { mockAnalysisFixture } from "./fixtures";
 test("OpenRouter structured contract uses vision references and preserves actual/null costs without retries", async () => {
   let paid = 0,
@@ -67,6 +72,83 @@ test("OpenRouter structured contract uses vision references and preserves actual
   } catch (e) {
     expect(e).toBeInstanceOf(InvalidOutputError);
     expect((e as InvalidOutputError).usage.actualCostUsd).toBe(0.00007);
+  }
+  expect(paid).toBe(2);
+});
+
+test("Images API capability checks, one reference request, provider cost and uncertain response contract", async () => {
+  let paid = 0,
+    fail = false;
+  const transport = Object.assign(
+    async (input: string | URL | Request, init?: RequestInit) => {
+      if (String(input).endsWith("/images/models"))
+        return Response.json({
+          data: [
+            {
+              id: "openai/gpt-image-2",
+              architecture: {
+                input_modalities: ["text", "image"],
+                output_modalities: ["image"],
+              },
+              supported_parameters: {
+                aspect_ratio: { values: ["3:4"] },
+                output_format: { values: ["png"] },
+                quality: { values: ["medium", "high"] },
+                n: { min: 1, max: 10 },
+                input_references: { min: 0, max: 16 },
+              },
+            },
+          ],
+        });
+      paid++;
+      if (fail) throw new Error("Synthetic lost response");
+      expect(String(input).endsWith("/images")).toBe(true);
+      const payload = JSON.parse(String(init?.body));
+      expect(payload.n).toBe(1);
+      expect(payload.input_references).toEqual([
+        {
+          type: "image_url",
+          image_url: { url: "data:image/png;base64,synthetic" },
+        },
+      ]);
+      expect(payload.provider.allow_fallbacks).toBe(false);
+      expect(payload.aspect_ratio).toBe("3:4");
+      return Response.json({
+        data: [{ b64_json: btoa("synthetic-bytes"), media_type: "image/png" }],
+        usage: { cost: 0.014, prompt_tokens: 3, completion_tokens: 5 },
+      });
+    },
+    { preconnect: fetch.preconnect },
+  ) as typeof fetch;
+  const adapter = openRouterAdapter(
+    "synthetic-key",
+    "https://synthetic.invalid/images-contract",
+    transport,
+  );
+  await expect(
+    adapter.preflight("unsupported", "generation", "medium"),
+  ).rejects.toBeInstanceOf(ProviderError);
+  expect(paid).toBe(0);
+  await adapter.preflight("openai/gpt-image-2", "generation", "high");
+  const r = await adapter.generate(
+    "openai/gpt-image-2",
+    ["data:image/png;base64,synthetic"],
+    mockPlan(mockAnalysisFixture),
+    "high",
+  );
+  expect(new TextDecoder().decode(r.value.bytes)).toBe("synthetic-bytes");
+  expect(r.usage.actualCostUsd).toBe(0.014);
+  fail = true;
+  try {
+    await adapter.generate(
+      "openai/gpt-image-2",
+      [],
+      mockPlan(mockAnalysisFixture),
+      "medium",
+    );
+    throw new Error("Expected uncertain response");
+  } catch (e) {
+    expect((e as ProviderError).unknownOutcome).toBe(true);
   }
   expect(paid).toBe(2);
 });

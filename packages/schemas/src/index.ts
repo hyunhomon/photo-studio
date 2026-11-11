@@ -149,3 +149,68 @@ export const planRequestSchema = z
     description: z.string().trim().max(1000).default(""),
   })
   .strict();
+
+export const qualitySchema = z
+  .object({
+    garmentFidelityScore: z.number().min(0).max(1),
+    realismScore: z.number().min(0).max(1),
+    compositionScore: z.number().min(0).max(1),
+    flaggedIssues: z
+      .array(
+        z
+          .object({
+            code: z.string().min(1).max(80),
+            severity: z.enum(["low", "medium", "high"]),
+            reason: z.string().min(1).max(500),
+          })
+          .strict(),
+      )
+      .max(20),
+    needsHumanReview: z.literal(true),
+    evaluationVersion: z.literal("v1"),
+  })
+  .strict();
+export type QualityEvaluation = z.infer<typeof qualitySchema>;
+export const rejectionReasonSchema = z.enum([
+  "color_change",
+  "logo_distortion",
+  "pattern_change",
+  "silhouette_change",
+  "missing_detail",
+  "unrealistic",
+  "composition",
+  "other",
+]);
+export const generateRequestSchema = z
+  .object({
+    consent: z.literal(true),
+    idempotencyKey: z.uuid(),
+    planId: z.uuid(),
+    quality: z.enum(["medium", "high"]),
+    count: z.literal(1),
+    regenerationOf: z.uuid().nullable().default(null),
+    regenerationReason: rejectionReasonSchema.nullable().default(null),
+  })
+  .strict()
+  .refine((v) => Boolean(v.regenerationOf) === Boolean(v.regenerationReason), {
+    message: "Regeneration requires a source and reason",
+  });
+export const feedbackSchema = z
+  .object({
+    decision: z.enum(["accepted", "rejected"]),
+    reason: rejectionReasonSchema.nullable().default(null),
+    note: z.string().trim().max(1000).default(""),
+  })
+  .strict()
+  .refine((v) => v.decision !== "rejected" || v.reason !== null, {
+    message: "Rejection needs a reason",
+  });
+export type FeedbackInput = z.infer<typeof feedbackSchema>;
+export interface ResultDto {
+  asset: AssetDto;
+  quality: QualityEvaluation | null;
+  feedback: (FeedbackInput & { createdAt: number }) | null;
+  regenerationOf: string | null;
+  regenerationReason: string | null;
+  mock: boolean;
+}

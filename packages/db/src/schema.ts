@@ -231,3 +231,31 @@ export const attempts = sqliteTable(
     index("attempt_owner").on(t.userId),
   ],
 );
+
+export const evaluations = sqliteTable("quality_evaluations", {
+  assetId: text("asset_id")
+    .primaryKey()
+    .references(() => assets.id, { onDelete: "cascade" }),
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  specJson: text("spec_json").notNull(),
+  createdAt: integer("created_at").notNull(),
+});
+export const feedback = sqliteTable(
+  "feedback",
+  {
+    id: text("id").primaryKey(),
+    assetId: text("asset_id")
+      .notNull()
+      .references(() => assets.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    decision: text("decision").notNull(),
+    reason: text("reason"),
+    note: text("note").notNull(),
+    createdAt: integer("created_at").notNull(),
+  },
+  (t) => [index("feedback_asset_owner").on(t.assetId, t.userId, t.createdAt)],
+);

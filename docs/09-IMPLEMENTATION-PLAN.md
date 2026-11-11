@@ -74,14 +74,16 @@ Phase 3 구현(2026-11-11): 분석/기획 별도 Workflow, 사용자 비용 동�
 
 ## Phase 4 — 모델컷 생성/품질 검수
 
-- [ ] OpenRouter Images API(`openai/gpt-image-2`) + 입력 참조 이미지 지원.
-- [ ] 생성 클릭 전 사용자 비용 확인, idempotencyKey 생성.
-- [ ] generation_attempt ledger, Workflow 과금 호출 안전성.
-- [ ] 결과 R2 저장, QualityEvaluator, human accept/reject+reason.
-- [ ] 원본/결과 비교, 다운로드, 의도적 재생성.
-- [ ] 비용 원본 값/추정 비용 분리, `outcome_unknown` 상태 처리.
+- [x] OpenRouter Images API(`openai/gpt-image-2`) + 입력 참조 이미지 지원.
+- [x] 생성 클릭 전 사용자 비용 확인, idempotencyKey 생성.
+- [x] generation_attempt ledger, Workflow 과금 호출 안전성.
+- [x] 결과 R2 저장, QualityEvaluator, human accept/reject+reason.
+- [x] 원본/결과 비교, 다운로드, 의도적 재생성.
+- [x] 비용 원본 값/추정 비용 분리, `outcome_unknown` 상태 처리.
 
 **DoD:** mock 전체 happy path 및 유료 API 응답 미확인 시 자동 재호출 0회; 사용자 승인을 받아 실제 paid smoke test 1회 수행 가능.
+
+Phase 4 구현(2026-11-11): OpenRouter 공식 Images API 요청/참조·capability·usage 응답 계약을 fake transport로 검증했다. 생성/평가 별도 원장, R2 저장 실패 시 확정 비용 보존, 평가 실패 후 수동 검수, 승인된 snapshot, 원본/결과 비교·확대·PNG 다운로드, 피드백 이력·재생성 사유/연결을 구현했다. 단위 21개 및 workerd desktop/mobile E2E 4개 통과. 실제 유료 이미지 품질 검증은 사람이 funded 계정으로 실행하기 전까지 미검증이다. Mock 결과는 원본 복사 및 합성 평가라고 표시한다.
 
 ## Phase 5 — 클로즈드 베타 준비
 
@@ -113,5 +115,6 @@ Phase 3 구현(2026-11-11): 분석/기획 별도 Workflow, 사용자 비용 동�
 - [ ] 타인 프로젝트/이미지 접근 차단
 - [ ] 중복 유료 호출 방어
 - [ ] 고객의 실제 촬영비 및 절감액 기록 양식 준비
+
 
 

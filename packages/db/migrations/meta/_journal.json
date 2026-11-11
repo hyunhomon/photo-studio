@@ -29,6 +29,13 @@
       "when": 1794373279405,
       "tag": "0003_tearful_hammerhead",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1794373842797,
+      "tag": "0004_high_rhino",
+      "breakpoints": true
     }
   ]
 }
