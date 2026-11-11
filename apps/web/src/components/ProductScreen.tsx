@@ -65,7 +65,7 @@ export default function ProductScreen({ id }: { id: string }) {
             </Button>
           </div>
           <div className="mt-8 grid items-start gap-7 xl:grid-cols-[minmax(240px,0.65fr)_1fr]">
-            <section className="rounded-panel border border-line bg-surface p-6">
+            <section className="rounded-panel border border-line bg-surface p-6 xl:sticky xl:top-6">
               <div className="flex items-center justify-between">
                 <h2 className="text-lg">원본 참조</h2>
                 {!product.analysis &&

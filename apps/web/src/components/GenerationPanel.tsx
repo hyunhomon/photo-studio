@@ -11,7 +11,7 @@ import {
 import { Button, Modal, Select } from "@photo-studio/ui";
 import type { PipelineDto, ProductDto, ResultDto } from "@photo-studio/schemas";
 import { apiBase, errorMessage, type Me, request } from "../lib/api";
-import { Field } from "./PlanningPanel";
+import { Field, JobStatus } from "./PlanningPanel";
 export const reasons = [
   { value: "color_change", label: "원본과 색상이 달라요" },
   { value: "logo_distortion", label: "로고·텍스트가 왜곡됐어요" },
@@ -56,6 +56,7 @@ export default function GenerationPanel({
   useEffect(() => {
     void refresh().catch((e) => setError(errorMessage(e)));
   }, [refresh, pipeline]);
+  const generationJob = pipeline.jobs.find((j) => j.kind === "generate");
   const result = results.find((r) => r.asset.id === selected) ?? results[0],
     source = product.assets.find((a) => a.kind === "input"),
     plan = pipeline.plans[0],
@@ -101,7 +102,10 @@ export default function GenerationPanel({
   }
   const imageUrl = (id: string) => `${apiBase}/api/v1/assets/${id}/content`;
   return (
-    <section className="mt-9 border-t border-line pt-9">
+    <section
+      id="results"
+      className="mt-9 scroll-mt-6 border-t border-line pt-9"
+    >
       {error && (
         <p
           role="alert"
@@ -128,6 +132,22 @@ export default function GenerationPanel({
           승인된 콘셉트로 생성
         </Button>
       </div>
+      {generationJob && (
+        <div className="mt-5">
+          <JobStatus
+            job={generationJob}
+            onDispatch={() =>
+              void action(() =>
+                request(
+                  `/api/v1/jobs/${generationJob.id}/dispatch`,
+                  { method: "POST" },
+                  me.csrf,
+                ),
+              )
+            }
+          />
+        </div>
+      )}
       {plan?.status !== "approved" && (
         <p className="mt-4 text-xs text-muted">
           분석·기획 후 촬영 콘셉트를 승인하면 생성할 수 있습니다.
@@ -393,6 +413,7 @@ export default function GenerationPanel({
           </div>
         )}
         <p className="mt-4 text-xs leading-6 text-muted">
+          이미지 모델: {me.models.image} / 평가 모델: {me.models.evaluation}.
           예상 호출: 이미지 1회 + 평가 1회. 정확한 비용은 사전 확정할 수
           없습니다. 응답이 불확실하면 자동 재생성을 멈춥니다.{" "}
           <a

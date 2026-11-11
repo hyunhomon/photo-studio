@@ -1,0 +1,1 @@
+ALTER TABLE `media_purges` ADD `checked_at` integer DEFAULT 0 NOT NULL;

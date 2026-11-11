@@ -93,7 +93,7 @@ async function readConfig(path: string) {
 }
 
 console.info(
-  "Production deployment: Cloudflare infrastructure usage applies; AI remains mock-only.",
+  "Production deployment: Cloudflare infrastructure usage applies; BYOK inference requires explicit user consent.",
 );
 const who = JSON.parse(
   await run("Wrangler login check", ["node", cli, "whoami", "--json"], {
@@ -239,6 +239,7 @@ apiConfig.routes = patterns.map((pattern) => ({ pattern, zone_id: zone.id }));
 apiConfig.vars.ALLOWED_WEB_ORIGINS = origin;
 apiConfig.vars.APP_ENV = "production";
 apiConfig.vars.ENABLE_DEMO = "false";
+apiConfig.vars.AI_MODE = "openrouter";
 apiConfig.vars.OPENROUTER_CALLBACK_URL = `${origin}/auth/openrouter/callback`;
 apiConfig.d1_databases = [
   {
@@ -462,7 +463,7 @@ while (Date.now() < deadline) {
     if (
       response.ok &&
       body.data?.service === "photo-studio-api" &&
-      body.data.aiMode === "mock"
+      body.data.aiMode === "openrouter"
     ) {
       ready = true;
       break;

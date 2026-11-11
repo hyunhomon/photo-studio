@@ -39,7 +39,6 @@ import { AppError, notFound } from "./errors";
 import { ownedProduct } from "./resources";
 import { decrypt, hash } from "./crypto";
 import { rateLimit } from "./auth";
-import { deleteObject } from "./storage";
 
 export type JobRow = typeof jobs.$inferSelect;
 export interface PlanSnapshot {
@@ -124,6 +123,12 @@ export async function jobDto(env: Env, job: JobRow): Promise<JobDto> {
     .where(and(eq(attempts.jobId, job.id), eq(attempts.userId, job.userId)))
     .orderBy(attempts.createdAt)
     .all();
+  return jobWithAttempts(job, list);
+}
+function jobWithAttempts(
+  job: JobRow,
+  list: (typeof attempts.$inferSelect)[],
+): JobDto {
   return {
     id: job.id,
     productId: job.productId,
@@ -144,6 +149,20 @@ export async function jobDto(env: Env, job: JobRow): Promise<JobDto> {
       promptVersion: a.promptVersion,
     })),
   };
+}
+export async function jobDtos(env: Env, list: JobRow[]): Promise<JobDto[]> {
+  const db = createDb(env.DB),
+    queries = list.map((j) =>
+      db
+        .select()
+        .from(attempts)
+        .where(and(eq(attempts.jobId, j.id), eq(attempts.userId, j.userId)))
+        .orderBy(attempts.createdAt),
+    );
+  const first = queries[0];
+  if (!first) return [];
+  const rows = await db.batch([first, ...queries.slice(1)]);
+  return list.map((j, i) => jobWithAttempts(j, rows[i] ?? []));
 }
 export async function ownedJob(env: Env, userId: string, id: string) {
   const row = await createDb(env.DB)
@@ -363,7 +382,10 @@ export async function paidStage<T>(
     await jobActive(env, job);
     return result.value;
   } catch (error) {
-    const unknown = !(error instanceof ProviderError) || error.unknownOutcome;
+    const unknown =
+      !(error instanceof ProviderError) ||
+      error.unknownOutcome ||
+      error.code === "JOB_CANCELLED";
     await db
       .update(attempts)
       .set({
@@ -379,18 +401,55 @@ export async function paidStage<T>(
 }
 export async function finishFailure(env: Env, jobId: string, error: unknown) {
   const code = error instanceof ProviderError ? error.code : "PIPELINE_FAILED";
+  const pending = await env.DB.prepare(
+    "SELECT id FROM generation_attempts WHERE job_id=? AND status='started' LIMIT 1",
+  )
+    .bind(jobId)
+    .first();
+  const uncertain =
+    Boolean(pending) ||
+    (error instanceof ProviderError && error.unknownOutcome);
+  if (uncertain)
+    await env.DB.prepare(
+      "UPDATE generation_attempts SET status='outcome_unknown' WHERE job_id=? AND status='started'",
+    )
+      .bind(jobId)
+      .run();
   await env.DB.prepare(
     "UPDATE generation_jobs SET status=?,error_code=?,finished_at=? WHERE id=? AND status IN ('queued','running')",
   )
     .bind(
-      error instanceof ProviderError && error.unknownOutcome
-        ? "outcome_unknown"
-        : "failed",
-      code,
+      uncertain ? "outcome_unknown" : "failed",
+      uncertain ? "PROVIDER_OUTCOME_UNKNOWN" : code,
       Date.now(),
       jobId,
     )
     .run();
+}
+export async function reconcileJob(env: Env, job: JobRow) {
+  if (
+    !["queued", "running"].includes(job.status) ||
+    Date.now() - job.createdAt < 600000
+  )
+    return job;
+  try {
+    const status = await (await env.STUDIO_WORKFLOW.get(job.id)).status();
+    if (["errored", "terminated", "complete"].includes(status.status))
+      await finishFailure(
+        env,
+        job.id,
+        new ProviderError("WORKFLOW_INTERRUPTED"),
+      );
+  } catch {
+    /* Control-plane failures never justify another inference. */
+  }
+  return (
+    (await createDb(env.DB)
+      .select()
+      .from(jobs)
+      .where(and(eq(jobs.id, job.id), eq(jobs.userId, job.userId)))
+      .get()) ?? job
+  );
 }
 export async function runPlanStage(
   env: Env,
@@ -477,29 +536,31 @@ export async function runPlanStage(
   }
 }
 export async function cancelProducts(env: Env, userId: string, ids: string[]) {
-  for (const productId of ids) {
-    const list = await createDb(env.DB)
-      .select()
-      .from(jobs)
-      .where(and(eq(jobs.userId, userId), eq(jobs.productId, productId)))
-      .all();
-    for (const job of list) {
-      if (["queued", "running"].includes(job.status)) {
-        await createDb(env.DB)
-          .update(jobs)
-          .set({ status: "cancelled", finishedAt: Date.now() })
-          .where(and(eq(jobs.id, job.id), eq(jobs.userId, userId)));
-        try {
-          await (await env.STUDIO_WORKFLOW.get(job.id)).terminate();
-        } catch {
-          /* DB cancellation remains authoritative. */
-        }
-      }
-      if (job.kind === "generate")
-        await deleteObject(
-          env,
-          `${userId}/${productId}/generated/${job.id}.png`,
-        );
+  if (!ids.length) return;
+  const owned = new Set(ids),
+    rows = await env.DB.prepare(
+      "SELECT id,product_id FROM generation_jobs WHERE user_id=? AND status IN ('queued','running')",
+    )
+      .bind(userId)
+      .all<{ id: string; product_id: string }>();
+  const list = rows.results.filter((j) => owned.has(j.product_id));
+  if (list.length)
+    await env.DB.batch(
+      list.flatMap((j) => [
+        env.DB.prepare(
+          "UPDATE generation_jobs SET status='cancelled',finished_at=? WHERE id=? AND user_id=? AND status IN ('queued','running')",
+        ).bind(Date.now(), j.id, userId),
+        env.DB.prepare(
+          "UPDATE generation_attempts SET status='outcome_unknown' WHERE job_id=? AND user_id=? AND status='started'",
+        ).bind(j.id, userId),
+      ]),
+    );
+  // DB cancellation prevents every later paid stage. Bound best-effort control-plane calls per request.
+  for (const j of list.slice(0, 10)) {
+    try {
+      await (await env.STUDIO_WORKFLOW.get(j.id)).terminate();
+    } catch {
+      /* DB state remains authoritative. */
     }
   }
 }
@@ -528,7 +589,10 @@ export function pipelineRoutes() {
     return c.json({
       data: {
         plans: plans.map(planDto),
-        jobs: await Promise.all(list.map((j) => jobDto(c.env, j))),
+        jobs: await jobDtos(
+          c.env,
+          await Promise.all(list.map((j) => reconcileJob(c.env, j))),
+        ),
       },
     } satisfies { data: PipelineDto });
   });

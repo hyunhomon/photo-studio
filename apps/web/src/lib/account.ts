@@ -7,7 +7,11 @@ export function useAccount() {
   useEffect(() => {
     const controller = new AbortController();
     request<Me>("/api/v1/me", { signal: controller.signal })
-      .then(setMe)
+      .then((data) => {
+        if (data.deleting && location.pathname !== "/studio/settings")
+          location.replace("/studio/settings");
+        setMe(data);
+      })
       .catch((e) => {
         if (controller.signal.aborted) return;
         if (e instanceof ApiError && e.status === 401)

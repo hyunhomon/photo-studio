@@ -27,6 +27,7 @@
     "build": "bun run --sequential --filter './apps/*' build",
     "deploy": "bun run check && bun run scripts/deploy-production.ts",
     "test:production": "node scripts/production-smoke.ts",
+    "test:production:e2e": "bun run scripts/production-e2e.ts",
     "check": "bun run format:check && bun run lint && bun run typecheck && bun run test && bun run build",
     "cf:types": "bun run --filter @photo-studio/api cf:types"
   },

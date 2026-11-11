@@ -18,10 +18,16 @@ import { decrypt } from "./crypto";
 import { resourceRoutes, type ResourceDeps } from "./resources";
 import { cancelProducts, pipelineRoutes } from "./pipeline";
 import { generationRoutes } from "./generation";
+import { operationsRoutes } from "./operations";
 
 export function createApp(deps: AuthDeps & ResourceDeps = {}) {
   const app = new Hono<AppContext>();
-  app.use("*", secureHeaders());
+  app.use("*", (c, next) =>
+    secureHeaders({
+      crossOriginResourcePolicy:
+        c.env.APP_ENV === "local" ? "same-site" : "same-origin",
+    })(c, next),
+  );
   app.use("*", async (c, next) => {
     const allowed = c.env.ALLOWED_WEB_ORIGINS.split(",").map((origin) =>
       origin.trim(),
@@ -55,7 +61,7 @@ export function createApp(deps: AuthDeps & ResourceDeps = {}) {
       data: {
         status: "ok",
         service: "photo-studio-api",
-        phase: 4,
+        phase: 5,
         aiMode: c.env.AI_MODE,
       },
     }),
@@ -90,6 +96,18 @@ export function createApp(deps: AuthDeps & ResourceDeps = {}) {
         csrf: identity.csrf,
         connected: Boolean(connection),
         mode: identity.isTest ? "mock" : "openrouter",
+        deleting: identity.status !== "active",
+        models: {
+          analysis: identity.isTest
+            ? "Mock 분석·기획"
+            : c.env.OPENROUTER_ANALYSIS_MODEL,
+          image: identity.isTest
+            ? "Mock 원본 복사"
+            : c.env.OPENROUTER_IMAGE_MODEL,
+          evaluation: identity.isTest
+            ? "Mock 합성 평가"
+            : c.env.OPENROUTER_EVALUATION_MODEL,
+        },
       },
     });
   });
@@ -174,6 +192,7 @@ export function createApp(deps: AuthDeps & ResourceDeps = {}) {
   );
   app.route("/api/v1", pipelineRoutes());
   app.route("/api/v1", generationRoutes());
+  app.route("/api/v1", operationsRoutes());
   app.notFound((c) =>
     c.json(
       {

@@ -22,7 +22,12 @@ import { rateLimit } from "./auth";
 import type { AppContext, Env } from "./env";
 import { AppError, notFound } from "./errors";
 import { normalizeImage } from "./images";
-import { clearObjectQueue, deleteObject, queueObject } from "./storage";
+import {
+  clearObjectQueue,
+  deleteObject,
+  deleteObjects,
+  queueObject,
+} from "./storage";
 
 export const projectDto = (row: typeof projects.$inferSelect): ProjectDto => ({
   id: row.id,
@@ -89,6 +94,12 @@ export async function productDto(
     .where(and(eq(assets.productId, row.id), eq(assets.userId, row.userId)))
     .orderBy(assets.createdAt)
     .all();
+  return productWithImages(row, images);
+}
+function productWithImages(
+  row: typeof products.$inferSelect,
+  images: (typeof assets.$inferSelect)[],
+): ProductDto {
   return {
     id: row.id,
     projectId: row.projectId,
@@ -100,6 +111,20 @@ export async function productDto(
     createdAt: row.createdAt,
     assets: images.map(assetDto),
   };
+}
+async function productDtos(env: Env, list: (typeof products.$inferSelect)[]) {
+  const db = createDb(env.DB),
+    queries = list.map((p) =>
+      db
+        .select()
+        .from(assets)
+        .where(and(eq(assets.productId, p.id), eq(assets.userId, p.userId)))
+        .orderBy(assets.createdAt),
+    );
+  const first = queries[0];
+  if (!first) return [];
+  const rows = await db.batch([first, ...queries.slice(1)]);
+  return list.map((p, i) => productWithImages(p, rows[i] ?? []));
 }
 export interface ResourceDeps {
   normalize?: typeof normalizeImage;
@@ -144,7 +169,20 @@ export function resourceRoutes(deps: ResourceDeps = {}) {
       createdAt: Date.now(),
       updatedAt: Date.now(),
     };
-    await createDb(c.env.DB).insert(projects).values(row);
+    const inserted = await c.env.DB.prepare(
+      "INSERT INTO projects(id,user_id,name,description,status,created_at,updated_at) SELECT ?,id,?,?,'active',?,? FROM users WHERE id=? AND status='active'",
+    )
+      .bind(
+        row.id,
+        row.name,
+        row.description,
+        row.createdAt,
+        row.updatedAt,
+        identity.userId,
+      )
+      .run();
+    if (!inserted.meta.changes)
+      throw new AppError("ACCOUNT_DELETING", "계정 삭제가 진행 중입니다.", 409);
     return c.json({ data: projectDto(row) }, 201);
   });
   api.get("/projects/:id", async (c) => {
@@ -165,7 +203,7 @@ export function resourceRoutes(deps: ResourceDeps = {}) {
     return c.json({
       data: {
         ...projectDto(row),
-        products: await Promise.all(list.map((p) => productDto(c.env, p))),
+        products: await productDtos(c.env, list),
       },
     });
   });
@@ -186,14 +224,23 @@ export function resourceRoutes(deps: ResourceDeps = {}) {
   });
   async function removeProducts(env: Env, userId: string, ids: string[]) {
     await deps.beforeDelete?.(env, userId, ids);
-    for (const id of ids) {
-      const rows = await createDb(env.DB)
-        .select()
+    const owned = new Set(ids),
+      rows = await createDb(env.DB)
+        .select({ productId: assets.productId, key: assets.r2Key })
         .from(assets)
-        .where(and(eq(assets.productId, id), eq(assets.userId, userId)))
+        .where(eq(assets.userId, userId))
         .all();
-      for (const row of rows) await deleteObject(env, row.r2Key);
-    }
+    const pending = await env.DB.prepare(
+      "SELECT key FROM storage_cleanup WHERE key LIKE ?",
+    )
+      .bind(`${userId}/%`)
+      .all<{ key: string }>();
+    await deleteObjects(env, [
+      ...rows.filter((a) => owned.has(a.productId)).map((a) => a.key),
+      ...pending.results
+        .filter((a) => owned.has(a.key.split("/")[1] ?? ""))
+        .map((a) => a.key),
+    ]);
   }
   api.delete("/projects/:id", async (c) => {
     const row = await ownedProject(
@@ -245,7 +292,7 @@ export function resourceRoutes(deps: ResourceDeps = {}) {
           httpMetadata: { contentType: image.mimeType },
         });
         const result = await env.DB.prepare(
-          "INSERT INTO assets (id,user_id,product_id,kind,r2_key,mime_type,size_bytes,width,height,created_at) SELECT ?,?,p.id,'input',?,?,?,?,?,? FROM products p JOIN projects pr ON pr.id=p.project_id WHERE p.id=? AND p.user_id=? AND pr.user_id=? AND pr.status='active' AND p.status!='deleting' AND (SELECT count(*) FROM assets WHERE product_id=p.id AND kind='input')<3",
+          "INSERT INTO assets (id,user_id,product_id,kind,r2_key,mime_type,size_bytes,width,height,created_at) SELECT ?,?,p.id,'input',?,?,?,?,?,? FROM products p JOIN projects pr ON pr.id=p.project_id WHERE p.id=? AND p.user_id=? AND pr.user_id=? AND pr.status='active' AND p.status!='deleting' AND EXISTS (SELECT 1 FROM users u WHERE u.id=p.user_id AND u.status='active') AND NOT EXISTS (SELECT 1 FROM generation_jobs j WHERE j.product_id=p.id AND j.user_id=p.user_id) AND (SELECT count(*) FROM assets WHERE product_id=p.id AND kind='input')<3",
         )
           .bind(
             id,
@@ -338,7 +385,17 @@ export function resourceRoutes(deps: ResourceDeps = {}) {
       analysisVersion: null,
       createdAt: Date.now(),
     };
-    await createDb(c.env.DB).insert(products).values(row);
+    const inserted = await c.env.DB.prepare(
+      "INSERT INTO products(id,user_id,project_id,name,status,created_at) SELECT ?,pr.user_id,pr.id,?,'uploading',? FROM projects pr JOIN users u ON u.id=pr.user_id WHERE pr.id=? AND pr.user_id=? AND pr.status='active' AND u.status='active'",
+    )
+      .bind(row.id, row.name, row.createdAt, row.projectId, owner)
+      .run();
+    if (!inserted.meta.changes)
+      throw new AppError(
+        "PROJECT_DELETING",
+        "프로젝트나 계정의 삭제가 진행 중입니다.",
+        409,
+      );
     try {
       await upload(c.env, owner, row.id, files);
     } catch (e) {

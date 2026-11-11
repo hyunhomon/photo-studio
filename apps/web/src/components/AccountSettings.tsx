@@ -2,13 +2,30 @@ import { useState } from "react";
 import { Button, Modal } from "@photo-studio/ui";
 import { ArrowLeft, ShieldCheck, ExternalLink } from "lucide-react";
 import { useAccount } from "../lib/account";
-import { errorMessage, request } from "../lib/api";
+import { apiBase, errorMessage, request } from "../lib/api";
 
 export default function AccountSettings() {
   const { me, error, setError } = useAccount();
   const [disconnect, setDisconnect] = useState(false);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState("");
+  const [remove, setRemove] = useState(false),
+    [confirmation, setConfirmation] = useState("");
+  async function erase() {
+    if (!me || confirmation !== "삭제") return;
+    setBusy(true);
+    try {
+      await request(
+        "/api/v1/account",
+        { method: "DELETE", body: JSON.stringify({ confirm: "DELETE" }) },
+        me.csrf,
+      );
+      location.assign("/beta");
+    } catch (e) {
+      setError(errorMessage(e));
+      setBusy(false);
+    }
+  }
   async function inspect() {
     try {
       const data = await request<{ status: string }>(
@@ -111,6 +128,34 @@ export default function AccountSettings() {
                 외부 AI 처리·보관 안내
               </a>
             </p>
+            <div className="mt-5 flex flex-wrap gap-3">
+              <a
+                href={`${apiBase}/api/v1/account/export`}
+                className="pill-link"
+              >
+                내 데이터 내보내기
+              </a>
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  setConfirmation("");
+                  setRemove(true);
+                }}
+              >
+                {me.deleting ? "계정 삭제 마무리" : "계정과 모든 데이터 삭제"}
+              </Button>
+            </div>
+            <p className="mt-4 text-xs leading-6 text-muted">
+              내보내기는 기록 JSON 파일입니다. 사진은 각 상품에서 PNG로
+              다운로드할 수 있습니다. 계정 삭제 후 OpenRouter 키 폐기는 제공자
+              화면에서도 확인해 주세요.
+            </p>
+            {me.deleting && (
+              <p role="status" className="mt-4 text-sm">
+                사진 정리가 완료되지 않았습니다. 계정 삭제를 다시 실행해
+                마무리해 주세요.
+              </p>
+            )}
           </section>
         </>
       )}
@@ -118,7 +163,7 @@ export default function AccountSettings() {
         open={disconnect}
         onClose={() => setDisconnect(false)}
         title="OpenRouter 연결을 해제할까요?"
-        description="서버에 보관한 연결 키와 모든 앱 세션을 삭제합니다. 프로젝트는 유지됩니다. OpenRouter에서 발급한 키 자체의 폐기는 OpenRouter Keys 화면에서 확인해 주세요."
+        description="진행 중 작업의 중단을 요청하고 서버 연결 키와 앱 세션을 삭제합니다. 이미 시작된 AI 호출은 과금될 수 있습니다. 프로젝트는 유지되며 OpenRouter 키 자체의 폐기는 제공자 Keys 화면에서 확인해 주세요."
       >
         <div className="mt-6 flex gap-3">
           <Button variant="secondary" onClick={() => setDisconnect(false)}>
@@ -131,6 +176,29 @@ export default function AccountSettings() {
             연결 해제
           </Button>
         </div>
+      </Modal>
+      <Modal
+        open={remove}
+        onClose={() => setRemove(false)}
+        title="계정과 사진을 영구 삭제할까요?"
+        description="모든 프로젝트·원본·결과·기획·작업·피드백과 연결 키를 삭제합니다. 복구할 수 없습니다. 이미 시작된 외부 AI 호출의 비용과 제공자의 보관 기록은 취소되지 않습니다."
+      >
+        <label className="mt-5 block text-sm">
+          계속하려면 ‘삭제’를 입력하세요.
+          <input
+            className="studio-input mt-3"
+            value={confirmation}
+            onChange={(e) => setConfirmation(e.target.value)}
+            autoComplete="off"
+          />
+        </label>
+        <Button
+          className="mt-6 w-full"
+          disabled={busy || confirmation !== "삭제"}
+          onClick={() => void erase()}
+        >
+          계정 영구 삭제
+        </Button>
       </Modal>
     </main>
   );

@@ -10,17 +10,17 @@ export const healthSchema = z.object({
 });
 
 export const productAnalysisSchema = z.object({
-  garmentType: z.string().min(1),
-  colors: z.array(z.string()).min(1),
-  pattern: z.string(),
+  garmentType: z.string().min(1).max(120),
+  colors: z.array(z.string().min(1).max(80)).min(1).max(10),
+  pattern: z.string().max(500),
   materialGuess: z.object({
-    value: z.string(),
+    value: z.string().max(500),
     confidence: z.number().min(0).max(1),
   }),
-  silhouette: z.string(),
-  seasonGuess: z.array(z.string()),
-  preservationPoints: z.array(z.string()).min(1),
-  uncertainties: z.array(z.string()).min(1),
+  silhouette: z.string().max(500),
+  seasonGuess: z.array(z.string().max(80)).max(8),
+  preservationPoints: z.array(z.string().min(1).max(500)).min(1).max(20),
+  uncertainties: z.array(z.string().min(1).max(500)).min(1).max(20),
 });
 
 // Every stage keeps provider-reported costs separate from estimates. A mock
@@ -213,4 +213,34 @@ export interface ResultDto {
   regenerationOf: string | null;
   regenerationReason: string | null;
   mock: boolean;
+}
+export interface UsageDto {
+  mock: boolean;
+  calls: number;
+  knownCostCount: number;
+  unknownCostCount: number;
+  reportedCostUsd: number;
+  acceptedCostUsd: number | null;
+  averageLatencyMs: number | null;
+  generated: number;
+  evaluated: number;
+  accepted: number;
+  rejected: number;
+  reviewedAcceptanceRate: number | null;
+  evaluatedAcceptanceRate: number | null;
+  unknownOutcomes: number;
+  regenerations: number;
+  quality: {
+    fidelity: number | null;
+    realism: number | null;
+    composition: number | null;
+  };
+  history: JobDto[];
+  stages: {
+    stage: string;
+    calls: number;
+    reportedCostUsd: number;
+    known: number;
+    averageLatencyMs: number | null;
+  }[];
 }

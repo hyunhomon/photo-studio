@@ -86,7 +86,7 @@ export function Modal({
     <Dialog open={open} onClose={onClose} className="fixed inset-0 z-50">
       <DialogBackdrop className="fixed inset-0 bg-ink/45 backdrop-blur-sm" />
       <div className="fixed inset-0 flex items-center justify-center overflow-y-auto p-5">
-        <DialogPanel className="relative w-full max-w-lg rounded-panel border border-line bg-paper p-7 shadow-xl sm:p-10">
+        <DialogPanel className="relative max-h-[calc(100dvh-2.5rem)] w-full max-w-lg overflow-y-auto rounded-panel border border-line bg-paper p-7 shadow-xl sm:p-10">
           <button
             type="button"
             aria-label="닫기"

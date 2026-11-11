@@ -59,3 +59,9 @@ ADR-013을 추가했다. 분석 이후 참조 이미지는 재현 가능한 snap
 ## 2026-11-11 — 이미지 생성/검수
 
 Images API는 n=1, 3:4, PNG와 medium/high만 요청하며 모델의 현재 참조/출력 지원을 무료 catalog에서 확인한다. 제공된 실제 사용량은 R2 기록보다 먼저 D1에 저장한다. R2 실패는 outcome_unknown으로 끝내 재과금을 방지한다. 평가 실패는 이미지를 유지한다. 생성 결과도 실제 디코딩/PNG 정규화하며 현재 4MP/4096px, 10MB 저장 한도를 적용한다. 최대 크기 동시 업로드 부하와 실제 의류 보존 품질은 별도 베타 검증 항목이다.
+
+## 2026-11-11 — 베타 운영
+
+ADR-014를 추가했다. 사용자 상태를 deleting으로 고정해 계정 삭제 도중 새 작업을 차단한다. 원본/생성 파일 삭제와 시간별 만료/정리 cron을 구현했고 prefix tombstone으로 늦은 쓰기를 정리한다. 내보내기는 인증 키/세션/external identity/object key를 제외한다. 실제 최대 파일/동시 부하와 실제 OpenRouter 인증/유료 의류 품질, secret 회전·백업 복구 리허설은 자동 Mock 검사와 구별해 미검증으로 기록한다. 로컬 이미지의 Cross-Origin-Resource-Policy 차단은 실제 이미지 디코딩 E2E로 발견/수정했으며 production same-origin 정책은 유지한다.
+
+D1 공식 limits의 Free 50 queries/invocation 및 query당 100 bound parameters를 고려해 상품/작업/결과 목록과 다건 삭제·GC를 batch로 묶었다. 61개 상품의 조회/비공개 사진 삭제를 단위 통합 검사에 추가했다. 결과 갤러리는 최근 100컷, 작업 기록은 최근 50개를 표시하며 전체 기록은 내보내기로 제공한다.

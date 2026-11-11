@@ -1,88 +1,76 @@
-# Cloudflare production 배포
+# Cloudflare production 배포 및 복구
 
-## 현재 배포
+production 하나: https://photo-studio.cloby.co. 웹 Worker `photo-studio-web`의 Custom Domain에 API Worker `photo-studio-api`의 `/health*`, `/auth/*`, `/api/*` routes를 우선 연결한다. DB `photo-studio-production`, 비공개 R2 `photo-studio-production-assets`, Workflow `photo-studio-production`을 재사용한다. Pages/KV/Cloudflare Images, 별도 staging 및 workers.dev를 만들지 않는다.
 
-- 기준일: 2026-11-10.
-- 웹: https://photo-studio.cloby.co
-- 스튜디오: https://photo-studio.cloby.co/studio
-- API liveness: https://photo-studio.cloby.co/health
-- 원격 환경: **production 하나**. staging/preview 환경, `workers.dev`와 preview URL은 사용하지 않는다.
-- `cloby.co`의 소유 계정과 Wrangler 로그인 membership을 확인해 배포했다. 최초 선택한 계정/존은 로컬에서 pin한다. 계정 이메일·account/zone/database UUID·로그인 토큰은 git에 저장하지 않는다.
-
-현재 공개된 것은 **Phase 0 Mock 미리보기**다. 초대·OAuth·업로드·실제 AI·사용량 저장·다운로드는 아직 없다. API 미구현 경로는 JSON 404를 반환하며 실제 고객 데이터나 키를 입력받지 않는다.
-
-## 연결 구조
-
-| 리소스/경로 | 대상 |
-|---|---|
-| 웹 Custom Domain `photo-studio.cloby.co` | Worker `photo-studio-web` |
-| `/health*`, `/auth/*`, `/api/*` | 별도 Worker `photo-studio-api` |
-| API `DB` | D1 `photo-studio-production` |
-| API `ASSETS` | R2 `photo-studio-production-assets` |
-| API `STUDIO_WORKFLOW` | Workflow `photo-studio-production`, class `StudioWorkflow` |
-
-Cloudflare에서 경로 Worker가 Custom Domain origin보다 먼저 실행되는 기능을 사용한다. 웹/API Worker의 독립 배포를 유지하면서 브라우저는 한 origin만 사용한다. `/api/v1/*`는 그대로 API에 도달하므로 path rewrite/proxy 코드는 없다. CORS allowlist는 production origin 하나다. 세션/CSRF는 Phase 1에서 별도로 구현해야 한다.
-
-Cloudflare가 지정 hostname의 DNS와 TLS를 관리한다. 다른 `cloby.co` DNS 레코드는 변경하지 않는다. R2는 `r2.dev` 공개 접근이 꺼져 있고 custom domain이 없다. D1/R2 생성 시 APAC location hint를 사용했으며 이는 위치 보장이 아니다. KV/Images/Pages 리소스는 추가하지 않았다.
-
-## 재배포
+## 배포
 
 ```powershell
 bun install --frozen-lockfile
 bun run deploy
-```
-
-`deploy`는 먼저 format/lint/typecheck/unit test/local build를 실행한다. 이후 `scripts/deploy-production.ts`가 다음 작업을 수행한다.
-
-1. 설치된 Wrangler 4.159.0 CLI로 현재 로그인과 OAuth token을 확인한다. token 출력은 메모리에서만 사용하고 console/파일에 기록하지 않는다.
-2. `infra/production.json`에 지정된 활성 존의 소유 계정과 현재 로그인 membership을 확인한다. `.wrangler/production/identity.json`의 기존 pin과 다르면 중단한다.
-3. 이름으로 D1/R2를 조회해 재사용하고, 없을 때만 생성한다. 이미 존재하는 R2가 공개 상태이면 중단한다. 기존 도메인/route가 다른 Worker 소유이면 덮어쓰지 않는다.
-4. account/zone/DB ID를 포함한 실제 설정을 gitignored `.wrangler/production/{api,web}.json`에 생성한다. 원격 resource ID를 소스에 하드코딩하지 않는다. `resources.json`은 해당 머신의 비밀이 아닌 인프라 식별자 목록이다.
-5. production 설정으로 Astro를 **다시 빌드**한다. `PUBLIC_API_URL=https://photo-studio.cloby.co`, `PUBLIC_DEPLOYMENT_ENV=production`을 빌드 시 주입한다. 기본 `bun run build`의 로컬 산출물을 그대로 배포하지 않는다.
-6. 처음에는 웹 origin만 업로드하고 Custom Domain changeset에서 DNS/domain 충돌을 확인한 뒤 연결한다. 재배포 시에는 기존 Custom Domain을 유지한다. API routes와 Workflow를 배포한다.
-7. D1 `SELECT 1`, R2 공개 접근 상태, Workflow 존재, HTTPS `/health`를 검증한다. 실제 AI/사용자 세션/이미지/작업은 만들지 않는다.
-
-원격 설정은 Wrangler named environment 없이 default production service를 사용한다. 로컬 `apps/*/wrangler.jsonc`는 개발용이며 원격 환경 하나라는 결정과 무관하게 유지한다. `bun run dev`는 여전히 로컬 D1/R2/Workflow만 사용한다. 운영 API 기본 vars는 Git에 있는 로컬 기본값에서 생성하되 origin/callback/resources를 production 값으로 교체한다.
-
-생성 설정은 버전 관리하지 않으므로 다른 머신에서는 해당 존에 권한이 있는 Wrangler 로그인 후 같은 명령으로 재발견한다. 계정/존 pin이 의도치 않게 바뀌었다는 오류를 무시해서는 안 된다. `.wrangler`를 지워도 원격 데이터는 삭제되지 않는다. 이 배포 명령은 DB/bucket/오브젝트 삭제를 수행하지 않는다.
-
-## 검증
-
-```powershell
-bun run test:local
-bun run test:e2e
-bunx playwright install chromium
 bun run test:production
+bun run test:production:e2e
 ```
 
-`test:production`은 HTTPS 응답, API JSON route, 정확한 CORS allowlist, desktop/mobile React hydration, Dialog와 수동 API 연결을 확인한다. 기존 `cloby.co` zone이 자동 주입하는 Cloudflare Web Analytics의 beacon GET 및 `/cdn-cgi/rum` POST만 예외로 허용한다. 그 외 localhost/외부 origin 또는 GET 외 요청은 실패한다. 기존 존의 Analytics 설정은 변경하지 않았다. 검사는 Node에서 실행하며 캡처는 gitignored `.tmp/production/`에 저장한다. 로컬 E2E는 개발 서버를 자동 시작/종료한다.
+`deploy`는 먼저 format/lint/typecheck/unit/build를 실행한다. 배포 스크립트는 Wrangler 로그인 membership와 cloby.co의 소유 계정을 확인하고 최초 pin과 비교한다. account/zone/DB ID는 `.wrangler/production/`의 ignored 설정에만 저장한다. OAuth 관리 token은 메모리에서만 사용한다. 다른 계정·DNS·Worker 소유 도메인과 충돌하면 중단한다.
 
-`/health`는 liveness이며 인증·모델 capability·DB readiness를 보장하지 않는다. 배포 스크립트의 별도 D1 읽기와 Workflow/R2 설정 검증을 혼동하지 않는다. Workflow는 아직 무통신 Mock 인프라 검사뿐이며 실제 파이프라인이 아니다.
+기존 리소스와 private R2 설정을 확인한 뒤 additive D1 migrations를 적용한다. 최초에만 32-byte AES-GCM secret을 만들고 API Worker에 stdin으로 설정한다. 기존 secret을 덮어쓰지 않는다. 최초 제한된 beta invite는 해시만 DB에 넣으며 원문은 `.wrangler/production/beta-invite.txt`에 기록한다. 사용량 10계정/30일의 운영 bootstrap이다. 초대 코드 자체를 소스·채팅·로그에 복사하지 않는다.
 
-## Phase 1 이후
+production용 Astro를 다시 빌드해 공개 API URL을 같은 origin으로 지정하고 웹/API/Workflow를 게시한다. D1 읽기 probe와 Workflow/R2 설정, public health를 확인한다. DNS/TLS 반영이 늦다고 리소스를 다시 생성하거나 다른 DNS를 삭제하지 않는다.
 
-2026-11-10 검증 결과: `bun run deploy` 전체 검사·게시·원격 probe 통과, 기존 리소스 재사용 재배포 통과, unit 5 pass, local binding smoke 통과, local E2E 4 pass, production desktop/mobile smoke 통과. 최초 Windows configPath 오류는 상대 경로로 수정했고, 브라우저 검사는 Node로 실행한다. production 검사에서 확인한 기존 Cloudflare RUM 주입은 문서화된 예외로 구분했다.
+## 환경 설정
 
-- `OPENROUTER_CALLBACK_URL=https://photo-studio.cloby.co/auth/openrouter/callback`을 이미 지정했다. 현재 handler는 404이며 Phase 1 구현 후 사용한다.
-- `AI_MODE=mock`. 실제 provider adapter/공용 추론 키는 없다. 모델 기본값 `openai/gpt-image-2`는 유지하지만 실제 요청은 실행하지 않는다.
-- Phase 0에는 secret이 필요하지 않다. Phase 1에서 버전/회전 정책을 확정한 뒤 API Worker에 AES-GCM key secret을 넣는다. 현재 미사용 secret을 임의 생성하거나 OpenRouter key를 공용 환경 변수로 설정하지 않는다.
-- D1은 아직 domain table/migration이 없는 상태다. Phase 1부터 migration을 생성하고 적용 순서·호환성을 배포 절차에 추가해야 한다. 현재 `deploy`는 migration을 자동 적용하지 않는다.
-- Cloudflare 인프라 사용료는 이 계정에 집계된다. 사용자의 AI 호출 비용은 향후 BYOK 계정으로만 부담하며 단계별 실행 승인·비용 안내를 구현한 뒤에 활성화한다.
+| 설정 | production |
+|---|---|
+| APP_ENV | production |
+| ENABLE_DEMO | false (production에서는 true여도 HTTP 우회 로그인 거부) |
+| AI_MODE | openrouter; 내부 합성 테스트 계정은 Mock adapter만 사용 |
+| ALLOWED_WEB_ORIGINS | https://photo-studio.cloby.co |
+| OPENROUTER_CALLBACK_URL | https://photo-studio.cloby.co/auth/openrouter/callback |
+| OPENROUTER_BASE_URL | https://openrouter.ai/api/v1 |
+| OPENROUTER_IMAGE_MODEL | openai/gpt-image-2 |
+| OPENROUTER_ANALYSIS_MODEL | google/gemini-2.5-flash-lite |
+| OPENROUTER_EVALUATION_MODEL | google/gemini-2.5-flash |
+| APP_ENCRYPTION_KEY_B64 | Worker secret, 32 random bytes base64 |
+| APP_ENCRYPTION_KEY_VERSION | v1; 회전 시 새 버전 |
 
-## 롤백
+공용 OpenRouter 추론 키는 없다. 실제 사용자가 OAuth로 연결하고 자신의 크레딧으로 비용을 부담한다. 모델 catalog는 비용 없이 현재 capabilities를 확인하며, 유료 요청은 사용자에게 모델·단계·횟수와 비용 미확정 사실을 안내한 뒤 실행한다.
 
-재배포 전후 Worker 버전은 Cloudflare에서 관리한다. 필요시 설치된 CLI로 이전 버전을 확인해 지정한다. 예시 명령은 **실행 지시가 아니며** 현재 배포에서 롤백을 수행하지 않았다.
+`.wrangler/production/encryption-key.json`은 복호화에 필요한 비밀이다. 배포 머신 외 별도의 안전한 보관소에 백업하고 git/채팅에 넣지 않는다. 이 파일이 없고 Worker secret만 존재하는 다른 머신에서는 배포 시 secret을 재생성하지 않는다. DB만 복구하고 암호화 키를 잃으면 기존 OpenRouter 키를 사용할 수 없어 재연결이 필요하다.
 
-```powershell
-node apps/api/node_modules/wrangler/bin/wrangler.js rollback --config .wrangler/production/api.json
-node apps/api/node_modules/wrangler/bin/wrangler.js rollback --config .wrangler/production/web.json
-```
+키 회전 시 기존 키를 `APP_ENCRYPTION_KEY_PREVIOUS_B64`와 이전 버전에 보관하고 새 키/version을 함께 적용한다. 앱은 두 버전의 복호화를 지원하며 새 OAuth 연결은 현재 버전으로 암호화한다. 기존 envelope를 전부 재암호화하거나 재연결하기 전에는 이전 키를 제거하지 않는다. 실제 production 키 회전·복구 리허설은 미실행이다.
 
-Worker 롤백은 D1 migration/R2 데이터를 되돌리지 않는다. Phase 1 이후에는 데이터 호환성 및 Workflow 실행 중 버전 영향을 먼저 확인해야 한다. DNS/TLS 반영 대기만으로 리소스를 다시 생성하거나 bucket/DB를 삭제하지 않는다.
+## 확인 범위
+
+`test:production`은 public HTTPS·정확한 CORS·로그인 전 API 401·HTTP Mock 우회 404·초대 UI·자체 호스팅 글꼴·반응형 레이아웃을 확인한다.
+
+`test:production:e2e`는 관리자 D1 권한으로 두 개의 임시 is_test 합성 계정과 별도 해시 세션을 준비한다. 일반 production 인증을 우회하는 HTTP API는 추가하지 않는다. 실제 private R2 업로드·durable Workflow의 Mock 분석/기획·수정·승인·생성/평가·채택·폐기·재생성·다운로드·집계·내보내기·삭제를 desktop/mobile에서 검증한다. 사용자 B의 A 상품/사진 접근 404도 확인한다. 마지막에 합성 계정과 사진을 삭제한다. OAuth start의 S256·callback origin·Secure/HttpOnly cookie와 browser-binding 거부는 확인하되 실제 외부 계정 로그인/키 교환 성공을 주장하지 않는다.
+
+검사에는 Cloudflare D1/R2/Workflow 인프라 사용량이 발생한다. 유료 AI는 호출하지 않는다. 기존 존의 Cloudflare Analytics beacon GET 및 `/cdn-cgi/rum` POST만 외부 브라우저 네트워크 예외로 허용한다. 존 설정은 변경하지 않는다. 캡처와 trace는 ignored `.tmp/`, `test-results/`에만 보관한다.
+
+## 데이터와 운영 복구
+
+- 모든 사용자 자료 쿼리는 내부 owner ID로 제한한다. private R2는 API 인증을 거쳐서만 읽는다. 연결 키·사진·프롬프트·OAuth code·개인 식별자를 console/CI 로그에 넣지 않는다. Worker observability/access logging은 비활성화한다.
+- 입력은 실제 디코딩/PNG 재인코딩, 크기·서명·픽셀 제한을 적용한다. 분석 후 원본은 고정된다. 출력도 검증 후 private PNG로 저장한다.
+- 과금 원장은 unique(job,stage)이다. Workflow paid step retries=0. 응답 미확인/5xx/저장 실패는 자동 재호출하지 않는다. 운영자가 ledger를 지워서 재실행해서는 안 된다.
+- 생성은 성공했으나 평가는 실패하면 이미지는 보존한다. 직접 검수/다운로드 가능하며 평가 재호출은 자동 실행하지 않는다. 새 생성은 다시 비용 동의를 받아 새 요청으로 기록한다.
+- 10분 넘게 active인 작업은 조회 시 Workflow terminal 상태와 대조한다. 선점된 응답이 없으면 outcome_unknown으로 끝낸다. 제어 API 장애를 이유로 AI를 다시 호출하지 않는다. queued dispatch 재확인은 같은 instance ID만 사용한다.
+- 삭제는 프로젝트/계정을 deleting으로 먼저 바꾸고 작업을 취소한 뒤 R2와 DB를 정리한다. 실패하면 재시도할 수 있고 접근·새 작업은 차단한다. 시간별 cron은 만료 세션/flow/제한 기록, object tombstone 및 계정 삭제 중 늦은 쓰기를 정리한다. 삭제된 저장소 prefix의 tombstone은 최소 24시간 유지한다. 최소 보관 기간 후에도 정리 완료 및 다음 cron 시점까지 식별자가 남을 수 있다.
+- 계정 설정에서 기록 JSON을 내보낼 수 있다. 사진은 각 상품에서 별도로 다운로드한다. 연결 해제는 키/세션만 삭제하고 프로젝트는 유지한다. OpenRouter 키 자체의 폐기와 외부 제공자의 보관 기록은 제공자 정책을 따른다.
+
+## 마이그레이션 및 롤백
+
+Drizzle 변경은 `bun run --filter @photo-studio/db generate`로 SQL/snapshot을 함께 생성한다. 현재 migrations는 additive이다. 먼저 로컬 migration·권한·실패 복구 테스트를 통과시킨 뒤 production에 적용한다. 큰/파괴적 변경은 별도 백업과 하위 호환 배포 순서가 필요하다. 이 구현은 기존 production 데이터를 삭제하는 schema rollback을 하지 않는다.
+
+Worker 문제는 Cloudflare의 이전 Worker version으로 두 서비스를 일관되게 복구한다. 설치 CLI의 `rollback --help`로 실제 옵션을 확인한 뒤 ignored production config를 사용한다. Worker rollback은 DB/R2 또는 실행 중인 Workflow를 되돌리지 않는다. 배포 전 버전과 migration 적용 이력을 확인하고 호환성을 먼저 판단한다.
+
+급한 유료 호출 차단은 API의 `AI_MODE`를 openrouter가 아닌 값으로 바꾸어 새 실제 호출을 거부하는 방식으로 한다. 일반 사용자에게 Mock을 실제 결과처럼 제공하지 않는다. 이미 시작된 외부 호출의 취소/환불은 보장할 수 없다. 복구 과정에서 ledger 삭제, uncertain paid step restart, bucket/DB 재생성은 하지 않는다.
 
 ## 공식 근거
 
-- Custom Domains와 route 우선 실행: https://developers.cloudflare.com/workers/configuration/routing/custom-domains/#interaction-with-routes
-- Wrangler 설정: https://developers.cloudflare.com/workers/wrangler/configuration/
-- Astro Cloudflare build/deploy: https://docs.astro.build/en/guides/integrations-guide/cloudflare/
-- R2 공개 접근 상태: https://developers.cloudflare.com/api/resources/r2/subresources/buckets/subresources/domains/subresources/managed/methods/list/
+- https://developers.cloudflare.com/workers/configuration/routing/custom-domains/#interaction-with-routes
+- https://developers.cloudflare.com/workers/wrangler/configuration/
+- https://developers.cloudflare.com/d1/reference/migrations/
+- https://developers.cloudflare.com/workflows/build/sleeping-and-retrying/
+- https://docs.astro.build/en/guides/integrations-guide/cloudflare/
+- https://openrouter.ai/openapi.json
+- https://openrouter.ai/docs/guides/features/structured-outputs

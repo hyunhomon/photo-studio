@@ -11,6 +11,7 @@ export const users = sqliteTable("users", {
   id: text("id").primaryKey(),
   externalId: text("openrouter_user_id").notNull().unique(),
   isTest: integer("is_test", { mode: "boolean" }).notNull().default(false),
+  status: text("status").notNull().default("active"),
   createdAt: integer("created_at").notNull(),
   lastLoginAt: integer("last_login_at").notNull(),
 });
@@ -157,6 +158,12 @@ export const presets = sqliteTable(
 export const storageCleanup = sqliteTable("storage_cleanup", {
   key: text("key").primaryKey(),
   expiresAt: integer("expires_at").notNull(),
+});
+// Keep a private prefix tombstone for 24h to catch writes already in flight at account deletion.
+export const mediaPurges = sqliteTable("media_purges", {
+  userId: text("user_id").primaryKey(),
+  createdAt: integer("created_at").notNull(),
+  checkedAt: integer("checked_at").notNull().default(0),
 });
 
 export const shootPlans = sqliteTable(

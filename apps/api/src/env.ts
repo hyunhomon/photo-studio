@@ -21,5 +21,6 @@ export interface Identity {
   sessionId: string;
   csrf: string;
   isTest: boolean;
+  status: string;
 }
 export type AppContext = { Bindings: Env; Variables: { identity: Identity } };

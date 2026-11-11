@@ -44,6 +44,12 @@ export function memoryEnv() {
       };
     },
     executeSync() {
+      if (/^\s*SELECT\b/i.test(sql))
+        return {
+          success: true,
+          results: sqlite.query(sql).all(...(values as [])),
+          meta: { changes: 0 },
+        };
       const result = sqlite.query(sql).run(...(values as []));
       return { success: true, results: [], meta: { changes: result.changes } };
     },
@@ -59,6 +65,14 @@ export function memoryEnv() {
   } as unknown as D1Database;
   const objects = new Map<string, { bytes: Uint8Array; type: string }>();
   const r2 = {
+    async list(options: { prefix?: string }) {
+      return {
+        objects: [...objects.keys()]
+          .filter((key) => key.startsWith(options.prefix ?? ""))
+          .map((key) => ({ key })),
+        truncated: false,
+      };
+    },
     async put(
       key: string,
       value: Uint8Array | ArrayBuffer,

@@ -1,23 +1,53 @@
 import { expect, test } from "@playwright/test";
 import { syntheticPng } from "../../apps/api/test/png";
 
-test("local Mock: connect, create project, secure upload, preset, delete and logout", async ({
+test("Mock: connect, upload, plan, generate, review, export and delete", async ({
   page,
+  browser,
 }) => {
-  test.setTimeout(90000);
+  const productionOrigin = process.env.PHOTO_STUDIO_PRODUCTION_ORIGIN;
+  const sessions = JSON.parse(
+    process.env.PHOTO_STUDIO_TEST_SESSIONS || "{}",
+  ) as Record<string, { token: string }>;
+  const session = sessions[test.info().project.name];
+  test.setTimeout(productionOrigin ? 180000 : 90000);
+  if (productionOrigin && session)
+    await page.context().addCookies([
+      {
+        name: "__Host-ps_session",
+        value: session.token,
+        url: productionOrigin,
+        httpOnly: true,
+        secure: true,
+        sameSite: "Lax",
+      },
+    ]);
   const errors: string[] = [];
   const unexpected: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
   page.on("request", (r) => {
-    if (!["localhost", "127.0.0.1"].includes(new URL(r.url()).hostname))
+    const url = new URL(r.url());
+    const analytics =
+      productionOrigin &&
+      ((url.origin === "https://static.cloudflareinsights.com" &&
+        url.pathname.startsWith("/beacon.min.js")) ||
+        (url.origin === productionOrigin && url.pathname === "/cdn-cgi/rum"));
+    if (
+      !analytics &&
+      !["localhost", "127.0.0.1"].includes(url.hostname) &&
+      url.origin !== productionOrigin
+    )
       unexpected.push("off-origin request");
   });
   await page.goto("/");
   await expect(page.getByRole("heading", { level: 1 })).toContainText(
     "옷 한 장에서",
   );
-  await page.goto("/beta");
-  await page.getByRole("button", { name: "로컬 Mock 스튜디오 열기" }).click();
+  if (productionOrigin) await page.goto("/studio");
+  else {
+    await page.goto("/beta");
+    await page.getByRole("button", { name: "로컬 Mock 스튜디오 열기" }).click();
+  }
   await expect(page.getByRole("heading", { level: 1 })).toContainText(
     "나의 프로젝트",
   );
@@ -45,6 +75,38 @@ test("local Mock: connect, create project, secure upload, preset, delete and log
   await expect(
     page.getByRole("img", { name: "Synthetic shirt 참조" }),
   ).toBeVisible();
+  await expect(
+    page.getByRole("img", { name: "Synthetic shirt 참조" }),
+  ).toHaveJSProperty("naturalWidth", 64);
+  if (productionOrigin && test.info().project.name === "desktop-chromium") {
+    const other = sessions["mobile-chromium"];
+    if (!other) throw new Error("Missing synthetic second user");
+    const context = await browser.newContext();
+    await context.addCookies([
+      {
+        name: "__Host-ps_session",
+        value: other.token,
+        url: productionOrigin,
+        httpOnly: true,
+        secure: true,
+        sameSite: "Lax",
+      },
+    ]);
+    const productId = new URL(page.url()).pathname.split("/").at(-1);
+    expect(
+      (
+        await context.request.get(
+          `${productionOrigin}/api/v1/products/${productId}`,
+        )
+      ).status(),
+    ).toBe(404);
+    const image = await page
+      .getByRole("img", { name: "Synthetic shirt 참조" })
+      .getAttribute("src");
+    if (!image) throw new Error("Missing synthetic asset");
+    expect((await context.request.get(image)).status()).toBe(404);
+    await context.close();
+  }
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= innerWidth,
@@ -85,6 +147,9 @@ test("local Mock: connect, create project, secure upload, preset, delete and log
   await expect(
     page.getByText("Mock 합성 평가입니다.", { exact: false }),
   ).toBeVisible({ timeout: 60000 });
+  await expect(
+    page.getByRole("img", { name: "Synthetic shirt 결과 비교" }),
+  ).toHaveJSProperty("naturalWidth", 64);
   await page.getByRole("button", { name: "채택", exact: true }).click();
   await expect(page.getByText("✓ 채택한 컷", { exact: true })).toBeVisible();
   const downloadEvent = page.waitForEvent("download");
@@ -114,8 +179,30 @@ test("local Mock: connect, create project, secure upload, preset, delete and log
     .getByRole("heading", { name: "당신의 다음 컷." })
     .scrollIntoViewIfNeeded();
   await page.screenshot({
-    path: `.tmp/studio-review-${test.info().project.name}.png`,
+    path: `.tmp/${productionOrigin ? "production-" : ""}studio-review-${test.info().project.name}.png`,
   });
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+  await page.goto("/studio/usage");
+  await expect(
+    page.getByRole("heading", { name: "만들고, 고르고, 돌아보기." }),
+  ).toBeVisible();
+  await expect(
+    page
+      .getByText("생성한 컷", { exact: true })
+      .locator("..")
+      .getByText("2", { exact: true }),
+  ).toBeVisible();
+  const exportEvent = page.waitForEvent("download");
+  await page
+    .getByRole("link", { name: "내 데이터 내보내기", exact: true })
+    .click();
+  expect((await exportEvent).suggestedFilename()).toBe(
+    "photo-studio-data.json",
+  );
   await page.goto("/studio/presets");
   await page.getByRole("button", { name: "새 프리셋" }).click();
   await page.getByLabel("프리셋 이름", { exact: true }).fill("Synthetic brand");
@@ -135,7 +222,11 @@ test("local Mock: connect, create project, secure upload, preset, delete and log
     page.getByRole("heading", { name: "첫 번째 컬렉션을 기다리고 있어요." }),
   ).toBeVisible();
   await page.goto("/studio/settings");
-  await page.getByRole("button", { name: "로그아웃", exact: true }).click();
+  await page.getByRole("button", { name: "계정과 모든 데이터 삭제" }).click();
+  await page.getByLabel("계속하려면 ‘삭제’를 입력하세요.").fill("삭제");
+  await page
+    .getByRole("button", { name: "계정 영구 삭제", exact: true })
+    .click();
   await expect(page).toHaveURL(/\/beta$/);
   expect(errors).toEqual([]);
   expect(unexpected).toEqual([]);

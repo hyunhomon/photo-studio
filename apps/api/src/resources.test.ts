@@ -2,6 +2,7 @@ import { describe, expect, test, spyOn } from "bun:test";
 import { createApp } from "./app";
 import { normalizeImage } from "./images";
 import { inspectImage } from "./image-meta";
+import { cleanupStorage } from "./storage";
 import { memoryEnv } from "../test/memory";
 import { syntheticPng } from "../test/png";
 import encodeJpeg, { init as initJpegEncode } from "@jsquash/jpeg/encode.js";
@@ -263,6 +264,8 @@ describe("private projects and uploads", () => {
         )
       ).status,
     ).toBe(200);
+    sqlite.exec("UPDATE storage_cleanup SET expires_at=0");
+    await cleanupStorage(env);
     expect(
       sqlite.query("SELECT count(*) n FROM storage_cleanup").get(),
     ).toEqual({ n: 0 });

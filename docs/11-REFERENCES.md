@@ -43,3 +43,13 @@
   - Dialog focus trap, ESC 및 포커스 복귀 사용. 스타일은 직접 작성.
 - 버전: npm registry의 각 package `latest` metadata와 peerDependencies를 확인하고 호환 조합을 고정했다. Astro 7.4.8 / adapter 14.4.6 / React integration 7.1.5 / React 19.3.1 / Tailwind 4.3.5 / Hono 4.13.17 / Drizzle 0.45.4 / Zod 4.6.7 / Wrangler 4.159.0 / TypeScript 6.0.3. TypeScript 및 React transform 버전 선택 사유는 `10-DECISIONS-AND-RISKS.md` 참조.
 - OpenRouter 실제 OAuth/API capability, 모델 availability/단가 확인은 Phase 1/3/4의 실제 어댑터 구현 직전에 다시 수행한다. Phase 0은 유료 요청을 전혀 하지 않는다.
+
+## MVP 구현 시 공식 계약 확인 (2026-11-11)
+
+- https://openrouter.ai/openapi.json — OAuth user_id nullable, Images API input_references/b64_json/media_type/usage 및 provider allow_fallbacks 계약.
+- https://openrouter.ai/api/v1/models — vision 입력 및 structured_outputs/response_format 지원을 확인해 분석·평가 모델 선택.
+- https://openrouter.ai/api/v1/images/models — gpt-image-2의 참조 이미지, n=1, 3:4, PNG, medium/high 지원 확인.
+- https://openrouter.ai/docs/guides/features/structured-outputs — JSON Schema strict 및 require_parameters.
+- https://developers.cloudflare.com/workflows/build/sleeping-and-retrying/ — 기본 재시도 대신 paid step limit=0 지정.
+- https://github.com/jamsinclair/jSquash/tree/main/examples/cloudflare-worker-esm-format — Workers 사전 컴파일 WASM 모듈 import.
+- https://github.com/orioncactus/pretendard / https://github.com/Freesentation/paperlogy — 자체 호스팅 폰트 및 포함된 OFL 라이선스.

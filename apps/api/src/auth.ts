@@ -55,6 +55,7 @@ export async function getIdentity(c: C): Promise<Identity | null> {
       sessionId: sessions.id,
       csrf: sessions.csrf,
       isTest: users.isTest,
+      status: users.status,
     })
     .from(sessions)
     .innerJoin(users, eq(users.id, sessions.userId))
@@ -76,6 +77,20 @@ export async function requireIdentity(c: C) {
       401,
     );
   c.set("identity", identity);
+  if (
+    identity.status !== "active" &&
+    ![
+      "/api/v1/account",
+      "/api/v1/me",
+      "/auth/logout",
+      "/auth/refresh",
+    ].includes(c.req.path)
+  )
+    throw new AppError(
+      "ACCOUNT_DELETING",
+      "계정 삭제를 마무리하려면 계정과 데이터 화면으로 이동해 주세요.",
+      409,
+    );
   return identity;
 }
 export function requireCsrf(c: C, identity: Identity) {
@@ -247,6 +262,7 @@ export function authRoutes(deps: AuthDeps = {}) {
       if (flow.initiating_user_id && user?.id !== flow.initiating_user_id)
         return fail("OAUTH_ACCOUNT_MISMATCH");
       const userId = user?.id ?? crypto.randomUUID();
+      if (user && user.status !== "active") return fail("ACCOUNT_DELETING");
       const envelope = await encrypt(provider.key, `provider:${userId}`, c.env);
       const now = Date.now();
       if (!user) {
@@ -349,6 +365,18 @@ export function authRoutes(deps: AuthDeps = {}) {
   auth.post("/disconnect", async (c) => {
     const identity = await requireIdentity(c);
     requireCsrf(c, identity);
+    const list = await c.env.DB.prepare(
+      "SELECT id FROM products WHERE user_id=?",
+    )
+      .bind(identity.userId)
+      .all<{ id: string }>();
+    await (
+      await import("./pipeline")
+    ).cancelProducts(
+      c.env,
+      identity.userId,
+      list.results.map((p) => p.id),
+    );
     await c.env.DB.batch([
       c.env.DB.prepare("DELETE FROM provider_connections WHERE user_id=?").bind(
         identity.userId,

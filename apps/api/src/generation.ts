@@ -282,10 +282,11 @@ export function generationRoutes() {
         ),
       )
       .orderBy(desc(assets.createdAt))
+      .limit(100)
       .all();
-    const results: ResultDto[] = [];
-    for (const image of images) {
-      const q = await db
+    if (!images.length) return c.json({ data: [] });
+    const qQueries = images.map((image) =>
+      db
         .select()
         .from(evaluations)
         .where(
@@ -293,21 +294,37 @@ export function generationRoutes() {
             eq(evaluations.assetId, image.id),
             eq(evaluations.userId, userId),
           ),
-        )
-        .get();
-      const f = await db
+        ),
+    );
+    const fQueries = images.map((image) =>
+      db
         .select()
         .from(feedback)
         .where(and(eq(feedback.assetId, image.id), eq(feedback.userId, userId)))
         .orderBy(desc(feedback.createdAt), desc(feedback.id))
-        .get();
-      const job = image.jobId
-        ? await db
-            .select()
-            .from(jobs)
-            .where(and(eq(jobs.id, image.jobId), eq(jobs.userId, userId)))
-            .get()
-        : null;
+        .limit(1),
+    );
+    const jQueries = images.map((image) =>
+      db
+        .select()
+        .from(jobs)
+        .where(and(eq(jobs.id, image.jobId ?? ""), eq(jobs.userId, userId)))
+        .limit(1),
+    );
+    const qFirst = qQueries[0],
+      fFirst = fQueries[0],
+      jFirst = jQueries[0];
+    if (!qFirst || !fFirst || !jFirst) return c.json({ data: [] });
+    const [qualityRows, feedbackRows, jobRows] = await Promise.all([
+      db.batch([qFirst, ...qQueries.slice(1)]),
+      db.batch([fFirst, ...fQueries.slice(1)]),
+      db.batch([jFirst, ...jQueries.slice(1)]),
+    ]);
+    const results: ResultDto[] = [];
+    for (const [i, image] of images.entries()) {
+      const q = qualityRows[i]?.[0],
+        f = feedbackRows[i]?.[0],
+        job = jobRows[i]?.[0];
       const snapshot = job
         ? (JSON.parse(job.requestJson) as GenerationSnapshot)
         : null;
@@ -343,8 +360,26 @@ export function generationRoutes() {
       ...input,
       createdAt: Date.now(),
     };
-    await createDb(c.env.DB).insert(feedback).values(row);
-    return c.json({ data: { ...input, createdAt: row.createdAt } }, 201);
+    const saved = await c.env.DB.prepare(
+      "INSERT INTO feedback(id,asset_id,user_id,decision,reason,note,created_at) SELECT ?,?,?,?,?,?,max(?,coalesce(max(created_at)+1,?)) FROM feedback WHERE asset_id=? AND user_id=? RETURNING created_at",
+    )
+      .bind(
+        row.id,
+        row.assetId,
+        row.userId,
+        row.decision,
+        row.reason,
+        row.note,
+        row.createdAt,
+        row.createdAt,
+        row.assetId,
+        row.userId,
+      )
+      .first<{ created_at: number }>();
+    return c.json(
+      { data: { ...input, createdAt: saved?.created_at ?? row.createdAt } },
+      201,
+    );
   });
   return api;
 }

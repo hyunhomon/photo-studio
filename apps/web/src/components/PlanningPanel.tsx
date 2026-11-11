@@ -505,6 +505,9 @@ export default function PlanningPanel({
             : "상품 사진과 설명을 OpenRouter에 전송합니다. 상품 분석 1회와 촬영 기획 1회의 AI 호출 비용이 내 OpenRouter 크레딧에서 차감됩니다."
         }
       >
+        <p className="mt-4 text-xs text-muted">
+          분석·기획 모델: {me.models.analysis}
+        </p>
         <p className="mt-5 text-xs leading-7 text-muted">
           정확한 비용은 입력·출력과 모델에 따라 달라 사전에 확정할 수 없습니다.
           제공된 실제 비용만 기록하며 누락된 비용은 미확인으로 표시합니다.{" "}
