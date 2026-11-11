@@ -186,3 +186,6 @@ ADR-029는 기존 랜딩의 SVG 카드/다크 네온을 대체한다. 12개 공�
 ## 2026-11-12 — 직접 입력 후속 제보와 DS 정합성
 
 ADR-030에서 직접 입력 동시 조건을 회귀에 추가하고 min-content 크기 제약을 보강한다. 초기 정적 크기/글꼴 조사로는 재현되지 않았지만, 실제 앱의 1440×900→1024×640 축소와 직접 입력 포커스 순서에서 document690/body640을 재현했다. 숨김 sr-only span의 absolute containing block이 viewport여서 패널 밖 문서 스크롤에 기여했다. label relative로 묶은 뒤640/640을 확인한다. 별도로 직접 입력값이 프리셋과 같아지는 순간 창이 사라지는 분기 문제를 수정한다. 사용자 편집 모드/값을 유지하고 의도적으로 옵션을 바꿀 때만 닫는다. 기획 버튼은 재분석 포함 여부를 이름으로 드러낸다. 선택 테두리 2px와 랜딩의 앱 공통 다크/네온/radius로 일관성을 맞추며, 색 토큰을 별도로 재정의하지 않는다. 새 사진/AI 호출이나 고객 자료/계정 변경은 없다.
+
+
+ebbcd99 commit/push 및 웹 전용 배포 완료. 최종 format/lint/typecheck/test/build 통과(진단/린트 경고0, 단위66/66), local/production desktop/mobile 각각8/8과 공개 smoke 통과. 두 직접 입력/긴 무공백 값/선택지와 같은 값도 수동 유지/resize·focus·tab 왕복/320~1440px 경계/문서 스크롤 없음/내부 스크롤/2px/다크 DS를 검증했다. 신규 회귀가 원래 690px 문서 높이를 실패로 검출했고, 실제 label 위치 static 해제/relative 복원으로 fixed640→unanchored690→restored640을 확인했다. 실패를 무시하거나 검사 기준을 완화하지 않고 배치 원인을 수정했다. 운영 합성 계정/사진 정리와 실제 연결·세션 보존도 재확인했다. API/Workflow/D1/secret/사용자 자료 변경 및 유료 OpenRouter 호출은 없다.

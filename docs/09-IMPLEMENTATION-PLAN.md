@@ -302,4 +302,4 @@ production desktop/mobile 전체 Mock E2E **4/4 통과**: 저장된 분석 재�
 - [x] 두 직접 입력 + viewport 축소/포커스로 document690/body640 넘침 재현, 숨김 라벨의 containing block을 label로 묶어 640/640 수정. 직접 입력 모드 유지와 fieldset/grid/control 크기도 보강.
 - [x] 기획 실행 범위 라벨과 2px 선택 썸네일, 사진/구성은 유지하는 앱 다크 DS 토큰 랜딩.
 - [x] 최종 format/lint/typecheck/test/build 통과(진단/린트 경고0, 단위66/66), local desktop/mobile 8/8. 긴 직접 입력/선택지와 같은 값/320~1440px·화면 축소·포커스·탭 왕복/내부 스크롤/2px/공통 다크 CTA를 검증했다. 상대 위치 해제→document690, 복원→640 인과 재현 확인.
-- [ ] 웹 production 배포·공개 smoke·운영 Mock 브라우저 검증.
+- [x] ebbcd99 commit/push 및 웹 전용 production 배포. 공개 HTTPS/CORS/OAuth/폰트/반응형 smoke·운영 desktop/mobile 8/8(wrapper exit0) 통과. 실제 서버의 직접 입력/resize/포커스·320~1440px·2px 선택 표시·다크 랜딩/CTA를 확인했다. 합성 계정/사진 정리, 실제 계정/연결/세션 보존. API/Workflow/D1/secret 변경·자료 초기화·유료 OpenRouter 호출 없음.
