@@ -226,7 +226,7 @@ export default function LandingDemo() {
         </div>
       </TabGroup>
       <Dialog open={zoom} onClose={setZoom} className="fixed inset-0 z-[70]">
-        <DialogBackdrop className="fixed inset-0 bg-black/90" />
+        <DialogBackdrop className="fixed inset-0 bg-overlay/90" />
         <DialogPanel className="fixed inset-3 flex items-center justify-center sm:inset-6">
           <DialogTitle className="sr-only">데모 촬영 장면 확대</DialogTitle>
           <img
@@ -238,7 +238,7 @@ export default function LandingDemo() {
             type="button"
             onClick={() => setZoom(false)}
             aria-label="데모 확대 닫기"
-            className="absolute top-2 right-2 grid size-11 place-items-center rounded-full bg-white text-black"
+            className="absolute top-2 right-2 grid size-11 place-items-center rounded-full border border-line bg-surface text-ink hover:bg-elevated"
           >
             <X size={22} />
           </button>

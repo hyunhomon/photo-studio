@@ -83,6 +83,8 @@
   }
   .studio-input {
     width: 100%;
+    min-width: 0;
+    max-width: 100%;
     min-height: 44px;
     border: 1px solid var(--color-control);
     background: var(--color-paper);
@@ -267,7 +269,7 @@
   flex: 0 0 32px;
   height: 40px;
   overflow: hidden;
-  border: 1px solid transparent;
+  border: 2px solid transparent;
   border-radius: 5px;
 }
 .photo-filmstrip fieldset button.selected {
@@ -362,6 +364,16 @@
   .media-hover-action {
     opacity: 1;
   }
+}
+/* Native fieldsets and grid children must shrink with the inspector, including custom inputs. */
+.planning-panel,
+.planning-tabs,
+.planning-scroll {
+  min-width: 0;
+  max-width: 100%;
+}
+.planning-panel fieldset {
+  min-inline-size: 0;
 }
 .planning-panel > div {
   border: 0;

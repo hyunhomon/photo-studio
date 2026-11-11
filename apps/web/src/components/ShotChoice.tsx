@@ -1,4 +1,5 @@
 import { Select } from "@photo-studio/ui";
+import { useState } from "react";
 export const framingOptions = [
   "레퍼런스 프레이밍 유지",
   "전신 샷",
@@ -27,21 +28,25 @@ export default function ShotChoice({
   onChange: (v: string) => void;
   choices: string[];
 }) {
-  const custom = !choices.includes(value);
+  const [manual, setManual] = useState(!choices.includes(value));
+  const custom = manual || !choices.includes(value);
   return (
-    <div>
+    <div className="min-w-0">
       <p className="mb-2 text-xs font-medium text-muted">{label}</p>
       <Select
         label={label}
         value={custom ? "custom" : value}
-        onChange={(v) => onChange(v === "custom" ? "" : v)}
+        onChange={(v) => {
+          setManual(v === "custom");
+          if (v !== "custom") onChange(v);
+        }}
         options={[
           ...choices.map((v) => ({ value: v, label: v })),
           { value: "custom", label: "직접 입력" },
         ]}
       />
       {custom && (
-        <label className="mt-2 block text-xs text-muted">
+        <label className="relative mt-2 block min-w-0 text-xs text-muted">
           <span className="sr-only">{label} 직접 입력</span>
           <input
             className="studio-input mt-2"

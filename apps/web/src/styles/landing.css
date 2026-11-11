@@ -1,16 +1,7 @@
 /* Landing-only rules keep specificity low; studio tokens and controls stay independent. */
 :where(.marketing-theme) {
-  color-scheme: light;
-  background: #f5f3ed;
-  --color-paper: #f5f3ed;
-  --color-ink: #20221e;
-  --color-muted: #706f67;
-  --color-line: #deddd5;
-  --color-primary: #20221e;
-  --color-primary-hover: #42463b;
-  --color-on-primary: #f5f3ed;
-  --color-surface: #eeece5;
-  --color-elevated: #e6e4da;
+  color-scheme: dark;
+  background: var(--color-paper);
 }
 :where(.marketing-page) {
   color: var(--color-ink);
@@ -48,21 +39,23 @@
   padding-block: 12px;
 }
 :where(.marketing-links a:hover, .marketing-text-link:hover) {
-  color: #697b2e;
+  color: var(--color-primary-hover);
 }
 :where(.marketing-nav-cta) {
   display: inline-flex;
   align-items: center;
   gap: 20px;
-  min-height: 43px;
+  min-height: 44px;
   padding: 10px 17px;
-  border: 1px solid #aaa99e;
-  border-radius: 6px;
+  border: 1px solid var(--color-control);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
   font-size: 12px;
   white-space: nowrap;
 }
 :where(.marketing-nav-cta:hover) {
-  background: #e8e7dc;
+  border-color: var(--color-muted);
+  background: var(--color-elevated);
 }
 :where(.marketing-hero) {
   padding-top: 80px;
@@ -80,7 +73,7 @@
   font-weight: 500;
 }
 :where(.marketing-hero h1 span) {
-  color: #788062;
+  color: var(--color-primary);
 }
 :where(.marketing-hero-intro) {
   padding-bottom: 6px;
@@ -88,7 +81,7 @@
 :where(.marketing-hero-intro > p) {
   font-size: 16px;
   line-height: 1.9;
-  color: #6a6b61;
+  color: var(--color-muted);
 }
 :where(.marketing-hero-actions) {
   display: flex;
@@ -104,15 +97,17 @@
   justify-content: center;
   gap: 28px;
   padding: 15px 22px;
-  border-radius: 6px;
-  background: #252820;
-  color: #fff;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-primary);
+  background: var(--color-primary);
+  color: var(--color-on-primary);
   font-size: 13px;
   font-weight: 600;
   transition: background 150ms;
 }
 :where(.marketing-button:hover) {
-  background: #4a5140;
+  border-color: var(--color-primary-hover);
+  background: var(--color-primary-hover);
 }
 :where(.marketing-text-link) {
   display: inline-flex;
@@ -125,10 +120,11 @@
 :where(.marketing-demo-frame) {
   margin-top: 48px;
   padding: 12px;
-  border: 1px solid #dad9ce;
-  border-radius: 16px;
-  background: #e8e7de;
-  box-shadow: 0 24px 60px -32px #53554455;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-panel);
+  background: var(--color-sidebar);
+  box-shadow: 0 24px 60px -32px
+    color-mix(in srgb, var(--color-overlay) 45%, transparent);
 }
 :where(.marketing-demo-caption) {
   display: flex;
@@ -142,10 +138,10 @@
 }
 :where(.landing-product-demo) {
   overflow: hidden;
-  border: 1px solid #343832;
-  border-radius: 8px;
-  background: #121512;
-  color: #f2f3ec;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-lg);
+  background: var(--color-paper);
+  color: var(--color-ink);
   font-family: var(--font-sans);
 }
 :where(.demo-topbar) {
@@ -154,7 +150,7 @@
   align-items: center;
   gap: 20px;
   padding: 8px 18px;
-  border-bottom: 1px solid #343832;
+  border-bottom: 1px solid var(--color-line);
 }
 :where(.demo-product-name) {
   font-size: 12px;
@@ -166,28 +162,28 @@
   margin-inline: auto;
 }
 :where(.demo-tabs button) {
-  border-radius: 5px;
+  border-radius: var(--radius-md);
   padding: 10px 15px;
-  color: #9da495;
+  color: var(--color-muted);
   font-size: 11px;
   transition: background 120ms;
 }
 :where(.demo-tabs button[data-selected]) {
-  background: #2d342a;
-  color: #e5f5b2;
+  background: var(--color-accent-soft);
+  color: var(--color-primary);
 }
 :where(.demo-indicator) {
   display: flex;
   align-items: center;
   gap: 7px;
   font-size: 10px;
-  color: #899082;
+  color: var(--color-muted);
 }
 :where(.demo-indicator > span) {
   width: 5px;
   height: 5px;
   border-radius: 50%;
-  background: #bdd388;
+  background: var(--color-primary);
 }
 :where(.demo-workspace) {
   display: grid;
@@ -212,8 +208,8 @@
   width: 100%;
   height: 440px;
   overflow: hidden;
-  border-radius: 5px;
-  background: #aaa395;
+  border-radius: var(--radius-md);
+  background: var(--color-studio);
 }
 :where(.demo-photo-wrap > img) {
   display: block;
@@ -236,9 +232,9 @@
   place-items: center;
   width: 32px;
   height: 32px;
-  border-radius: 5px;
-  background: #161b16;
-  color: #eee;
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-ink);
 }
 :where(.demo-photos figcaption) {
   display: flex;
@@ -251,7 +247,7 @@
 }
 :where(.demo-photos figcaption > span) {
   font-size: 9px;
-  color: #939b8c;
+  color: var(--color-muted);
 }
 :where(.demo-thumbnails) {
   display: flex;
@@ -261,13 +257,13 @@
   width: 26px;
   height: 32px;
   overflow: hidden;
-  border: 1px solid transparent;
-  border-radius: 3px;
+  border: 2px solid transparent;
+  border-radius: var(--radius-sm);
   opacity: 0.5;
 }
 :where(.demo-thumbnails button[aria-pressed="true"]) {
   opacity: 1;
-  border-color: #d6f18d;
+  border-color: var(--color-primary);
 }
 :where(.demo-thumbnails img) {
   width: 100%;
@@ -275,7 +271,7 @@
   object-fit: cover;
 }
 :where(.demo-inspector) {
-  border-left: 1px solid #343832;
+  border-left: 1px solid var(--color-line);
   padding: 25px 20px;
 }
 :where(.demo-inspector h3) {
@@ -287,7 +283,7 @@
   margin-top: 10px;
   font-size: 11px;
   line-height: 1.85;
-  color: #929b8b;
+  color: var(--color-muted);
 }
 :where(.demo-choice) {
   margin-top: 24px;
@@ -295,7 +291,7 @@
 :where(.demo-choice legend, .demo-note) {
   margin-bottom: 10px;
   font-size: 10px;
-  color: #a6ae9c;
+  color: var(--color-muted);
 }
 :where(.demo-choice > div) {
   display: flex;
@@ -304,18 +300,18 @@
 }
 :where(.demo-choice button) {
   padding: 8px 10px;
-  border: 1px solid #394134;
-  border-radius: 4px;
+  border: 1px solid var(--color-control);
+  border-radius: var(--radius-sm);
   font-size: 10px;
-  color: #a8b09f;
+  color: var(--color-muted);
 }
 :where(.demo-choice button:hover) {
-  background: #252e23;
+  background: var(--color-studio);
 }
 :where(.demo-choice button[aria-pressed="true"]) {
-  border-color: #b5ca83;
-  background: #293420;
-  color: #def0ad;
+  border-color: var(--color-primary);
+  background: var(--color-accent-soft);
+  color: var(--color-primary);
 }
 :where(.demo-light) {
   display: flex;
@@ -323,15 +319,15 @@
   gap: 10px;
   margin-top: 26px;
   padding: 13px 0;
-  border-block: 1px solid #2f382b;
+  border-block: 1px solid var(--color-line);
   font-size: 10px;
-  color: #a7b09d;
+  color: var(--color-muted);
 }
 :where(.demo-direction) {
   margin-top: 20px;
   font-size: 11px;
   line-height: 1.9;
-  color: #b9c5ab;
+  color: var(--color-ink);
 }
 :where(.demo-next) {
   display: flex;
@@ -342,9 +338,9 @@
   min-height: 40px;
   margin-top: 24px;
   padding-top: 14px;
-  border-top: 1px solid #343b2f;
+  border-top: 1px solid var(--color-line);
   font-size: 11px;
-  color: #e1f4ae;
+  color: var(--color-primary);
   text-align: left;
 }
 :where(.demo-reference-list) {
@@ -359,7 +355,7 @@
 }
 :where(.demo-reference-list li > span:first-child) {
   font-size: 9px;
-  color: #707b66;
+  color: var(--color-muted);
 }
 :where(.demo-reference-list li > div) {
   flex: 1;
@@ -371,14 +367,14 @@
 :where(.demo-reference-list p) {
   margin-top: 5px;
   font-size: 9px;
-  color: #8e9b80;
+  color: var(--color-muted);
 }
 :where(.demo-reference-list svg) {
-  color: #c2db8c;
+  color: var(--color-primary);
 }
 :where(.demo-optional) {
   font-size: 9px;
-  color: #7c8b6e;
+  color: var(--color-muted);
 }
 :where(.demo-note) {
   display: block;
@@ -391,17 +387,17 @@
   margin-top: 10px;
   resize: vertical;
   padding: 12px;
-  border: 1px solid #3e4736;
-  border-radius: 5px;
-  background: #191e16;
-  color: #c9d2bd;
+  border: 1px solid var(--color-control);
+  border-radius: var(--radius-md);
+  background: var(--color-paper);
+  color: var(--color-ink);
   font-size: 11px;
   line-height: 1.8;
 }
 :where(.demo-revision-label) {
   margin-top: 15px;
   font-size: 10px;
-  color: #89987c;
+  color: var(--color-muted);
 }
 :where(.marketing-workflow) {
   padding-block: 110px 105px;
@@ -433,12 +429,12 @@
   margin-top: 48px;
 }
 :where(.marketing-steps li) {
-  border-top: 1px solid #c9cbbd;
+  border-top: 1px solid var(--color-line);
   padding-top: 20px;
 }
 :where(.marketing-steps li > span) {
   font-size: 11px;
-  color: #7a816e;
+  color: var(--color-muted);
 }
 :where(.marketing-steps h3) {
   margin-top: 24px;
@@ -455,7 +451,7 @@
 }
 :where(.marketing-direction-section) {
   padding-block: 80px;
-  background: #e9ece2;
+  background: var(--color-surface);
   scroll-margin-top: 20px;
 }
 :where(.marketing-direction-grid) {
@@ -467,8 +463,8 @@
 :where(.marketing-photo-story) {
   position: relative;
   overflow: hidden;
-  border-radius: 6px;
-  background: #aaa495;
+  border-radius: var(--radius-lg);
+  background: var(--color-studio);
 }
 :where(.marketing-photo-story > img) {
   width: 100%;
@@ -483,12 +479,15 @@
   justify-content: space-between;
   gap: 20px;
   padding: 45px 24px 22px;
-  background: linear-gradient(transparent, #161d16a6);
-  color: #fff;
+  background: linear-gradient(
+    transparent,
+    color-mix(in srgb, var(--color-overlay) 80%, transparent)
+  );
+  color: var(--color-ink);
   font-size: 11px;
 }
 :where(.marketing-photo-caption span:last-child) {
-  color: #e1e7d8;
+  color: var(--color-ink);
 }
 :where(.marketing-direction-copy > p, .marketing-refine-copy > p) {
   margin-top: 24px;
@@ -508,7 +507,7 @@
 }
 :where(.marketing-feature-lines svg) {
   margin-top: 3px;
-  color: #75815f;
+  color: var(--color-primary);
   flex-shrink: 0;
 }
 :where(.marketing-feature-lines h3) {
@@ -519,7 +518,7 @@
   margin-top: 7px;
   font-size: 12px;
   line-height: 1.8;
-  color: #767c6d;
+  color: var(--color-muted);
 }
 :where(.marketing-refine) {
   display: grid;
@@ -531,7 +530,7 @@
 :where(.marketing-refine h2 span) {
   display: inline-block;
   margin-top: 8px;
-  color: #7c846e;
+  color: var(--color-muted);
   font-size: 0.84em;
 }
 :where(.marketing-refine-copy ul) {
@@ -546,7 +545,7 @@
   gap: 10px;
 }
 :where(.marketing-refine-copy li svg) {
-  color: #7c8c59;
+  color: var(--color-primary);
 }
 :where(.marketing-refine-visual) {
   position: relative;
@@ -558,7 +557,7 @@
   display: block;
   width: 100%;
   height: 520px;
-  border-radius: 6px;
+  border-radius: var(--radius-lg);
   object-fit: cover;
   object-position: center 15%;
 }
@@ -568,10 +567,11 @@
   bottom: 0;
   width: min(320px, 85%);
   padding: 24px;
-  border: 1px solid #d8dccd;
-  border-radius: 7px;
-  background: #fbfcf7;
-  box-shadow: 0 12px 30px -16px #283f2266;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: 0 12px 30px -16px
+    color-mix(in srgb, var(--color-overlay) 45%, transparent);
 }
 :where(.marketing-revision-card > div) {
   display: flex;
@@ -586,7 +586,7 @@
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: #a0b65c;
+  background: var(--color-primary);
 }
 :where(.marketing-revision-card p) {
   margin-top: 15px;
@@ -597,7 +597,7 @@
   display: block;
   margin-top: 15px;
   font-size: 9px;
-  color: #878a7e;
+  color: var(--color-muted);
 }
 :where(.marketing-continuity) {
   padding-block: 20px 105px;
@@ -613,7 +613,7 @@
   padding-top: 25px;
 }
 :where(.marketing-tools svg) {
-  color: #7d856d;
+  color: var(--color-primary);
 }
 :where(.marketing-tools h3) {
   margin-top: 24px;
@@ -629,8 +629,8 @@
 }
 :where(.marketing-account-section) {
   padding-block: 70px;
-  background: #252c22;
-  color: #f3f4ea;
+  background: var(--color-sidebar);
+  color: var(--color-ink);
 }
 :where(.marketing-account-grid) {
   display: grid;
@@ -643,16 +643,16 @@
   font-size: 36px;
 }
 :where(.marketing-account-grid > div > svg) {
-  color: #b9ca90;
+  color: var(--color-primary);
 }
 :where(.marketing-account-grid p) {
   font-size: 16px;
   line-height: 2;
-  color: #c1c8b6;
+  color: var(--color-muted);
 }
 :where(.marketing-account-grid .marketing-text-link) {
   margin-top: 25px;
-  color: #d8e8b5;
+  color: var(--color-primary);
 }
 :where(.marketing-faq) {
   display: grid;
@@ -684,7 +684,7 @@
 }
 :where(.marketing-faq summary svg) {
   flex-shrink: 0;
-  color: #6a7460;
+  color: var(--color-muted);
   transition: transform 150ms;
 }
 :where(.marketing-faq details[open] summary svg) {
@@ -702,13 +702,14 @@
   align-items: end;
   gap: 40px;
   padding: 55px 60px;
-  border-radius: 8px;
-  background: #e0ebba;
+  border-radius: var(--radius-lg);
+  background: var(--color-accent-soft);
+  border: 1px solid var(--color-accent-line);
 }
 :where(.marketing-final p) {
   margin-top: 20px;
   font-size: 13px;
-  color: #717859;
+  color: var(--color-muted);
 }
 :where(.marketing-final .marketing-button) {
   flex-shrink: 0;
@@ -725,7 +726,7 @@
 }
 :where(.marketing-footer .brand-wordmark) {
   font-size: 15px;
-  color: #393d31;
+  color: var(--color-muted);
 }
 :where(.marketing-footer .brand-wordmark + svg) {
   width: 28px;
@@ -852,7 +853,7 @@
   :where(.marketing-demo-frame) {
     padding: 6px;
     margin-top: 30px;
-    border-radius: 10px;
+    border-radius: var(--radius-panel);
   }
   :where(.demo-topbar) {
     flex-wrap: wrap;
@@ -885,7 +886,7 @@
     height: 260px;
   }
   :where(.demo-photos figcaption) {
-    min-height: 43px;
+    min-height: 44px;
     font-size: 9px;
   }
   :where(.demo-photos figcaption > span) {
@@ -896,7 +897,7 @@
   }
   :where(.demo-inspector) {
     border-left: 0;
-    border-top: 1px solid #343832;
+    border-top: 1px solid var(--color-line);
     padding: 22px 16px;
   }
   :where(.demo-inspector h3) {

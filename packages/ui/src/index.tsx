@@ -48,7 +48,7 @@ export function Select({
   options: { value: string; label: string }[];
 }) {
   return (
-    <div className="relative">
+    <div className="relative min-w-0">
       <Listbox value={value} onChange={onChange}>
         <ListboxButton
           aria-label={label}

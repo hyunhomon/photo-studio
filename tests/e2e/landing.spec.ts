@@ -11,7 +11,18 @@ test("marketing: honest interactive product demo, imagery, FAQ and responsive la
       execution.push(request.method());
   });
   await page.goto("/");
-  await expect(page.locator("html")).toHaveCSS("color-scheme", "light");
+  await expect(page.locator("html")).toHaveCSS("color-scheme", "dark");
+  await expect(page.locator("html")).toHaveCSS(
+    "background-color",
+    "rgb(11, 12, 14)",
+  );
+  const primary = page.getByRole("link", {
+    name: "사진으로 촬영 시작하기",
+    exact: true,
+  });
+  await expect(primary).toHaveCSS("background-color", "rgb(0, 245, 155)");
+  await expect(primary).toHaveCSS("color", "rgb(4, 20, 13)");
+
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(
     /상품 사진에서,\s*다음 촬영까지\./,
   );

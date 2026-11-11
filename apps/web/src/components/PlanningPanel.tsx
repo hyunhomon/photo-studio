@@ -84,7 +84,7 @@ export function JobStatus({
       )}
       {job.status === "failed" && job.stage === "planning" && (
         <p className="mt-2 text-xs leading-6 text-muted">
-          완료된 상품 분석은 보존했습니다. ‘기획만 다시’로 이어갈 수 있습니다.
+          완료된 상품 분석은 보존했습니다. ‘기획만 재생성’로 이어갈 수 있습니다.
         </p>
       )}
       {job.status === "queued" && job.errorCode === "DISPATCH_PENDING" && (
@@ -122,7 +122,10 @@ export function Field({
 }) {
   const id = useId();
   return (
-    <label htmlFor={id} className="block text-xs font-medium text-muted">
+    <label
+      htmlFor={id}
+      className="block min-w-0 text-xs font-medium text-muted"
+    >
       {label}
       {multiline ? (
         <textarea
@@ -161,7 +164,7 @@ export function AnalysisEditor({
         <div className="mb-5 flex items-center justify-between">
           <h2 className="text-lg">상품 이해</h2>
         </div>
-        <fieldset disabled={busy} className="grid gap-4">
+        <fieldset disabled={busy} className="grid min-w-0 grid-cols-1 gap-4">
           <Field
             label="의류 종류"
             value={value.garmentType}
@@ -205,7 +208,7 @@ export function AnalysisEditor({
             }
           />
         </fieldset>
-        <div className="mt-4 grid gap-4">
+        <div className="mt-4 grid min-w-0 grid-cols-1 gap-4">
           <Field
             label="반드시 보존할 디테일 (한 줄에 하나)"
             value={value.preservationPoints.join("\n")}
@@ -256,7 +259,10 @@ export function PlanEditor({
           </div>
         )}
 
-        <fieldset disabled={busy} className="mt-5 grid gap-4">
+        <fieldset
+          disabled={busy}
+          className="mt-5 grid min-w-0 grid-cols-1 gap-4"
+        >
           <Field
             label="시즌"
             value={v.season}
@@ -331,7 +337,7 @@ export function PlanEditor({
             />
           </div>
         )}
-        <div className="mt-5 grid gap-4">
+        <div className="mt-5 grid min-w-0 grid-cols-1 gap-4">
           <div>
             <p className="mb-2 text-xs text-muted">배경 분리</p>
             <Select
@@ -519,7 +525,7 @@ export default function PlanningPanel({
                 <h2 className="text-xl">한 벌을 위한 촬영 기획</h2>
               </div>
 
-              <div className="mt-5 grid gap-4">
+              <div className="mt-5 grid min-w-0 grid-cols-1 gap-4">
                 {lookReference && (
                   <Select
                     label="기획 레퍼런스"
@@ -562,7 +568,7 @@ export default function PlanningPanel({
                   {!product.analysis && (
                     <SlidersHorizontal size={15} aria-hidden="true" />
                   )}
-                  {product.analysis ? "처음부터 다시" : "분석 시작"}
+                  {product.analysis ? "상품 재분석·기획" : "분석 시작"}
                 </Button>
                 {product.analysis && (
                   <Button
@@ -571,7 +577,7 @@ export default function PlanningPanel({
                     disabled={busy || active}
                     onClick={() => start(true)}
                   >
-                    기획만 다시
+                    기획만 재생성
                   </Button>
                 )}
               </fieldset>

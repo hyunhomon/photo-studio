@@ -295,3 +295,11 @@ production desktop/mobile 전체 Mock E2E **4/4 통과**: 저장된 분석 재�
 - [x] 공개 사진 3장 출처/용량/예시 표시, 실제 AI 호출 없는 탭/선택/입력/장면 전환/확대, FAQ/실제 CTA/앵커.
 - [x] format/lint/typecheck/test/build 통과(진단/린트 경고0, 단위66/66), local desktop/mobile 8/8. 데모/FAQ/이미지/앵커/AI 호출 없음·360~1440px overflow·라이트 랜딩→다크 스튜디오 전환과 기존 전체 Mock 흐름 통과. 기능/카피 read-only 리뷰와 실제 화면 캡처 점검.
 - [x] 8fa9a20/53738e7 commit/push, 웹 전용 production 배포 완료. 공개 HTTPS/CORS/OAuth/폰트/반응형 smoke와 운영 desktop/mobile 8/8(wrapper exit0) 통과. 신규 데모/FAQ/이미지·기존 Mock 전체 흐름·테마 분리 검증, 운영 HTML의 최신 예시 문구도 확인했다. 합성 계정/사진 정리와 실제 연결 유지. API/Workflow/DB/secret 변경·사용자 자료 초기화·OpenRouter 유료 호출 없음.
+
+
+### 직접 입력·라벨·선택 표시·다크 랜딩 — 2026-11-12 (ADR-030)
+
+- [x] 두 직접 입력 + viewport 축소/포커스로 document690/body640 넘침 재현, 숨김 라벨의 containing block을 label로 묶어 640/640 수정. 직접 입력 모드 유지와 fieldset/grid/control 크기도 보강.
+- [x] 기획 실행 범위 라벨과 2px 선택 썸네일, 사진/구성은 유지하는 앱 다크 DS 토큰 랜딩.
+- [x] 최종 format/lint/typecheck/test/build 통과(진단/린트 경고0, 단위66/66), local desktop/mobile 8/8. 긴 직접 입력/선택지와 같은 값/320~1440px·화면 축소·포커스·탭 왕복/내부 스크롤/2px/공통 다크 CTA를 검증했다. 상대 위치 해제→document690, 복원→640 인과 재현 확인.
+- [ ] 웹 production 배포·공개 smoke·운영 Mock 브라우저 검증.

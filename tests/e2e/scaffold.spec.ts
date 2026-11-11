@@ -39,6 +39,101 @@ async function openNavigation(page: Page) {
     await page.getByRole("button", { name: "상품 목록 열기" }).click();
 }
 
+async function verifyCustomChoices(page: Page) {
+  const inspector = page.getByRole("complementary", { name: "촬영 설정 패널" });
+  const framing = page.getByLabel("프레이밍 직접 입력", { exact: true });
+  const angle = page.getByLabel("카메라 각도 직접 입력", { exact: true });
+  for (const label of ["프레이밍", "카메라 각도"]) {
+    await page.getByRole("button", { name: label, exact: true }).click();
+    await page.getByRole("option", { name: "직접 입력", exact: true }).click();
+  }
+  // Manual editing remains manual even when the entered value equals a preset.
+  await framing.fill("전신 샷");
+  await expect(framing).toHaveValue("전신 샷");
+  await framing.fill(`Synthetic_framing_${"A".repeat(200)}`);
+  await angle.fill(`Synthetic_angle_${"B".repeat(200)}`);
+  const sizes =
+    test.info().project.name === "desktop-chromium"
+      ? [
+          [1440, 900],
+          [1024, 640],
+        ]
+      : [
+          [390, 844],
+          [320, 700],
+        ];
+  for (const [width, height] of sizes) {
+    if (!width || !height) throw new Error("Missing custom-control viewport");
+    await page.setViewportSize({ width, height });
+    await angle.focus();
+    const bounds = await inspector.boundingBox();
+    if (!bounds) throw new Error("Missing inspector");
+    for (const input of [framing, angle]) {
+      await expect(input).toBeVisible();
+      const box = await input.boundingBox();
+      if (!box) throw new Error("Missing custom input");
+      expect(box.x).toBeGreaterThanOrEqual(bounds.x);
+      expect(box.x + box.width).toBeLessThanOrEqual(bounds.x + bounds.width);
+      // Long text scrolls inside the input, not in a wider panel.
+      expect(
+        await input.evaluate(
+          (element) => element.scrollWidth > element.clientWidth,
+        ),
+      ).toBe(true);
+    }
+    const panelSizes = await inspector
+      .locator(".planning-panel,.planning-tabs,.planning-scroll,fieldset")
+      .evaluateAll((elements) =>
+        elements.map((element) => ({
+          width: element.clientWidth,
+          scroll: element.scrollWidth,
+        })),
+      );
+    for (const size of panelSizes)
+      expect(size.scroll).toBeLessThanOrEqual(size.width + 1);
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+    ).toBe(true);
+    if (width >= 1024) {
+      expect(await page.evaluate(() => scrollY)).toBe(0);
+      expect(
+        await page.evaluate(
+          () => document.documentElement.scrollHeight <= innerHeight + 1,
+        ),
+      ).toBe(true);
+      const scroller = inspector.locator(".planning-scroll");
+      const before = await inspector.getByRole("tablist").boundingBox();
+      await scroller.evaluate((element) =>
+        element.scrollTo(0, element.scrollHeight),
+      );
+      expect(
+        await scroller.evaluate((element) => element.scrollTop),
+      ).toBeGreaterThan(0);
+      expect((await inspector.getByRole("tablist").boundingBox())?.y).toBe(
+        before?.y,
+      );
+      await scroller.evaluate((element) => element.scrollTo(0, 0));
+    }
+    await page.screenshot({
+      path: `.tmp/custom-controls-${width}.png`,
+      fullPage: true,
+    });
+  }
+  await page.setViewportSize(
+    test.info().project.name === "desktop-chromium"
+      ? { width: 1440, height: 1000 }
+      : { width: 393, height: 851 },
+  );
+  await inspector.getByRole("tab", { name: "상품 이해", exact: true }).click();
+  await inspector
+    .getByRole("tab", { name: "촬영 콘셉트", exact: true })
+    .click();
+  await expect(framing).toHaveValue(`Synthetic_framing_${"A".repeat(200)}`);
+  await expect(angle).toHaveValue(`Synthetic_angle_${"B".repeat(200)}`);
+}
+
 async function verifyComparisonLayout(page: Page) {
   const inspector = page.getByRole("complementary", { name: "촬영 설정 패널" });
   const original = page.getByRole("img", {
@@ -154,10 +249,10 @@ test("Mock: direct multi-photo upload, reference planning, compare, revise, expo
   });
   await page.goto("/");
   await page.emulateMedia({ colorScheme: "light" });
-  await expect(page.locator("html")).toHaveCSS("color-scheme", "light");
+  await expect(page.locator("html")).toHaveCSS("color-scheme", "dark");
   await expect(page.locator("html")).toHaveCSS(
     "background-color",
-    "rgb(245, 243, 237)",
+    "rgb(11, 12, 14)",
   );
   await expect(page.getByRole("heading", { level: 1 })).toContainText(
     "상품 사진에서",
@@ -306,6 +401,10 @@ test("Mock: direct multi-photo upload, reference planning, compare, revise, expo
     exact: true,
   });
   await expect(original).toHaveJSProperty("naturalWidth", 64);
+  await expect(
+    page.getByRole("button", { name: "원본 1 선택", exact: true }),
+  ).toHaveCSS("border-top-width", "2px");
+
   await page.getByRole("button", { name: "원본 2 선택", exact: true }).click();
   await expect(original).toHaveJSProperty("naturalWidth", 80);
   await page.getByRole("button", { name: "원본 1 선택", exact: true }).click();
@@ -449,10 +548,10 @@ test("Mock: direct multi-photo upload, reference planning, compare, revise, expo
     exact: true,
   });
   const restart = await actions
-    .getByRole("button", { name: "처음부터 다시", exact: true })
+    .getByRole("button", { name: "상품 재분석·기획", exact: true })
     .boundingBox();
   const replan = await actions
-    .getByRole("button", { name: "기획만 다시", exact: true })
+    .getByRole("button", { name: "기획만 재생성", exact: true })
     .boundingBox();
   if (!restart || !replan) throw new Error("Missing grouped planning actions");
   expect(Math.abs(restart.y - replan.y)).toBeLessThan(1);
@@ -461,7 +560,9 @@ test("Mock: direct multi-photo upload, reference planning, compare, revise, expo
       response.request().method() === "POST" &&
       new URL(response.url()).pathname.endsWith("/plan"),
   );
-  await page.getByRole("button", { name: "기획만 다시", exact: true }).click();
+  await page
+    .getByRole("button", { name: "기획만 재생성", exact: true })
+    .click();
   const planningOnly = (
     (await (await planningOnlyResponse).json()) as { data: { id: string } }
   ).data;
@@ -474,6 +575,7 @@ test("Mock: direct multi-photo upload, reference planning, compare, revise, expo
     (await data<ProductDto>(page, `/products/${productId}`)).analysis
       ?.garmentType,
   ).not.toBe("수정한 셔츠");
+  await verifyCustomChoices(page);
   await page.getByRole("button", { name: "프레이밍", exact: true }).click();
   await page
     .getByRole("option", { name: "바스트 샷 · 가슴 위", exact: true })

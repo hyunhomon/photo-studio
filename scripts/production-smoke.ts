@@ -48,6 +48,7 @@ try {
     const errors: string[] = [];
     page.on("pageerror", () => errors.push("browser error"));
     await page.goto(origin);
+    await expect(page.locator("html")).toHaveCSS("color-scheme", "dark");
     await expect(page.getByRole("heading", { level: 1 })).toContainText(
       "상품 사진에서",
     );
