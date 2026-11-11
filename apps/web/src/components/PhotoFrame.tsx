@@ -56,34 +56,36 @@ export default function PhotoFrame({
         <fieldset
           aria-label={side === "original" ? "원본 사진 선택" : "생성 결과 선택"}
         >
-          {images.map((a, i) => (
-            <button
-              type="button"
-              key={a.id}
-              aria-label={
-                side === "original"
-                  ? `원본 ${i + 1} 선택`
-                  : `결과 ${images.length - i} 선택`
-              }
-              aria-pressed={selected?.id === a.id}
-              onClick={() => onSelect(a.id)}
-              className={selected?.id === a.id ? "selected" : ""}
-            >
-              <img src={url(a.id)} alt="" />
-            </button>
-          ))}
-          {onAdd && (
-            <button
-              type="button"
-              aria-label="원본 사진 추가"
-              title={addTitle}
-              disabled={addDisabled}
-              onClick={onAdd}
-              className="photo-add grid place-items-center text-muted hover:bg-elevated hover:text-ink disabled:cursor-not-allowed disabled:opacity-35"
-            >
-              <Plus size={17} aria-hidden="true" />
-            </button>
-          )}
+          <div className="photo-options">
+            {images.map((a, i) => (
+              <button
+                type="button"
+                key={a.id}
+                aria-label={
+                  side === "original"
+                    ? `원본 ${i + 1} 선택`
+                    : `결과 ${images.length - i} 선택`
+                }
+                aria-pressed={selected?.id === a.id}
+                onClick={() => onSelect(a.id)}
+                className={selected?.id === a.id ? "selected" : ""}
+              >
+                <img src={url(a.id)} alt="" />
+              </button>
+            ))}
+            {onAdd && (
+              <button
+                type="button"
+                aria-label="원본 사진 추가"
+                title={addTitle}
+                disabled={addDisabled}
+                onClick={onAdd}
+                className="photo-add grid place-items-center text-muted hover:bg-elevated hover:text-ink disabled:cursor-not-allowed disabled:opacity-35"
+              >
+                <Plus size={17} aria-hidden="true" />
+              </button>
+            )}
+          </div>
         </fieldset>
         <button
           type="button"

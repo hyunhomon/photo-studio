@@ -308,4 +308,5 @@ production desktop/mobile 전체 Mock E2E **4/4 통과**: 저장된 분석 재�
 
 - [x] 원본 썸네일 줄의 + 아이콘, 기획 이후에도 총 3장까지 추가. 작업 중 차단과 업로드 잠금, 기존 snapshot 보존 및 새 분석에 반영.
 - [x] 박스 없는 스피너와 제목 아래 텍스트 단계. 완료/진행 중 초록색, 칩/경과 시간 제거.
-- [ ] format/lint/typecheck/unit/build, local/production desktop/mobile Mock 흐름과 공개 smoke 검증 및 배포.
+- [x] format/lint/typecheck/test/build 통과(단위69/69, 타입 진단0), local desktop/mobile Mock 8/8. 분석 후 + 업로드/새 썸네일 선택·3장 제한·업로드 단독 AI 미실행·기존 기획 생성·새 분석 snapshot·타 계정/active 차단·잘못된 사진의 ready 복구·pending 경계/단계 색/경과 시간 제거 검증 및 캡처 점검.
+- [ ] production desktop/mobile Mock, 공개 smoke와 배포 후 합성 자료 정리 확인.

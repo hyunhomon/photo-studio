@@ -603,6 +603,20 @@ test("Mock: direct multi-photo upload, reference planning, compare, revise, expo
   await expect(
     page.getByRole("button", { name: "원본 사진 추가", exact: true }),
   ).toBeDisabled();
+  const originalFrame = page.getByRole("figure", {
+    name: "원본 사진",
+    exact: true,
+  });
+  const frameBounds = await originalFrame.boundingBox();
+  const zoomBounds = await originalFrame
+    .getByRole("button", { name: "비교 기준 사진 확대", exact: true })
+    .boundingBox();
+  if (!frameBounds || !zoomBounds)
+    throw new Error("Missing original gallery controls");
+  expect(zoomBounds.x).toBeGreaterThanOrEqual(frameBounds.x);
+  expect(zoomBounds.x + zoomBounds.width).toBeLessThanOrEqual(
+    frameBounds.x + frameBounds.width,
+  );
   expect(
     (await data<PipelineDto>(page, `/products/${productId}/pipeline`)).jobs,
   ).toHaveLength(2);
