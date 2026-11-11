@@ -53,3 +53,7 @@
 - https://developers.cloudflare.com/workflows/build/sleeping-and-retrying/ — 기본 재시도 대신 paid step limit=0 지정.
 - https://github.com/jamsinclair/jSquash/tree/main/examples/cloudflare-worker-esm-format — Workers 사전 컴파일 WASM 모듈 import.
 - https://github.com/orioncactus/pretendard / https://github.com/Freesentation/paperlogy — 자체 호스팅 폰트 및 포함된 OFL 라이선스.
+
+## 촬영 현실감 리서치 (2026-11-12)
+
+광학/초점은 Nikon 공식 촬영 가이드, 인물의 현실감 불일치는 Chattopadhyay/MacDorman의 원 연구, 소재 반응은 Cornell CT cloth 연구를 참고했다. AI 평가의 한계는 해당 연구의 시험 모델·시점 범위를 구분한다. 원문 링크·관찰과 추론·구현 범위·인간 승인 검증 루프는 `14-REALISM-RESEARCH.md`에 기록한다. 공식 `/images/models`의 현재 참조 최대 16장 및 `input_references` 계약도 확인했으며 실제 호출 전 capability 검사를 유지한다.
