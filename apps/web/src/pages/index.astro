@@ -3,6 +3,10 @@ import Layout from "../layouts/Layout.astro";
 import GarmentStudy from "../components/GarmentStudy.astro";
 import { BrandLockup, BrandMark } from "@photo-studio/ui";
 const isProduction = import.meta.env.PUBLIC_DEPLOYMENT_ENV === "production";
+const authStart = new URL(
+  "/auth/openrouter/start",
+  import.meta.env.PUBLIC_API_URL || "http://localhost:8787",
+).href;
 ---
 
 <Layout title="옷 한 장에서, 다음 시즌의 장면으로">
@@ -31,7 +35,7 @@ const isProduction = import.meta.env.PUBLIC_DEPLOYMENT_ENV === "production";
       <div>
         <p class="eyebrow mb-8 flex items-center gap-2 text-muted">
           <span class="size-1.5 bg-primary"></span> INDEPENDENT FASHION STUDIO /
-          INVITE BETA
+          OPEN STUDIO
         </p>
         <h1 class="text-[clamp(2.8rem,5.5vw,5rem)] leading-[1.18] font-semibold tracking-[-0.065em]">
           옷 한 장에서,
@@ -46,8 +50,8 @@ const isProduction = import.meta.env.PUBLIC_DEPLOYMENT_ENV === "production";
           스튜디오.
         </p>
         <div class="mt-9 flex flex-wrap items-center gap-5">
-          <a href="/studio" class="pill-link">
-            초대 베타 시작하기 <span aria-hidden="true">↗</span>
+          <a href={authStart} class="pill-link">
+            OpenRouter로 시작하기 <span aria-hidden="true">↗</span>
           </a>
           <span class="text-xs leading-6 text-muted">
             내 OpenRouter 계정으로.
@@ -169,6 +173,6 @@ const isProduction = import.meta.env.PUBLIC_DEPLOYMENT_ENV === "production";
   </main>
   <footer class="page-width mt-14 flex items-center justify-between gap-5 border-t border-line py-7 text-[10px] tracking-widest text-muted">
     <span>PHOTO STUDIO © 2026</span>
-    <span>{isProduction ? "INVITE BETA" : "LOCAL DEVELOPMENT"}</span>
+    <span>{isProduction ? "OPEN STUDIO" : "LOCAL DEVELOPMENT"}</span>
   </footer>
 </Layout>

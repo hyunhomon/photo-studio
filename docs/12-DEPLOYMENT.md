@@ -13,7 +13,7 @@ bun run test:production:e2e
 
 `deploy`는 먼저 format/lint/typecheck/unit/build를 실행한다. 배포 스크립트는 Wrangler 로그인 membership와 cloby.co의 소유 계정을 확인하고 최초 pin과 비교한다. account/zone/DB ID는 `.wrangler/production/`의 ignored 설정에만 저장한다. OAuth 관리 token은 메모리에서만 사용한다. 다른 계정·DNS·Worker 소유 도메인과 충돌하면 중단한다.
 
-기존 리소스와 private R2 설정을 확인한 뒤 additive D1 migrations를 적용한다. 최초에만 32-byte AES-GCM secret을 만들고 API Worker에 stdin으로 설정한다. 기존 secret을 덮어쓰지 않는다. 최초 제한된 beta invite는 해시만 DB에 넣으며 원문은 `.wrangler/production/beta-invite.txt`에 기록한다. 사용량 10계정/30일의 운영 bootstrap이다. 초대 코드 자체를 소스·채팅·로그에 복사하지 않는다.
+기존 리소스와 private R2 설정을 확인한 뒤 additive D1 migrations를 적용한다. 최초에만 32-byte AES-GCM secret을 만들고 API Worker에 stdin으로 설정한다. 기존 secret을 덮어쓰지 않는다. ADR-016에 따라 초대 bootstrap 및 초대 검증을 제거했다. 기존 초대 테이블/ignored 백업은 삭제하지 않지만 인증에 사용하지 않는다.
 
 production용 Astro를 다시 빌드해 공개 API URL을 같은 origin으로 지정하고 웹/API/Workflow를 게시한다. D1 읽기 probe와 Workflow/R2 설정, public health를 확인한다. DNS/TLS 반영이 늦다고 리소스를 다시 생성하거나 다른 DNS를 삭제하지 않는다.
 
@@ -43,7 +43,7 @@ UI만 변경할 때는 기존 production 설정을 준비한 머신에서 `bun r
 
 ## 확인 범위
 
-`test:production`은 public HTTPS·정확한 CORS·로그인 전 API 401·HTTP Mock 우회 404·초대 UI·자체 호스팅 글꼴·반응형 레이아웃을 확인한다.
+`test:production`은 public HTTPS·정확한 CORS·로그인 전 API 401·HTTP Mock 우회 404·초대 없는 직접 OAuth·오류 복구 UI·자체 호스팅 글꼴·반응형 레이아웃을 확인한다.
 
 `test:production:e2e`는 관리자 D1 권한으로 두 개의 임시 is_test 합성 계정과 별도 해시 세션을 준비한다. 일반 production 인증을 우회하는 HTTP API는 추가하지 않는다. 실제 private R2 업로드·durable Workflow의 Mock 분석/기획·수정·승인·생성/평가·채택·폐기·재생성·다운로드·집계·내보내기·삭제를 desktop/mobile에서 검증한다. 사용자 B의 A 상품/사진 접근 404도 확인한다. 마지막에 합성 계정과 사진을 삭제한다. OAuth start의 S256·callback origin·Secure/HttpOnly cookie와 browser-binding 거부는 확인하되 실제 외부 계정 로그인/키 교환 성공을 주장하지 않는다.
 

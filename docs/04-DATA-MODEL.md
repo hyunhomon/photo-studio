@@ -8,8 +8,9 @@
 | `provider_connections` | id, user_id, provider, external_user_id, key_ciphertext, iv, key_version, linked_at, revoked_at | user+provider unique, encrypted only |
 | `sessions` | id, user_id, token_hash, expires_at, created_at | token_hash unique, expiry index |
 | `oauth_flows` | id, state_hash, verifier_secret, browser_binding_hash, expires_at | single-use; TTL cleanup |
-| `invite_codes` | id, code_hash, max_uses, used_count, expires_at, created_at | plaintext code 저장 금지 |
-| `invite_redemptions` | id, invite_id, user_id, redeemed_at | 중복 사용 통제 |
+| `invite_codes` | id, code_hash, max_uses, used_count, expires_at, created_at | ADR-016 이후 사용하지 않는 과거 테이블; 기존 데이터 보존 |
+| `invite_redemptions` | id, invite_id, user_id, redeemed_at | ADR-016 이후 신규 기록 없음; 기존 이력 보존 |
+| `auth_events` | id, stage, code, http_status, created_at | 고정 오류 종류/단계만; 같은 분/종류 중복 합침, 7일 TTL, 식별자/키/원문 없음 |
 | `projects` | id, user_id, name, description, created_at, updated_at | user index |
 | `products` | id, project_id, name, category, analysis_json, analysis_version, created_at | project index; user through project |
 | `assets` | id, user_id, product_id, job_id, kind, r2_key, mime_type, size_bytes, width, height, checksum, created_at | private R2 key; unique r2_key |

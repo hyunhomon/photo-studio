@@ -1,13 +1,3 @@
 ---
-import Layout from "../layouts/Layout.astro";
-import Beta from "../components/Beta";
+return Astro.redirect("/studio", 308);
 ---
-
-<Layout title="스튜디오 연결">
-  <header class="page-width flex min-h-20 items-center border-b border-line">
-    <a href="/" class="font-editorial text-xl font-semibold">
-      photo studio
-    </a>
-  </header>
-  <Beta client:load />
-</Layout>

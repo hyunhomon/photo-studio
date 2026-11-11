@@ -98,3 +98,12 @@
 - Pretendard 본문, Paperlogy 주요 헤드라인을 유지한다. P/셔터를 결합한 독자적 벡터 심볼과 기울어진 워드마크를 사용하며, favicon 및 자체 완결 SVG lockup을 제공한다. Paperlogy outline은 기존 OFL 글꼴에서 추출한다.
 - Headless UI Dialog/Listbox와 semantic HTML·키보드 포커스를 유지한다. 테마 전환 없이 OS가 light여도 dark로 표시한다.
 - 사용자 테스트 중 API/Workflow를 재배포하지 않도록 `deploy:web`으로 검증된 production 웹 Worker만 게시한다. 계정·존·도메인 pin을 검사하고 API·DB·secret은 변경하지 않는다.
+
+## ADR-016: 초대 없는 직접 OAuth와 콜백 오류 복구 — Accepted (사용자 지정, 2026-11-11)
+- 신규/기존 사용자 모두 초대 코드 없이 연결한다. ADR-009의 클로즈드 초대 정책 및 ADR-011의 초대 전달/소모 부분만 대체한다. PKCE S256, state/browser binding, stable user_id, 서버 암호화, 별도 세션 결정은 유지한다.
+- 홈페이지 버튼과 로그인하지 않은 `/studio`는 `GET /auth/openrouter/start`에서 바로 OpenRouter로 303 이동한다. cross-site 시작을 거부하고 rate limit을 유지한다. 기존 POST는 정확한 Origin 검사 후 URL을 반환하는 호환 경로로 유지한다. `/beta` 입력 화면은 제거하며 과거 링크만 `/studio` 308 redirect로 보존한다.
+- 신규 user/connection은 D1 atomic batch로 저장한다. 동시 최초 로그인 충돌은 stable identity를 다시 조회해 DB 쓰기만 재시도하며 일회용 OAuth code를 다시 교환하지 않는다. 세션 저장 실패 시 재연결할 수 있다.
+- 콜백 실패를 state/암호 해제/교환/응답 검증/저장/세션 단계로 구분한다. UI는 고정된 오류별 안내와 재연결 버튼을 표시하며 자동 OAuth 반복을 막는다. provider의 raw 오류 메시지를 노출하거나 기록하지 않는다.
+- `auth_events`에는 고정 stage/code, HTTP status 또는 null, timestamp만 저장하고 동일 분/종류 중복은 합친다. 사용자/브라우저 식별자, code/state/verifier/key/원문 응답은 저장하지 않는다. cron에서 7일 후 삭제한다. 진단 저장 실패가 연결 복구를 막지 않게 한다.
+- 공식 OAuth 가이드와 OpenAPI의 nullable user_id 계약을 확인했다. stable ID 누락은 안전하게 실패하며 키 hash로 계정을 대체하지 않는다. 기존 오류는 상세 진단이 없어 원인을 확정할 수 없으며 실제 계정 성공은 사람의 재연결로 별도 검증한다.
+- 근거: https://openrouter.ai/docs/guides/overview/auth/oauth 및 https://openrouter.ai/openapi.json

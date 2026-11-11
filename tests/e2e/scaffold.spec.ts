@@ -55,7 +55,7 @@ test("Mock: connect, upload, plan, generate, review, export and delete", async (
   );
   if (productionOrigin) await page.goto("/studio");
   else {
-    await page.goto("/beta");
+    await page.goto("/studio");
     await page.getByRole("button", { name: "로컬 Mock 스튜디오 열기" }).click();
   }
   await expect(page.getByRole("heading", { level: 1 })).toContainText(
@@ -242,17 +242,45 @@ test("Mock: connect, upload, plan, generate, review, export and delete", async (
   await page
     .getByRole("button", { name: "계정 영구 삭제", exact: true })
     .click();
-  await expect(page).toHaveURL(/\/beta$/);
+  await expect(page).toHaveURL(/\/$/);
   expect(errors).toEqual([]);
   expect(unexpected).toEqual([]);
 });
 
-test("unauthenticated studio returns to connection screen", async ({
+test("unauthenticated studio starts OAuth directly with no invitation form", async ({
   page,
 }) => {
-  await page.goto("/studio");
-  await expect(page).toHaveURL(/\/beta$/);
-  await expect(
-    page.getByRole("button", { name: "OpenRouter로 연결" }),
-  ).toBeDisabled();
+  const legacy = await page.request.get("/beta", { maxRedirects: 0 });
+  expect(legacy.status()).toBe(308);
+  expect(
+    new URL(
+      legacy.headers().location ?? "/invalid",
+      page.url().startsWith("http")
+        ? page.url()
+        : process.env.PHOTO_STUDIO_PRODUCTION_ORIGIN || "http://localhost:4321",
+    ).pathname,
+  ).toBe("/studio");
+  if (process.env.PHOTO_STUDIO_PRODUCTION_ORIGIN) {
+    await page.route("https://openrouter.ai/auth?**", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "text/html",
+        body: "<h1>OpenRouter authorization destination</h1>",
+      }),
+    );
+    await page.goto("/studio");
+    await expect(page).toHaveURL(/^https:\/\/openrouter\.ai\/auth\?/);
+    expect(new URL(page.url()).searchParams.get("code_challenge_method")).toBe(
+      "S256",
+    );
+  } else {
+    await page.goto("/studio");
+    await expect(
+      page.getByRole("button", { name: "로컬 Mock 스튜디오 열기" }),
+    ).toBeVisible();
+    await expect(page.getByLabel("초대 코드")).toHaveCount(0);
+    await expect(
+      page.getByRole("link", { name: "OpenRouter로 연결" }),
+    ).toBeVisible();
+  }
 });

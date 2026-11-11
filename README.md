@@ -1,6 +1,6 @@
 # Photo Studio
 
-의류 사진 → 상품 분석 → 촬영 기획 수정·승인 → 이미지 생성 → 원본 비교·품질 검수 → 채택/폐기·재생성 → 다운로드를 연결하는 초대 기반 웹 MVP입니다.
+의류 사진 → 상품 분석 → 촬영 기획 수정·승인 → 이미지 생성 → 원본 비교·품질 검수 → 채택/폐기·재생성 → 다운로드를 연결하는 웹 MVP입니다. 초대 코드 없이 OpenRouter OAuth로 시작합니다.
 
 Astro + React Islands, Tailwind CSS v4, Headless UI로 직접 제작한 스튜디오 UI에 Pretendard와 Paperlogy를 자체 호스팅합니다. Hono API Worker, Drizzle/D1, private R2, Cloudflare Workflows를 사용합니다. 서비스 자체 결제·구독·크레딧, 팀·배치·모델 학습 기능은 없습니다.
 
@@ -15,7 +15,7 @@ bun run dev
 
 웹은 [localhost:4321](http://localhost:4321), API는 [localhost:8787/health](http://localhost:8787/health)입니다. API 개발 서버는 ignored `.dev.vars`의 암호화 키를 처음에 생성하고 로컬 D1 migrations를 적용합니다. 별도 OpenRouter 운영자 키나 원격 Cloudflare 로그인이 필요하지 않습니다.
 
-`/beta`에서 **로컬 Mock 스튜디오 열기** → 새 프로젝트 → 사진 1장 업로드 → 비용 안내 동의 후 분석 → 분석/콘셉트 수정·승인 → 별도 동의 후 생성 → 비교·검수·다운로드 순서로 실행합니다. Mock 분석·평가는 합성 fixture이고 Mock 생성 이미지는 원본 복사입니다. 외부 AI를 호출하지 않으며 실제 비용이나 품질을 측정한 결과가 아닙니다.
+`/studio`에서 **로컬 Mock 스튜디오 열기** → 새 프로젝트 → 사진 1장 업로드 → 비용 안내 동의 후 분석 → 분석/콘셉트 수정·승인 → 별도 동의 후 생성 → 비교·검수·다운로드 순서로 실행합니다. Mock 분석·평가는 합성 fixture이고 Mock 생성 이미지는 원본 복사입니다. 외부 AI를 호출하지 않으며 실제 비용이나 품질을 측정한 결과가 아닙니다.
 
 JPEG/PNG/WebP, 사진당 10MB·4MP·최대 변 4096px, 상품당 참조 3장을 지원합니다. 실제 디코딩 후 PNG로 정규화합니다. AI 입력용 정규화 사진 전체는 12MB 이하여야 합니다. 분석에 사용한 사진은 고정되며 교체하려면 새 상품으로 등록합니다.
 
@@ -24,11 +24,12 @@ JPEG/PNG/WebP, 사진당 10MB·4MP·최대 변 4096px, 상품당 참조 3장을 
 ```powershell
 bun run check
 bun run test:local
+bun run test:oauth
 bunx playwright install chromium
 bun run test:e2e
 ```
 
-`check`는 format/lint/typecheck/unit/build를 실행합니다. `test:local`은 격리된 workerd에서 D1/R2/Workflow binding을 확인합니다. `test:e2e`는 로컬 서버를 자동 실행하고 desktop/mobile에서 업로드부터 분석·생성·피드백·재생성·다운로드·내보내기·삭제까지 실제 Mock Workflow를 검증합니다. 유료 테스트는 자동 실행하지 않습니다.
+`check`는 format/lint/typecheck/unit/build를 실행합니다. `test:local`은 격리된 workerd에서 D1/R2/Workflow binding을 확인합니다. `test:oauth`는 별도 workerd/D1에서 초대 없는 OAuth 콜백·암호화·세션·재사용 거부를 fake provider로 확인합니다. `test:e2e`는 로컬 서버를 자동 실행하고 desktop/mobile에서 업로드부터 분석·생성·피드백·재생성·다운로드·내보내기·삭제까지 실제 Mock Workflow를 검증합니다. 유료 테스트는 자동 실행하지 않습니다.
 
 ## production
 
@@ -40,7 +41,7 @@ bun run test:production
 bun run test:production:e2e
 ```
 
-배포는 Cloudflare 로그인과 해당 존 권한이 필요합니다. 기존 D1/R2/Workflow를 재사용하고 additive migration, 최초 AES-GCM secret, 제한된 베타 초대를 준비합니다. 계정·존·DB 식별자, secret 백업, 초대 코드는 ignored `.wrangler/production/`에만 저장합니다. 자세한 복구·검증 방법은 [배포 가이드](docs/12-DEPLOYMENT.md)를 따릅니다.
+배포는 Cloudflare 로그인과 해당 존 권한이 필요합니다. 기존 D1/R2/Workflow를 재사용하고 additive migration과 최초 AES-GCM secret을 준비합니다. 초대를 생성하거나 검사하지 않습니다. 계정·존·DB 식별자와 secret 백업은 ignored `.wrangler/production/`에만 저장합니다. 자세한 복구·검증 방법은 [배포 가이드](docs/12-DEPLOYMENT.md)를 따릅니다.
 
 `test:production`은 읽기 전용 공개 UI/보안 설정 검사입니다. `test:production:e2e`는 관리자 권한으로 임시 **합성 Mock 계정**을 만든 뒤 배포된 D1/R2/Workflow와 브라우저 전체 흐름 및 다른 사용자 접근 차단을 확인하고 계정·사진을 삭제합니다. production HTTP 테스트 로그인 우회 경로는 없습니다. Cloudflare 인프라 사용량은 발생하지만 유료 AI를 호출하지 않습니다.
 

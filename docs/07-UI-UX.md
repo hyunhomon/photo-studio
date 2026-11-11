@@ -14,7 +14,7 @@
 | Route | 주요 구성 |
 |---|---|
 | `/` | 한 문장 가치 제안, 실제 사용 흐름, 베타 참여 CTA |
-| `/beta` | 초대 코드 입력, OpenRouter 사용 비용 안내 |
+| `/beta` | 과거 링크 호환용 `/studio` 308 redirect; 입력 화면 없음 |
 | `/studio` | 프로젝트 리스트, 최근 작업, 새 촬영 버튼 |
 | `/studio/projects/:id` | 제품/프리셋/결과물 목록 |
 | `/studio/products/:id` | 분석 → 기획 → 생성 → 검수의 메인 작업 화면 |

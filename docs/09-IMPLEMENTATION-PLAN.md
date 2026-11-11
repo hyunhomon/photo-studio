@@ -37,11 +37,11 @@ Phase 1은 초대 코드·PKCE S256/state/browser binding·서버 콜백·버전
 
 로컬 Phase 0은 추가 설정이 필요 없다. 원격 인증 검증 전에 사람이 Cloudflare 계정/D1/private R2/환경별 Workflow 이름과 실제 웹·API 도메인을 준비하고, 정확한 허용 origin/callback URL 및 서버 암호화 secret을 설정해야 한다. 현재 DB UUID는 로컬용 placeholder이다. 구체적인 위치와 준비 방법은 루트 README의 “Phase 1 준비”를 따른다. 실제 키/초대 코드를 채팅·소스·로그에 넣지 않는다.
 
-## Phase 1 — 초대/인증/보안
+## Phase 1 — 인증/보안 (초대 정책은 ADR-016으로 대체)
 
 > 배포 인프라 후속 요청(2026-11-10): `https://photo-studio.cloby.co`에 production 한 환경으로 Phase 0 Mock을 배포했다. D1/private R2/Workflow와 웹/API routes를 연결했으며, 기존 리소스를 재사용하는 재배포도 통과했다. `bun run deploy`의 format/lint/typecheck/unit/build 검증, unit 5 pass, local binding smoke, local E2E 4 pass, production desktop/mobile HTTPS·API·CORS·Dialog 검증을 통과했다. 실제 AI/고객 인증은 실행하지 않았다. 기존 Cloudflare Web Analytics beacon만 production 네트워크 검사에서 허용하며 존 설정은 변경하지 않았다. 세부 구성과 명령은 `docs/12-DEPLOYMENT.md` 참조. 아래 Phase 1 기능은 여전히 미구현이다.
 
-- [x] invite code 해시 검증·만료·사용량 제한.
+- [x] 과거 invite 검증 구현; ADR-016에서 신규/재로그인 모두 초대 없이 직접 OAuth로 변경.
 - [x] OpenRouter OAuth start/callback + PKCE S256 + state/browser binding.
 - [x] API Key AES-GCM 암호화 저장·사용, user_id 매핑, session/logout.
 - [x] 사용자별 권한 미들웨어, CORS/cookie/CSRF 테스트.
@@ -110,7 +110,7 @@ Phase 5 구현(2026-11-11): 내 사용자별 비용 부분합/미확인 수·단
 ## 최종 릴리스 체크
 
 - [x] 웹/API/Workflow production 배포, 실제 HTTPS UI와 D1/private R2 검증.
-- [x] 초대 코드 베타 보호 (운영 invalid invite 403, 사용량/TTL은 단위 검증).
+- [x] 초대 없는 공개 연결 + PKCE/browser binding/Origin/rate limit 보호(ADR-016).
 - [x] OAuth PKCE/state/browser binding와 암호화 키 저장 구현 (실제 OAuth 계정 교환은 미검증).
 - [x] 사진 1장 → 분석/기획 → 수정·승인 → 생성/평가 → 검수 → 다운로드 → 삭제, local/production Mock 전체 흐름.
 - [x] 스튜디오/가상 로케이션 촬영 모드, 승인된 콘셉트 snapshot.
@@ -140,3 +140,11 @@ Phase 5 구현(2026-11-11): 내 사용자별 비용 부분합/미확인 수·단
 - 본문/보조 텍스트·primary/상태 대비 및 입력 경계 대비를 계산·확인했다. 사진 원본/결과에는 색상 필터를 적용하지 않았다.
 - 웹 코드 88b1e05를 검증된 production 웹 Worker에만 게시했다. API/Workflow 재배포·D1 migration·secret 변경·유료 AI 호출 없음. 공개 UI/폰트/반응형 검사와 SVG 3종 HTTP 200, 합성 계정/사진 정리까지 확인했다.
 - 유료 OpenRouter 및 실제 고객 품질 검증 항목은 앞서 기록한 상태를 유지한다.
+
+### 초대 없는 OAuth 및 콜백 복구 — 2026-11-11
+
+- ADR-016: 초대 입력/검증/bootstrap 제거. 홈페이지/로그인 전 studio에서 바로 GET OAuth 시작, `/beta`는 기존 링크 호환 redirect만 유지한다. PKCE S256·browser binding·단일 사용·CSRF·서버 암호화·stable identity를 유지한다.
+- 최초 user/connection atomic 저장, 동시 최초 로그인 DB 충돌 복구, 세션 실패 후 재연결을 검증했다. 교환/응답/식별/저장/세션 오류를 구분하고 오류 복구 UI에서 자동 OAuth 반복을 막는다. 식별자/키/원문 없는 auth_events는 7일 후 정리한다.
+- format/lint/typecheck/unit/build 전체 통과: **29 pass / 0 fail**, Astro 진단 0 errors/warnings/hints. local desktop/mobile Mock E2E **4 pass**.
+- `test:oauth`: 격리된 실제 workerd/D1에서 verifier 복호화→fake provider 교환→암호화 연결/세션→state 재사용 거부→연결 해제 통과. 유료/실제 provider 성공을 의미하지 않는다.
+- production 배포 및 검증 결과는 후속 기록으로 남긴다. 이전 generic 콜백 오류는 상세 진단이 없어 원인을 확정하지 않았으며 실제 계정 재연결 성공을 별도 확인해야 한다.

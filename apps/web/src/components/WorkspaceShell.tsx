@@ -9,6 +9,7 @@ import {
 import type { ReactNode } from "react";
 import type { Me } from "../lib/api";
 import { BrandLockup } from "@photo-studio/ui";
+import ConnectionPanel from "./ConnectionPanel";
 
 export default function WorkspaceShell({
   children,
@@ -128,13 +129,7 @@ export default function WorkspaceShell({
               {error}
             </p>
           )}
-          {!me ? (
-            <p role="status" className="py-20 text-sm text-muted">
-              스튜디오를 불러오고 있습니다…
-            </p>
-          ) : (
-            children
-          )}
+          {!me ? <ConnectionPanel /> : children}
         </main>
       </div>
     </div>

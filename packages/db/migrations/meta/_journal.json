@@ -57,6 +57,13 @@
       "when": 1794375913805,
       "tag": "0007_old_red_ghost",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1794377870880,
+      "tag": "0008_colossal_brother_voodoo",
+      "breakpoints": true
     }
   ]
 }

@@ -85,6 +85,15 @@ export const rateLimits = sqliteTable("rate_limits", {
   hits: integer("hits").notNull(),
   expiresAt: integer("expires_at").notNull(),
 });
+// Only fixed failure categories and HTTP status; never codes, keys, identity,
+// browser state, provider messages or request URLs.
+export const authEvents = sqliteTable("auth_events", {
+  id: text("id").primaryKey(),
+  stage: text("stage").notNull(),
+  code: text("code").notNull(),
+  httpStatus: integer("http_status"),
+  createdAt: integer("created_at").notNull(),
+});
 
 export const projects = sqliteTable(
   "projects",

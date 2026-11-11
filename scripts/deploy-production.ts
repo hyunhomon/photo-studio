@@ -336,45 +336,8 @@ if (
     { input: secret, privateOutput: true },
   );
 }
-const activeInvites = await api<{ results: { n: number }[] }[]>(
-  `${accountPath}/d1/database/${database.uuid}/query`,
-  {
-    method: "POST",
-    body: JSON.stringify({
-      sql: "SELECT count(*) n FROM invite_codes WHERE expires_at>? AND used_count<max_uses",
-      params: [Date.now()],
-    }),
-  },
-);
-if (activeInvites[0]?.results[0]?.n === 0) {
-  const invite = `PS-${btoa(
-    String.fromCharCode(...crypto.getRandomValues(new Uint8Array(24))),
-  )
-    .replaceAll("+", "-")
-    .replaceAll("/", "_")
-    .replaceAll("=", "")}`;
-  const inviteHash = Array.from(
-    new Uint8Array(
-      await crypto.subtle.digest("SHA-256", new TextEncoder().encode(invite)),
-    ),
-    (byte) => byte.toString(16).padStart(2, "0"),
-  ).join("");
-  await api(`${accountPath}/d1/database/${database.uuid}/query`, {
-    method: "POST",
-    body: JSON.stringify({
-      sql: "INSERT INTO invite_codes (id,code_hash,max_uses,used_count,expires_at,created_at) VALUES (?,?,10,0,?,?)",
-      params: [
-        crypto.randomUUID(),
-        inviteHash,
-        Date.now() + 30 * 86400000,
-        Date.now(),
-      ],
-    }),
-  });
-  await writeFile(resolve(stateDir, "beta-invite.txt"), invite);
-}
 console.info(
-  "Production migrations and encryption secret ready. Beta invitation is stored privately under .wrangler/production/.",
+  "Production migrations and encryption secret ready. OpenRouter signup requires no invite.",
 );
 
 // Build first, then publish the web origin and API routes. Never use --env:

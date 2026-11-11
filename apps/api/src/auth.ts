@@ -6,7 +6,7 @@ import {
   createDb,
   eq,
   gt,
-  invites,
+  authEvents,
   sessions,
   users,
 } from "@photo-studio/db";
@@ -14,6 +14,7 @@ import { z } from "zod";
 import type { AppContext, Env, Identity } from "./env";
 import { challenge, decrypt, encrypt, hash, randomToken } from "./crypto";
 import { AppError } from "./errors";
+import { OAuthError } from "./auth-errors";
 
 type C = Context<AppContext>;
 const week = 7 * 24 * 60 * 60;
@@ -142,30 +143,83 @@ export async function issueSession(c: C, userId: string) {
 }
 export interface AuthDeps {
   exchange?: (code: string, verifier: string, env: Env) => Promise<unknown>;
+  transport?: typeof fetch;
 }
 const exchangeSchema = z.object({
-  key: z.string().min(1).max(1000),
-  user_id: z.string().min(1).max(200),
+  key: z.string().trim().min(1).max(1000),
+  user_id: z.string().trim().min(1).max(200),
 });
-export async function exchangeCode(code: string, verifier: string, env: Env) {
-  const response = await fetch(`${env.OPENROUTER_BASE_URL}/auth/keys`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      code,
-      code_verifier: verifier,
-      code_challenge_method: "S256",
-    }),
-    signal: AbortSignal.timeout(15000),
-    redirect: "error",
-  });
-  if (!response.ok)
-    throw new AppError(
-      "OAUTH_CONNECT_FAILED",
-      "OpenRouter 연결을 완료하지 못했습니다.",
-      502,
+export async function exchangeCode(
+  code: string,
+  verifier: string,
+  env: Env,
+  transport: typeof fetch = fetch,
+) {
+  const signal = AbortSignal.timeout(30000);
+  let response: Response;
+  try {
+    response = await transport(`${env.OPENROUTER_BASE_URL}/auth/keys`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "HTTP-Referer": webOrigin(env),
+        "X-OpenRouter-Title": "Photo Studio",
+      },
+      body: JSON.stringify({
+        code,
+        code_verifier: verifier,
+        code_challenge_method: "S256",
+      }),
+      signal,
+      redirect: "error",
+    });
+  } catch {
+    throw new OAuthError(
+      signal.aborted ? "OAUTH_PROVIDER_TIMEOUT" : "OAUTH_PROVIDER_UNAVAILABLE",
     );
-  return response.json();
+  }
+  if (!response.ok)
+    throw new OAuthError(
+      response.status === 429
+        ? "OAUTH_PROVIDER_RATE_LIMITED"
+        : [400, 401, 403, 410].includes(response.status)
+          ? "OAUTH_CODE_REJECTED"
+          : "OAUTH_PROVIDER_UNAVAILABLE",
+      response.status,
+    );
+  try {
+    return await response.json();
+  } catch {
+    throw new OAuthError(
+      signal.aborted
+        ? "OAUTH_PROVIDER_TIMEOUT"
+        : "OAUTH_PROVIDER_RESPONSE_INVALID",
+      response.status,
+    );
+  }
+}
+async function authFailure(
+  env: Env,
+  stage: string,
+  code: string,
+  httpStatus: number | null = null,
+) {
+  try {
+    await createDb(env.DB)
+      .insert(authEvents)
+      .values({
+        id: await hash(
+          `${Math.floor(Date.now() / 60000)}:${stage}:${code}:${httpStatus}`,
+        ),
+        stage,
+        code,
+        httpStatus,
+        createdAt: Date.now(),
+      })
+      .onConflictDoNothing();
+  } catch {
+    /* Diagnostic storage must never expose secrets or block recovery. */
+  }
 }
 export function authRoutes(deps: AuthDeps = {}) {
   const auth = new Hono<AppContext>();
@@ -174,41 +228,32 @@ export function authRoutes(deps: AuthDeps = {}) {
     c.header("Referrer-Policy", "no-referrer");
     await next();
   });
-  auth.post("/openrouter/start", async (c) => {
-    requireOrigin(c);
+  const errorUrl = (c: C, code: string) =>
+    `${webOrigin(c.env)}/studio?auth_error=${code}`;
+  async function start(c: C) {
+    if (c.req.method === "POST") requireOrigin(c);
+    else if (c.req.header("Sec-Fetch-Site") === "cross-site")
+      throw new AppError(
+        "FORBIDDEN",
+        "스튜디오 홈페이지에서 연결을 시작해 주세요.",
+        403,
+      );
+    const identity = await getIdentity(c);
+    if (identity && c.req.method === "GET" && c.req.query("reconnect") !== "1")
+      return c.redirect(`${webOrigin(c.env)}/studio`, 303);
     await rateLimit(c, "oauth-start", 10);
-    const body = z
-      .object({ invite: z.string().trim().max(200).optional() })
-      .parse(await c.req.json());
-    let inviteId: string | null = null;
-    if (body.invite) {
-      const row = await createDb(c.env.DB)
-        .select()
-        .from(invites)
-        .where(eq(invites.codeHash, await hash(body.invite)))
-        .get();
-      if (!row || row.expiresAt <= Date.now() || row.usedCount >= row.maxUses)
-        throw new AppError(
-          "INVITE_REQUIRED",
-          "초대 코드가 유효하지 않거나 사용 기간이 지났습니다.",
-          403,
-        );
-      inviteId = row.id;
-    }
     const id = crypto.randomUUID(),
       state = randomToken(),
       browser = randomToken(),
       verifier = randomToken(48);
-    const identity = await getIdentity(c);
     await c.env.DB.prepare(
-      "INSERT INTO oauth_flows (id,state_hash,browser_hash,verifier_envelope,invite_id,initiating_user_id,expires_at) VALUES (?,?,?,?,?,?,?)",
+      "INSERT INTO oauth_flows(id,state_hash,browser_hash,verifier_envelope,invite_id,initiating_user_id,expires_at) VALUES(?,?,?,?,NULL,?,?)",
     )
       .bind(
         id,
         await hash(state),
         await hash(browser),
         await encrypt(verifier, `oauth:${id}`, c.env),
-        inviteId,
         identity?.userId ?? null,
         Date.now() + 600000,
       )
@@ -222,94 +267,164 @@ export function authRoutes(deps: AuthDeps = {}) {
       state,
       key_label: "Photo Studio",
     }).toString();
-    return c.json({ data: { url: url.toString() } });
+    return c.req.method === "GET"
+      ? c.redirect(url.toString(), 303)
+      : c.json({ data: { url: url.toString() } });
+  }
+  auth.get("/openrouter/start", async (c) => {
+    try {
+      return await start(c);
+    } catch (error) {
+      const code =
+        error instanceof AppError && error.code === "RATE_LIMITED"
+          ? "OAUTH_PROVIDER_RATE_LIMITED"
+          : error instanceof AppError && error.code === "SERVER_CONFIGURATION"
+            ? "OAUTH_SERVER_CONFIGURATION"
+            : "OAUTH_CONNECT_FAILED";
+      await authFailure(c.env, "start", code);
+      return c.redirect(errorUrl(c, code), 303);
+    }
   });
+  auth.post("/openrouter/start", start);
   auth.get("/openrouter/callback", async (c) => {
-    const fail = (code: string) =>
-      c.redirect(`${webOrigin(c.env)}/beta?error=${code}`, 303);
+    let stage = "state";
+    const fail = async (code: string, status: number | null = null) => {
+      await authFailure(c.env, stage, code, status);
+      return c.redirect(errorUrl(c, code), 303);
+    };
     const state = c.req.query("state"),
       code = c.req.query("code"),
       browser = getCookie(c, flowName(c.env));
     deleteCookie(c, flowName(c.env), { path: "/", secure: production(c.env) });
+    if (c.req.query("error")) return fail("OAUTH_CANCELLED");
     if (!state || state.length > 100 || !code || code.length > 2000 || !browser)
       return fail("OAUTH_STATE_INVALID");
-    const flow = await c.env.DB.prepare(
-      "DELETE FROM oauth_flows WHERE state_hash=? AND browser_hash=? AND expires_at>? RETURNING *",
-    )
-      .bind(await hash(state), await hash(browser), Date.now())
-      .first<{
-        id: string;
-        verifier_envelope: string;
-        invite_id: string | null;
-        initiating_user_id: string | null;
-      }>();
-    if (!flow) return fail("OAUTH_STATE_INVALID");
     try {
-      const raw = await (deps.exchange ?? exchangeCode)(
-        code,
-        await decrypt(flow.verifier_envelope, `oauth:${flow.id}`, c.env),
+      const flow = await c.env.DB.prepare(
+        "DELETE FROM oauth_flows WHERE state_hash=? AND browser_hash=? AND expires_at>? RETURNING *",
+      )
+        .bind(await hash(state), await hash(browser), Date.now())
+        .first<{
+          id: string;
+          verifier_envelope: string;
+          initiating_user_id: string | null;
+        }>();
+      if (!flow) return fail("OAUTH_STATE_INVALID");
+      stage = "decrypt";
+      const verifier = await decrypt(
+        flow.verifier_envelope,
+        `oauth:${flow.id}`,
         c.env,
       );
+      stage = "exchange";
+      const raw = await (deps.exchange
+        ? deps.exchange(code, verifier, c.env)
+        : exchangeCode(code, verifier, c.env, deps.transport));
+      stage = "validate";
+      if (
+        !z.object({ key: z.string().min(1).max(1000) }).safeParse(raw).success
+      )
+        return fail("OAUTH_PROVIDER_RESPONSE_INVALID");
       const parsed = exchangeSchema.safeParse(raw);
       if (!parsed.success) return fail("OAUTH_IDENTITY_UNAVAILABLE");
-      const provider = parsed.data;
-      const db = createDb(c.env.DB);
-      let user = await db
-        .select()
-        .from(users)
-        .where(eq(users.externalId, provider.user_id))
-        .get();
-      if (flow.initiating_user_id && user?.id !== flow.initiating_user_id)
-        return fail("OAUTH_ACCOUNT_MISMATCH");
-      const userId = user?.id ?? crypto.randomUUID();
-      if (user && user.status !== "active") return fail("ACCOUNT_DELETING");
-      const envelope = await encrypt(provider.key, `provider:${userId}`, c.env);
-      const now = Date.now();
-      if (!user) {
-        if (!flow.invite_id) return fail("INVITE_REQUIRED");
-        // D1 batch is atomic: the invite limit is checked inside the same
-        // transaction as user creation, connection and redemption.
-        await c.env.DB.batch([
-          c.env.DB.prepare(
-            "INSERT INTO users (id,openrouter_user_id,is_test,created_at,last_login_at) SELECT ?,?,0,?,? WHERE EXISTS (SELECT 1 FROM invite_codes WHERE id=? AND expires_at>? AND used_count<max_uses)",
-          ).bind(userId, provider.user_id, now, now, flow.invite_id, now),
-          c.env.DB.prepare(
-            "INSERT INTO provider_connections (id,user_id,provider,key_envelope,linked_at) SELECT ?,id,'openrouter',?,? FROM users WHERE id=?",
-          ).bind(crypto.randomUUID(), envelope, now, userId),
-          c.env.DB.prepare(
-            "UPDATE invite_codes SET used_count=used_count+1 WHERE id=? AND EXISTS (SELECT 1 FROM users WHERE id=?)",
-          ).bind(flow.invite_id, userId),
-          c.env.DB.prepare(
-            "INSERT INTO invite_redemptions (id,invite_id,user_id,redeemed_at) SELECT ?,?,id,? FROM users WHERE id=?",
-          ).bind(crypto.randomUUID(), flow.invite_id, now, userId),
-        ]);
-        user = await db.select().from(users).where(eq(users.id, userId)).get();
-        if (!user) return fail("INVITE_REQUIRED");
-      } else {
-        await db
-          .insert(connections)
-          .values({
-            id: crypto.randomUUID(),
-            userId,
-            provider: "openrouter",
-            keyEnvelope: envelope,
-            linkedAt: now,
-          })
-          .onConflictDoUpdate({
-            target: [connections.userId, connections.provider],
-            set: { keyEnvelope: envelope, linkedAt: now, revokedAt: null },
-          });
-        await db
-          .update(users)
-          .set({ lastLoginAt: now })
-          .where(eq(users.id, userId));
+      const provider = parsed.data,
+        db = createDb(c.env.DB);
+      // Only database writes may retry a race. Never exchange a one-use code twice.
+      for (let attempt = 0; attempt < 2; attempt++) {
+        stage = "persist";
+        const user = await db
+          .select()
+          .from(users)
+          .where(eq(users.externalId, provider.user_id))
+          .get();
+        if (
+          (flow.initiating_user_id && user?.id !== flow.initiating_user_id) ||
+          user?.isTest
+        )
+          return fail("OAUTH_ACCOUNT_MISMATCH");
+        if (user && user.status !== "active") return fail("ACCOUNT_DELETING");
+        const userId = user?.id ?? crypto.randomUUID(),
+          now = Date.now();
+        stage = "encrypt";
+        const envelope = await encrypt(
+          provider.key,
+          `provider:${userId}`,
+          c.env,
+        );
+        stage = "persist";
+        try {
+          if (!user) {
+            await c.env.DB.batch([
+              c.env.DB.prepare(
+                "INSERT INTO users(id,openrouter_user_id,is_test,created_at,last_login_at) VALUES(?,?,0,?,?)",
+              ).bind(userId, provider.user_id, now, now),
+              c.env.DB.prepare(
+                "INSERT INTO provider_connections(id,user_id,provider,key_envelope,linked_at) VALUES(?,?,'openrouter',?,?)",
+              ).bind(crypto.randomUUID(), userId, envelope, now),
+            ]);
+          } else {
+            await db.batch([
+              db
+                .insert(connections)
+                .values({
+                  id: crypto.randomUUID(),
+                  userId,
+                  provider: "openrouter",
+                  keyEnvelope: envelope,
+                  linkedAt: now,
+                })
+                .onConflictDoUpdate({
+                  target: [connections.userId, connections.provider],
+                  set: {
+                    keyEnvelope: envelope,
+                    linkedAt: now,
+                    revokedAt: null,
+                  },
+                }),
+              db
+                .update(users)
+                .set({ lastLoginAt: now })
+                .where(and(eq(users.id, userId), eq(users.status, "active"))),
+            ]);
+          }
+        } catch (error) {
+          if (
+            attempt === 0 &&
+            !user &&
+            (await db
+              .select({ id: users.id })
+              .from(users)
+              .where(eq(users.externalId, provider.user_id))
+              .get())
+          )
+            continue;
+          throw error;
+        }
+        stage = "session";
+        await issueSession(c, userId);
+        return c.redirect(`${webOrigin(c.env)}/studio`, 303);
       }
-      await issueSession(c, userId);
-      return c.redirect(`${webOrigin(c.env)}/studio`, 303);
-    } catch {
-      return fail("OAUTH_CONNECT_FAILED");
+      return fail("OAUTH_STORAGE_FAILED");
+    } catch (error) {
+      const errorCode =
+        error instanceof OAuthError
+          ? error.code
+          : error instanceof AppError && error.code === "SERVER_CONFIGURATION"
+            ? "OAUTH_SERVER_CONFIGURATION"
+            : stage === "decrypt"
+              ? "OAUTH_CREDENTIAL_ERROR"
+              : stage === "session"
+                ? "OAUTH_SESSION_FAILED"
+                : ["persist", "state"].includes(stage)
+                  ? "OAUTH_STORAGE_FAILED"
+                  : "OAUTH_CONNECT_FAILED";
+      return fail(
+        errorCode,
+        error instanceof OAuthError ? error.httpStatus : null,
+      );
     }
   });
+
   auth.post("/demo", async (c) => {
     if (!demoAllowed(c.env))
       throw new AppError("NOT_FOUND", "요청한 기능을 찾을 수 없습니다.", 404);
@@ -397,6 +512,9 @@ export function authRoutes(deps: AuthDeps = {}) {
 }
 export async function cleanupIdentity(env: Env) {
   await env.DB.batch([
+    env.DB.prepare("DELETE FROM auth_events WHERE created_at<?").bind(
+      Date.now() - 7 * 86400000,
+    ),
     env.DB.prepare("DELETE FROM oauth_flows WHERE expires_at<?").bind(
       Date.now(),
     ),

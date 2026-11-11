@@ -20,4 +20,4 @@ Photo Studio 프로젝트 개발을 시작해 줘.
 
 ## 다음 요청 예시 (Phase 0 완료 후)
 
-"`docs/09-IMPLEMENTATION-PLAN.md`의 Phase 1을 구현해. 현재 앱/DB 스키마와 문서 계약을 따르고 OAuth PKCE S256, 서버 키 암호화, 초대 코드, 세션/로그아웃, 보안 테스트까지 완료해. 실제 외부 API Key를 채팅이나 코드에 적지 마."
+"`docs/09-IMPLEMENTATION-PLAN.md`의 Phase 1을 구현해. 현재 앱/DB 스키마와 문서 계약을 따르고 OAuth PKCE S256, 서버 키 암호화, 초대 없는 직접 연결(ADR-016), 세션/로그아웃, 보안 테스트까지 완료해. 실제 외부 API Key를 채팅이나 코드에 적지 마."

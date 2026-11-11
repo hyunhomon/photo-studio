@@ -31,11 +31,7 @@ describe("API scaffold", () => {
     }
   });
   test("protects private routes and has no public test backdoor", async () => {
-    for (const path of [
-      "/api/v1/projects",
-      "/auth/openrouter/start",
-      "/__test/bindings",
-    ]) {
+    for (const path of ["/api/v1/projects", "/__test/bindings"]) {
       const response = await app.request(path, {}, env);
       expect(response.status).toBe(path.startsWith("/api/v1/") ? 401 : 404);
       expect(await response.json()).toMatchObject({

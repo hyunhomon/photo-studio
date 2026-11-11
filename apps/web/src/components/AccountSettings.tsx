@@ -3,6 +3,7 @@ import { Button, Modal } from "@photo-studio/ui";
 import { ArrowLeft, ShieldCheck, ExternalLink } from "lucide-react";
 import { useAccount } from "../lib/account";
 import { apiBase, errorMessage, request } from "../lib/api";
+import ConnectionPanel from "./ConnectionPanel";
 
 export default function AccountSettings() {
   const { me, error, setError } = useAccount();
@@ -20,7 +21,7 @@ export default function AccountSettings() {
         { method: "DELETE", body: JSON.stringify({ confirm: "DELETE" }) },
         me.csrf,
       );
-      location.assign("/beta");
+      location.assign("/");
     } catch (e) {
       setError(errorMessage(e));
       setBusy(false);
@@ -47,7 +48,7 @@ export default function AccountSettings() {
     setBusy(true);
     try {
       await request(path, { method: "POST" }, me.csrf);
-      location.assign("/beta");
+      location.assign("/");
     } catch (e) {
       setError(errorMessage(e));
       setBusy(false);
@@ -70,9 +71,7 @@ export default function AccountSettings() {
         </p>
       )}
       {!me ? (
-        <p role="status" className="py-12 text-muted">
-          계정 연결을 확인하고 있습니다…
-        </p>
+        <ConnectionPanel />
       ) : (
         <>
           <section className="mt-8 rounded-panel border border-line bg-surface p-7">
@@ -102,6 +101,14 @@ export default function AccountSettings() {
               <Button variant="secondary" onClick={() => void inspect()}>
                 연결 상태 확인
               </Button>
+              {me.mode !== "mock" && (
+                <a
+                  className="pill-link"
+                  href={`${apiBase}/auth/openrouter/start?reconnect=1`}
+                >
+                  OpenRouter 다시 연결
+                </a>
+              )}
               <Button variant="secondary" onClick={() => setDisconnect(true)}>
                 연결 해제
               </Button>

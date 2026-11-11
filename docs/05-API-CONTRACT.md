@@ -5,7 +5,8 @@ Base path: `/api/v1` (auth callback routes are `/auth/*`). JSON envelope: `{ dat
 | Method | Path | 목적 | 권한 |
 |---|---|---|---|
 | GET | `/health` | ready/liveness | public |
-| GET | `/auth/openrouter/start?invite=...` | PKCE/CSRF 상태 생성 후 OpenRouter로 redirect | invite gate |
+| GET | `/auth/openrouter/start` | PKCE/state/browser binding 생성 후 OpenRouter로 303 redirect; 활성 세션은 studio로 이동, `reconnect=1`은 재연결 | public, rate limit |
+| POST | `/auth/openrouter/start` | 기존 API 호환용 authorize URL JSON, 초대 값은 사용하지 않음 | explicit Origin, rate limit |
 | GET | `/auth/openrouter/callback` | code+state 교환 후 내부 세션 쿠키 발급 | OAuth callback |
 | POST | `/auth/logout` | 세션 종료 | session |
 | GET | `/api/v1/me` | 사용자/연결 상태 | session |

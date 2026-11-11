@@ -110,21 +110,14 @@ try {
       ],
     );
   }
-  const invalid = await fetch(`${origin}/auth/openrouter/start`, {
-    method: "POST",
-    headers: { Origin: origin, "Content-Type": "application/json" },
-    body: JSON.stringify({ invite: "synthetic-invalid-invite" }),
-  });
-  if (invalid.status !== 403) throw new Error("Invite protection failed");
   const start = await fetch(`${origin}/auth/openrouter/start`, {
-    method: "POST",
-    headers: { Origin: origin, "Content-Type": "application/json" },
-    body: "{}",
+    redirect: "manual",
   });
-  const body = (await start.json()) as { data: { url: string } };
-  const authorize = new URL(body.data.url);
+  const authorize = new URL(
+    start.headers.get("location") ?? "https://invalid.invalid",
+  );
   if (
-    start.status !== 200 ||
+    start.status !== 303 ||
     authorize.origin !== "https://openrouter.ai" ||
     authorize.searchParams.get("code_challenge_method") !== "S256" ||
     authorize.searchParams.get("callback_url") !==

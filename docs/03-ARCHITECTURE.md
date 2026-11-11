@@ -9,7 +9,7 @@ Browser
   └─ API requests (credentials included)
         ↓
 Hono API Worker [Cloudflare]
-  ├─ invite gate / OAuth callback / session / authz
+  ├─ direct OAuth / callback / session / authz
   ├─ project/product/shoot plan REST routes
   ├─ R2 upload/download broker
   ├─ D1 via Drizzle

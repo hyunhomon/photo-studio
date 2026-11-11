@@ -71,3 +71,7 @@ D1 공식 limits의 Free 50 queries/invocation 및 query당 100 bound parameters
 ## 2026-11-11 — 다크 네온 UI refine
 
 사용자 첨부 레퍼런스에 따라 다크 전용·형광 초록 primary(#00F59B)로 전환했다(ADR-015). 기존 Headless UI Dialog/Listbox와 Pretendard/Paperlogy, 비용 동의·인증·작업 로직을 유지한다. 모든 상태/포커스 색상을 semantic token으로 옮기고 자체 P/셔터 심볼·기울어진 워드마크·SVG outline 및 favicon을 추가했다. 고객 사진에는 반전/색 필터를 적용하지 않는다. 주요 텍스트 대비 6.74:1 이상, primary 버튼 텍스트 13.08:1, 입력 경계 3.27:1을 확인했다. OS light에서도 dark 유지, Dialog ESC/포커스 복귀 및 desktop/mobile 전체 Mock E2E 4개 통과. 사용자 실제 테스트를 보호하기 위해 웹 Worker만 배포하는 명령을 추가했다.
+
+## 2026-11-11 — 직접 OAuth 및 연결 오류 진단
+
+사용자 지시로 초대 정책을 제거하고 ADR-016을 추가했다. beta 화면은 없애고 과거 링크만 studio redirect로 보존한다. 최초 계정/키 저장은 atomic batch, 동시 최초 연결은 DB 쓰기만 복구하며 OAuth code 교환은 재시도하지 않는다. 신규 `auth_events`는 고정 오류 종류/단계/HTTP status만 최대 7일 보관하며 민감정보를 담지 않는다. 기존 generic 오류 당시 실사용자/연결/세션은 저장되지 않았지만 이전 상세 진단이 없어 정확한 실패 단계는 확정할 수 없다. 실제 OAuth 재연결 성공은 Mock 테스트와 구분해 검증한다. user_id 누락 시 계정 혼동 방지 정책은 유지한다.

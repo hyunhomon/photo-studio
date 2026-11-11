@@ -21,6 +21,12 @@ for (const requestOrigin of [origin, "https://untrusted.invalid"]) {
   assert.equal(body.data.aiMode, "openrouter");
 }
 assert.equal((await fetch(`${origin}/api/v1/projects`)).status, 401);
+const legacy = await fetch(`${origin}/beta`, { redirect: "manual" });
+assert.equal(legacy.status, 308);
+assert.equal(
+  new URL(legacy.headers.get("location") ?? "/invalid", origin).pathname,
+  "/studio",
+);
 assert.equal(
   (
     await fetch(`${origin}/auth/demo`, {
@@ -49,14 +55,6 @@ try {
       path: `${output}/landing-${viewport.width}.png`,
       fullPage: true,
     });
-    await page.getByRole("link", { name: "초대 베타 시작하기" }).click();
-    await expect(page).toHaveURL(/\/beta$/);
-    await expect(
-      page.getByRole("button", { name: "로컬 Mock 스튜디오 열기" }),
-    ).toHaveCount(0);
-    await expect(
-      page.getByRole("button", { name: "OpenRouter로 연결" }),
-    ).toBeDisabled();
     await page.evaluate(() => document.fonts.ready);
     assert.equal(
       await page.evaluate(() =>
@@ -77,15 +75,35 @@ try {
       true,
     );
     assert.deepEqual(errors, []);
-    await page.screenshot({
-      path: `${output}/beta-${viewport.width}.png`,
-      fullPage: true,
-    });
+    await page.route("https://openrouter.ai/auth?**", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "text/html",
+        body: "<h1>OpenRouter OAuth destination</h1>",
+      }),
+    );
+    await page.getByRole("link", { name: "OpenRouter로 시작하기" }).click();
+    await expect(page).toHaveURL(/^https:\/\/openrouter\.ai\/auth\?/);
+    assert.equal(
+      new URL(page.url()).searchParams.get("code_challenge_method"),
+      "S256",
+    );
+    await page.goto(`${origin}/studio?auth_error=OAUTH_CODE_REJECTED`);
+    await expect(page.getByRole("alert")).toContainText(
+      "인증 코드를 확인하지 못했습니다",
+    );
+    await expect(
+      page.getByRole("link", { name: "OpenRouter로 연결" }),
+    ).toBeVisible();
+    await expect(page.getByLabel("초대 코드")).toHaveCount(0);
+    await expect(
+      page.getByRole("button", { name: "로컬 Mock 스튜디오 열기" }),
+    ).toHaveCount(0);
     await page.close();
   }
 } finally {
   await browser.close();
 }
 console.info(
-  "PASS: production HTTPS, exact CORS, protected API, disabled test login, invite UI, self-hosted fonts and responsive layout. No inference.",
+  "PASS: production HTTPS/CORS, protected API, direct no-invite PKCE redirect, callback error recovery, fonts and responsive layout. No inference.",
 );
