@@ -83,3 +83,5 @@ D1 공식 limits의 Free 50 queries/invocation 및 query당 100 bound parameters
 ## 2026-11-11 — 실제 기획 응답 형식 실패
 
 읽기 전용 진단에서 실제 planning은 Google AI Studio/`google/gemini-2.5-flash-lite`, STOP, 출력 198 tokens, 비용 $0.0000965로 정상 종료했으나 앱 validation에서 거부됐다. 원문은 저장하지 않아 정확한 필드는 소급 확인할 수 없다. ADR-017로 provider/App 계약을 분리하고 앱 정책 상수·singleton enum·JSON formatting 호환·값 없는 validation 진단을 추가했다. 성급하게 필수 항목/enum 검증을 없애거나 유료 자동 repair를 하지 않는다. 성공한 분석을 재사용하는 동의 기반 기획 1회 복구를 구현한다. 실제 사용자 기획 재검증은 배포 후 UI에서 실행해야 한다.
+
+재배포 후 실제 사용자 기획 성공 및 콘셉트 표시를 확인했다. studio-v2 planning/job 완료, 실제 비용 $0.0001081와 기존 실패 비용 보존을 읽기 전용 지표로 검증했다. 이는 분석+기획 경로의 실제 성공이며 기획만 복구는 합성 테스트로 구분한다. 실제 이미지 생성·평가/의류 품질은 미검증이다.

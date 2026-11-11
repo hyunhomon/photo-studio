@@ -120,7 +120,8 @@ Phase 5 구현(2026-11-11): 내 사용자별 비용 부분합/미확인 수·단
 - [x] 중복/불확실 과금 호출 방어 (fake provider 타임아웃·재실행·R2 오류 검증).
 - [x] 고객별 실제 촬영비·대체 범위 인터뷰 양식, 운영 집계 방법.
 - [x] 실제 OpenRouter 계정 OAuth 로그인/스튜디오 진입(런타임 수정 후 사용자 재검증).
-- [ ] funded 계정으로 유료 분석·생성·평가 smoke.
+- [x] funded 계정으로 유료 상품 분석·촬영 기획(실제 사용자 실행, studio-v2 기획 성공).
+- [ ] funded 계정으로 유료 이미지 생성·평가 smoke.
 - [ ] 실제 의류 보존 품질, 최대 크기/다중 업로드 부하, 키 회전·백업 복구 리허설.
 
 ### 최종 검증 기록 — 2026-11-11
@@ -168,3 +169,7 @@ production 재배포 `8b2f245` 후 같은 합성 invalid-code probe가 실제 Op
 - 동의 기반 ‘이 분석으로 기획 다시 만들기’: 저장된 owner 분석 snapshot으로 기획 1회만 요청한다. 별도 key/원장을 사용하고 analysis 모델 호출이 없는 것을 검증했다.
 - format/lint/typecheck/unit/build 통과: **33 pass / 0 fail**, Astro 진단 0. local desktop/mobile E2E **4/4 통과**(기획만 복구의 동의·분석 보존·attempt planning 1개 포함). 실제 workerd native HTTP의 합성 JSON fence/앱 상수 없는 기획·평가 응답도 통과했다.
 - 기존 실제 실패 요청은 재실행하거나 자료를 수정하지 않았다. production 재배포/Mock 회귀 및 사용자의 실제 기획 재검증 결과는 후속 기록한다.
+
+재배포 `aaf29b6` 후 사용자가 실제 촬영 콘셉트 표시 성공을 확인했다. 식별자/원문 없는 읽기 전용 지표에서 studio-v2 planning succeeded, job completed, 실제 비용 $0.0001081, 출력 209 tokens를 확인했다. 해당 실제 실행은 분석+기획 경로였으며 기획만 복구는 별도의 Mock/원장 검사로 구분한다. 기존 studio-v1 실패와 비용은 그대로 보존됐다. 공개 production smoke도 통과했다. 실제 이미지 생성/평가·의류 품질 검증은 아직 남아 있다.
+
+production desktop/mobile 전체 Mock E2E **4/4 통과**: 저장된 분석 재사용 동의, 기획 attempt 1개/분석 값 보존, 기획 승인→생성/평가/검수/재생성/다운로드/삭제 및 타 계정 권한 차단까지 확인했다. 임시 합성 계정과 사진을 정리했다. 자동 테스트는 모두 Mock이며 실제 유료 실행은 사용자가 UI에서 수행한 별도 검증이다.
