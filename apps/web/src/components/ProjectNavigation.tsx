@@ -53,7 +53,9 @@ export function ProjectSearch({
             onChange={(project: ProjectDto | null) => {
               if (project) {
                 onClose();
-                void navigate(`/studio/projects/${project.id}`);
+                const path = `/studio/projects/${project.id}`;
+                if (location.pathname !== path || location.search)
+                  void navigate(path);
               }
             }}
           >
@@ -155,7 +157,6 @@ export function ProjectNavigation({
   const cutoff = Date.now() - 7 * 86400000;
   function follow(event: MouseEvent<HTMLAnchorElement>, path: string) {
     if (
-      !onClose ||
       event.button !== 0 ||
       event.metaKey ||
       event.ctrlKey ||
@@ -163,6 +164,12 @@ export function ProjectNavigation({
       event.altKey
     )
       return;
+    if (location.pathname === path && !location.search) {
+      event.preventDefault();
+      onClose?.();
+      return;
+    }
+    if (!onClose) return;
     // Closing a Dialog removes the link before Astro's document click handler.
     event.preventDefault();
     onClose();

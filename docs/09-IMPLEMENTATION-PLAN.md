@@ -181,3 +181,5 @@ production desktop/mobile 전체 Mock E2E **4/4 통과**: 저장된 분석 재�
 - Astro ClientRouter 내부 이동, 네이티브 OAuth/다운로드/내보내기를 연결했다. 모바일 메뉴 닫기로 링크가 먼저 제거돼 라우터가 건너뛰는 경합을 발견해 명시적 navigate로 수정했다. desktop/mobile 모두 링크 이동 전후 performance.timeOrigin이 유지됨을 검증했다.
 - format/lint/typecheck/unit/build 통과: 단위 **33/33**, Astro 진단 0. local E2E **6/6**: 4개 화면의 인증 대기/503 재확인, 유효 세션 지연 중 연결 폼 없음, 검색 방향키/Enter, 메뉴 ESC/포커스 복귀, 기존 Mock 촬영·기획 복구·검수·다운로드·삭제까지 통과했다.
 - 합성 프로젝트만 사용한 desktop/mobile/search/drawer 캡처를 시각 점검하고 preview 계정/자료를 정리했다. 웹 전용 production 배포 후 검증 결과를 후속 기록한다. 실제 고객 AI 호출이나 API/Workflow/D1/secret 변경 없음.
+
+첫 운영 검사 5/6 통과: desktop에서 검색으로 이미 열린 프로젝트를 다시 선택한 뒤 뒤늦은 동일 URL 이동이 새로 연 업로드 Dialog를 초기화하는 경합을 발견했다. 같은 프로젝트 선택 시 이동을 생략하고 검색/메뉴만 닫도록 수정했다. 테스트를 단순 지연시키거나 실패를 숨기지 않고 실제 탐색 동작을 보완했다. 재배포 후 전체 운영 검사를 다시 실행한다.
