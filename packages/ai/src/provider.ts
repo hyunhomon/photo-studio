@@ -383,6 +383,7 @@ export function openRouterAdapter(
         images,
       ),
     plan: async (model, analysis, preset, description) => {
+      const { shootType: _retiredMode, ...activePreset } = preset ?? {};
       const response = await structured(
         model,
         providerPlanSchema,
@@ -390,7 +391,7 @@ export function openRouterAdapter(
         {
           task: "Plan a fashion shoot preserving every garment invariant. Include season, mood, model(style,pose,appearance), camera(framing,angle,backgroundSeparation), location(type,time), lighting, materialDirection and mustPreserve. Plan one coherent physically plausible photographic scene: dominant light direction/size and bounce, eyes and garment sharing a focus region with background separation, individual adult facial expression and anatomy, fabric-specific drape/roughness and distinct surrounding surfaces. Do not invent material certainty or force perfect skin/symmetry. There are no separate studio/location modes. The app fixes the output to 3:4; do not choose an aspect ratio.",
           analysis,
-          preset,
+          preset: preset ? activePreset : null,
           description,
         },
         [],

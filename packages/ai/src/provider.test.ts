@@ -6,6 +6,7 @@ import {
   ProviderError,
 } from "./provider";
 import { mockAnalysisFixture } from "./fixtures";
+import { presetInputSchema } from "@photo-studio/schemas";
 test("portable planning schema, lossless JSON parsing and app-owned constants tolerate provider formatting without changing garment facts", async () => {
   let calls = 0;
   const transport = Object.assign(
@@ -17,6 +18,9 @@ test("portable planning schema, lossless JSON parsing and app-owned constants to
       expect(JSON.stringify(wire)).not.toContain('"const"');
       let value: unknown = mockAnalysisFixture;
       if (stage === "shoot_plan") {
+        expect(JSON.stringify(request.messages)).not.toContain(
+          "model_location",
+        );
         expect(wire.properties.aspectRatio).toBeUndefined();
         expect(wire.properties.shootType).toBeUndefined();
         const { aspectRatio: _ratio, ...plan } = mockPlan(mockAnalysisFixture);
@@ -55,7 +59,14 @@ test("portable planning schema, lossless JSON parsing and app-owned constants to
   const plan = await adapter.plan(
     "synthetic",
     analysis.value,
-    null,
+    presetInputSchema.parse({
+      name: "Synthetic legacy preset",
+      mood: "Synthetic natural photograph",
+      modelStyle: "Synthetic adult",
+      location: "Synthetic wall",
+      lighting: "Synthetic soft window",
+      shootType: "model_location",
+    }),
     "synthetic",
   );
   expect(plan.value.aspectRatio).toBe("3:4");
