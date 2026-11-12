@@ -258,4 +258,6 @@ source-only 실행에서 검색/상세/구독5GET·라이선스1POST·미디어1
 
 의존성 audit에서 Drizzle Kit→폐기된 esm-loader→esbuild0.18.20의 개발 서버 CORS 취약점을 확인했다([GHSA-67mh-4wv8-2f99](https://github.com/advisories/GHSA-67mh-4wv8-2f99)). [관리자의 tsx 이관 안내](https://github.com/esbuild-kit/esm-loader)에 따라 해당 loader 하나만 npm:tsx4.23.15로 override했다. 기존 Drizzle/번들러 esbuild 버전은 유지한다. frozen install·audit0건과 실제 schema를 읽는 격리된 Drizzle generate/check·20테이블 SQL 적용을 검증했다. 운영 migration을 새로 만들거나 바꾸지 않았다. Drizzle이 후속 의존성을 정리하면 override를 재검토한다.
 
-관련 새 단위16개를 포함해 전체156/156, format/lint/typecheck/build(진단/경고0), workerd binding·native OAuth/합성 provider HTTP 및 촬영6종을 통과했다. 첫 local 브라우저 검사는18/20이었으며, 새 업로드 검사의 같은 이름 버튼2개 strict locator 충돌이었다. submit으로 좁혀 전체 재검증한다. 최종 브라우저/운영 배포·인증 보존 결과는 구현 계획에 기록한다. 개발 전용 Bun 테스트는 웹 번들 타입 범위와 분리한 tests/unit에 두고 공통 test 명령에 포함한다.
+관련 새 단위16개를 포함해 전체156/156, format/lint/typecheck/build(진단/경고0), workerd binding·native OAuth/합성 provider HTTP 및 촬영6종을 통과했다. 첫 local 브라우저 검사는18/20이었으며, 새 업로드 검사의 같은 이름 버튼2개 strict locator 충돌이었다. submit으로 좁힌 최종 local20/20과 production20/20(wrapper exit0)이 통과했다. 개발 전용 Bun 테스트는 웹 번들 타입 범위와 분리한 tests/unit에 두고 공통 test 명령에 포함한다.
+
+c04225b commit/push 및 API/Workflow→웹 배포를 완료했다. 공개 HTTPS/보안/OAuth/반응형 smoke와 실제 Commons source-only 검색/다운로드/private R2·출처/AI attempts0도 통과했다. 실제 계정 인증과 별도 canary·untouched sentinel의 연결/세션 불변 확인 후 자기 합성 자료만 정리했다. 마지막 읽기에서 합성0·실제 계정1/연결1/세션2, Commons 기본·Shutterstock secret 미설치와 기존 암호화 secret 존재를 확인했다. 새 migration/고객 자료 초기화/secret 교체·실제 AI·stock 추가 발급·결제는 없다. 운영 outage와 이미 전송된 유료 호출을 없애거나 실제 이미지 품질이 개선됐다고 보장하는 변경은 아니다.

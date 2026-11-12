@@ -1,6 +1,6 @@
 # Implementation Plan — Codex 실행용
 
-> 현재 상태(2026-11-12): Phase 0–5 및 ADR-019/020/021 이후 ADR-022의 프로젝트 없는 상품 작업 공간, 다중 사진 미리보기, 참조 기반 기획과 중앙 비교/오른쪽 inspector를 구현·배포했다. 전체 check와 local/production Mock E2E 각 6개를 통과했고 사용자 승인 서비스 초기화 후 앱 행·R2 객체·활성 작업 0을 확인했다. 이전 실제 생성 7건은 당시 실행 이력이며 초기화 이후 보존을 주장하지 않는다. 새 구조에서 사용자 재연결과 photo-v3-reference의 실제 참조 기반 품질 효과는 아직 미검증이다. 아래 날짜별 기록은 해당 시점의 이력이다.
+> 현재 상태(2026-11-12): Phase 0–5와 ADR-038까지 상품 중심 작업 공간·다중 사진·참조 기획/생성·복구/과금 보호를 구현·배포했다. 최신 전체 check156/156, local/production desktop/mobile Mock 각각20/20, 실제 Commons 검색/다운로드·private R2와 인증 보존 검사를 통과했다. Shutterstock 무료 인증·라이선스1건·다운로드는 source-only 검증했고 외부 AI 사용 범위/고객 계약 요건 회신 전 운영은 Commons를 유지한다. 실제 촬영 품질 개선은 사람의 동일 입력 비교 전 미검증이다. 아래 날짜별 기록은 해당 시점의 이력이며 과거 사용자 승인 초기화를 일반 배포에서 반복하지 않는다.
 
 **원칙:** 각 Phase는 작동하는 결과, 테스트, 문서 업데이트까지 완료한다. 외부 유료 AI 실제 호출은 사용자가 명시적으로 승인하기 전에는 실행하지 않는다.
 
@@ -389,6 +389,8 @@ production desktop/mobile 전체 Mock E2E **4/4 통과**: 저장된 분석 재�
 - [x] 상품 조회 실패/순서 역전·파이프라인 역전·업로드 dialog 보호 및 proxy HTML401/네트워크 오류 복구. client 단위4개·브라우저5개(두 viewport) 추가.
 - [x] 개발 loader의 취약 esbuild 경로 제거, audit0건·frozen install·실제 스키마 Drizzle generate/check 및 격리20테이블 SQL 검증.
 - [x] 최종 format/lint/typecheck/unit/build156/156(진단/경고0), workerd binding·native OAuth/합성 provider HTTP·촬영6종 통과. 신규 브라우저 검사 locator 충돌을 수정한 최종 local desktop/mobile 전체20/20 통과. 비교/콘셉트 스크롤·사진 입력 화면 캡처도 확인했다.
-- [ ] 최종 local/production desktop/mobile 전체 브라우저, API/Workflow→웹 배포와 인증 canary 보존·합성 자료 정리 확인.
+- [x] 최종 local/production desktop/mobile 전체 브라우저 각각20/20, wrapper exit0. API/Workflow→웹 c04225b 배포와 공개 HTTPS/CORS/PKCE/폰트/반응형 smoke, 실제 Commons 검색/CC0/JPEG/private R2 읽기·출처·AI attempts0 확인. 배포 전후 실제 인증 불변 및 별도 non-empty canary 원문 불변, 운영 E2E untouched sentinel 불변, 모든 합성 계정/사진과 standalone canary 정리를 확인했다.
 
 이번 작업은 실제 AI/stock 발급·유료 결제0회를 유지한다. Shutterstock는 공급자 회신 전 미활성, Commons 기본과 기존 사용자 자료/master secret은 보존한다. 새 DB migration/초기화는 없다.
+
+마지막 read-only 설정/집계는 Shutterstock token/source 미설치·기존 암호화 secret 존재, 합성 계정0·실제 계정1/연결1/세션2였다. 코드 commit/push c04225b와 운영 검증 기록 commit을 구별한다. 진단/린트 경고0이며 Playwright 실행기의 NO_COLOR/FORCE_COLOR 환경 경고는 검사 실패가 아니다. 실제 키 회전/운영 복구 리허설이나 실사 품질 합격을 이번 회귀 성공으로 표시하지 않는다.
