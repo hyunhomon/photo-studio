@@ -304,8 +304,14 @@ export function verifyShutterstockSubscription(
   const formats = Array.isArray(subscription?.formats)
     ? subscription.formats.map(object)
     : [];
+  // Shutterstock's official free tutorial uses integrated_media, the API name
+  // for this Platform product. Do not extend that alias to contracted plans.
+  const documentedFreeProduct =
+    settings.collection === "free" &&
+    subscription?.license === "integrated_media" &&
+    subscription.description === "PS Core Free Product - Image";
   if (
-    subscription?.license !== "platform" ||
+    (subscription?.license !== "platform" && !documentedFreeProduct) ||
     subscription.asset_type !== "images" ||
     !Number.isFinite(expires) ||
     expires <= now ||
@@ -320,8 +326,26 @@ export function verifyShutterstockSubscription(
     throw new ProviderError("SHUTTERSTOCK_SUBSCRIPTION_INVALID");
   if (settings.collection === "free") {
     const price = object(subscription.price_per_download);
-    // No invented is_free flag. Public API documents the product description
-    // and optional price; absent/ambiguous evidence never authorizes licensing.
+    // The exact official free product omits the optional price. Explicit prices
+    // must still be zero; unknown products never inherit this exception.
+    const zeroPrice =
+      price?.local_amount === 0 &&
+      typeof price.local_currency === "string" &&
+      /^[A-Z]{3}$/.test(price.local_currency) &&
+      (price.content_tiers === undefined ||
+        Object.keys(object(price.content_tiers) ?? { invalid: true }).length ===
+          0);
+    const documentedPriceOmission =
+      documentedFreeProduct && subscription.price_per_download === undefined;
+    const tiers = object(allotment?.content_tiers);
+    const standardTier = object(tiers?.standard_images);
+    const validTiers =
+      allotment?.content_tiers === undefined ||
+      (tiers !== null &&
+        Object.keys(tiers).length === 1 &&
+        positiveInteger(standardTier?.downloads_left) &&
+        standardTier.downloads_left === allotment?.downloads_left &&
+        standardTier.downloads_limit === allotment?.downloads_limit);
     if (
       !/\bfree\b/i.test(
         `${cleanText(subscription.product_description, 300)} ${cleanText(subscription.description, 300)}`.replace(
@@ -329,16 +353,13 @@ export function verifyShutterstockSubscription(
           "",
         ),
       ) ||
-      price?.local_amount !== 0 ||
-      typeof price.local_currency !== "string" ||
-      !/^[A-Z]{3}$/.test(price.local_currency) ||
-      (price.content_tiers !== undefined &&
-        Object.keys(object(price.content_tiers) ?? { invalid: true }).length >
-          0) ||
+      (!zeroPrice && !documentedPriceOmission) ||
+      !validTiers ||
       (subscription.portfolio !== undefined &&
         subscription.portfolio !== false) ||
       !positiveInteger(allotment?.downloads_limit) ||
-      Number(allotment.downloads_limit) > 500
+      Number(allotment.downloads_limit) > 500 ||
+      Number(allotment.downloads_left) > Number(allotment.downloads_limit)
     )
       throw new ProviderError("SHUTTERSTOCK_FREE_SUBSCRIPTION_REQUIRED");
   }

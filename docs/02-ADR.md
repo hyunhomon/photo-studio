@@ -300,3 +300,9 @@
 - 일반 의류 키워드의 짧은 정확 검색과 같은 API 컬렉션 내 한 차례 확장 검색을 사용한다. metadata에서 의류·전신/자세·직물·명암 증거를 우선하고 광고 제스처의 순위를 낮춘다. 성인/사진/commercial/모델 릴리즈와 개별 상세 검사를 유지하며 metadata 순위를 실제 사진 품질 평가로 표시하지 않는다.
 - 작업당 최악14요청 예산을 최초 외부 요청·라이선스 claim 전에 D1로 예약한다. 전체 앱 UTC 시간 버킷90요청 예산(최대6작업)으로 운영 점검 여유를 남기며 provider429를 자동 재시도하지 않는다. 라이선스 claim/grant·동일 픽셀·비학습 경로·고객별 권한·raw 다운로드 차단은 ADR-035를 유지한다. collection 변경은 기존 stock 작업의 사용을 중단시킨다.
 - 무료 컬렉션 선택은 외부 AI 사용권을 취득하거나 vendor 승인 플래그를 자동 설정하지 않는다. 무료/유료 모두 사용 범위 확인과 Access Token·고정 구독·버전 설정이 있어야 활성화한다. 현재는 운영 Commons를 유지하고 합성 adapter로 무료 검색→발급 원장→기획→생성·개선을 검증한다. 실제 무료 발급/다운로드와 실사 개선은 미검증이다.
+
+## ADR-037: 공식 무료 구독 응답 호환 — Accepted (2026-11-12)
+
+- 사용자가 무료 구독 설정을 직접 저장했다. 실제 GET 응답은 `description="PS Core Free Product - Image"`, `license="integrated_media"`, 이미지 월500건/잔여500건, medium JPG, 미래 만료, portfolio=false이며 가격 필드가 없다. [공식 무료 cURL 튜토리얼](https://www.shutterstock.com/de/developers/documentation/tutorial/curl)의 무료 구독 예시도 정확히 같은 상품명/라이선스 코드와 가격 생략을 사용하며 해당 구독을 Platform License라고 설명한다. 따라서 ADR-036의 명시0원 가격 조건에는 이 정확한 공식 무료 상품에만 예외를 추가한다. 일반 상품/알 수 없는 무료 명칭/계약 구독에는 예외를 적용하지 않는다.
+- 실제 응답에 가격이 있으면 유효한 통화·명시0원·추가 가격 tier 없음이 여전히 필수다. 비영 가격·null/잘못된 가격·portfolio·500건 초과·잔여가 한도보다 큼은 차단한다. 할당 tier가 있으면 standard_images 하나이고 전체 할당/잔여와 일치해야 한다. `integrated_media`를 임의 유료 라이선스의 alias로 인정하지 않으며 내부 사용권 분류는 기존 platform으로 보존한다.
+- 무료 source-only 라이선스1건/다운로드/실파일 검증은 AI 사용 범위 승인과 별개다. 사용자 요청에 따라 유료 결제·AI 호출·운영 source/secret 변경은 하지 않는다. 토큰/응답 원문/라이선스·구독 ID/서명 URL은 ignored 로컬 증거에만 저장하며 불확실한 발급은 재요청하지 않는다.

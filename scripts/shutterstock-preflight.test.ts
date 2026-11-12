@@ -61,3 +61,58 @@ test("preflight never infers zero price or remaining quota from missing or malfo
     ).toEqual([]);
   expect(inspectFreeShutterstockSubscriptions(null, now)).toEqual([]);
 });
+
+test("the documented free integrated-media product permits omitted optional price only with matching free limits", () => {
+  const documented = {
+    ...free,
+    license: "integrated_media",
+    description: "PS Core Free Product - Image",
+    product_description: undefined,
+    price_per_download: undefined,
+    portfolio: false,
+    allotment: {
+      downloads_left: 500,
+      downloads_limit: 500,
+      content_tiers: {
+        standard_images: { downloads_left: 500, downloads_limit: 500 },
+      },
+    },
+  };
+  expect(
+    inspectFreeShutterstockSubscriptions({ data: [documented] }, now),
+  ).toEqual([free.id]);
+  for (const patch of [
+    { description: "Royalty-free Images" },
+    { description: "Other Free Trial" },
+    { license: "standard" },
+    { price_per_download: null },
+    { price_per_download: { local_amount: 1, local_currency: "USD" } },
+    { price_per_download: { local_amount: 0 } },
+    { portfolio: true },
+    { allotment: { downloads_left: 501, downloads_limit: 500 } },
+    {
+      allotment: {
+        downloads_left: 1,
+        downloads_limit: 500,
+        content_tiers: {
+          premium_images: { downloads_left: 1, downloads_limit: 500 },
+        },
+      },
+    },
+    {
+      allotment: {
+        downloads_left: 500,
+        downloads_limit: 500,
+        content_tiers: {
+          standard_images: { downloads_left: 1, downloads_limit: 500 },
+        },
+      },
+    },
+  ])
+    expect(
+      inspectFreeShutterstockSubscriptions(
+        { data: [{ ...documented, ...patch }] },
+        now,
+      ),
+    ).toEqual([]);
+});

@@ -14,7 +14,7 @@ async function main() {
   const args = process.argv.slice(2);
   if (args.length === 0 || (args.length === 1 && args[0] === "--help")) {
     console.info(
-      "Usage: bun run shutterstock:license:verify --execute-free-license\nExplicitly license ONE image from a verified zero-priced free platform subscription and download/decode it locally. Requires Access Token in ignored apps/api/.dev.vars. One durable claim/grant; no automatic reissue after uncertain outcomes. No paid plan, AI, production settings or customer data operations. Receipts/images remain ignored under .tmp/shutterstock-license-probe/.",
+      "Usage: bun run shutterstock:license:verify --execute-free-license\nExplicitly license ONE image from a verified free platform subscription and download/decode it locally. Requires Access Token in ignored apps/api/.dev.vars. One durable claim/grant; no automatic reissue after uncertain outcomes. No paid plan, AI, production settings or customer data operations. Receipts/images remain ignored under .tmp/shutterstock-license-probe/.",
     );
     return;
   }
@@ -81,7 +81,19 @@ async function main() {
     )
       counts.mediaDownloads++;
     else throw new Error("Non-source host blocked.");
-    return fetch(input, init);
+    const result = await fetch(input, init);
+    if (method === "POST" && url.pathname === "/v2/images/licenses") {
+      // Private reconciliation evidence, including the initial expiring link.
+      // Never log this response and never reissue a license to recover a link.
+      await Bun.write(
+        resolve(
+          root,
+          ".tmp/shutterstock-license-probe/license-response-private.json",
+        ),
+        await result.clone().text(),
+      );
+    }
+    return result;
   };
   const response = await transport(
     "https://api.shutterstock.com/v2/user/subscriptions",

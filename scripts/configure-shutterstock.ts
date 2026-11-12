@@ -33,9 +33,10 @@ approved contract scope, then enter the token in Wrangler's hidden secret prompt
 The contract must cover automatic selection, private storage, customer outputs and
 non-training third-party planning/image inference. Confirmation does not obtain rights.
 
---free pins the free collection: runtime requires explicit free-plan metadata,
-zero per-download price, remaining allotment and no portfolio pricing. Missing
-price evidence stops before licensing. It never upgrades or purchases a plan.
+--free pins the free collection: runtime requires verified free-plan metadata,
+remaining allotment and no portfolio pricing. Only the exact documented free
+integrated_media product may omit price; otherwise explicit zero price is
+required. It never upgrades or purchases a plan.
 Use bun run shutterstock:preflight first; a Consumer Key/Secret is search-only.
 
 Only the seven Shutterstock/reference settings are updated. Existing OpenRouter

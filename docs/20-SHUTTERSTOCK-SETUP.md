@@ -146,7 +146,7 @@ Thank you.
 
 ## 무료 파일럿 구현 — ADR-036
 
-사용자가 무료 컬렉션을 선택했으며 실제 토큰 발급은 보류하고 구현·자동 검증만 요청했다. `SHUTTERSTOCK_COLLECTION=free`는 실제 무료 product 설명·0원 명시 가격·월500 이하 할당과 나머지 platform/만료/format/metadata 조건을 함께 검사한다. 공식 Subscription 스키마의 `price_per_download`는 optional이다. 생략을 무료로 오해하지 않으므로 실제 응답에 없으면 `SHUTTERSTOCK_FREE_SUBSCRIPTION_REQUIRED`로 멈추고 별도 근거를 확인해야 한다. 가짜 응답 통과를 실제 무료 라이선스 검증으로 표시하지 않는다.
+사용자가 무료 컬렉션을 선택했으며 최초에는 실제 토큰 발급을 보류하고 구현·자동 검증만 요청했다. `SHUTTERSTOCK_COLLECTION=free`는 실제 무료 product 설명·월500 이하 할당과 나머지 라이선스/만료/format/metadata 조건을 함께 검사한다. ADR-036의 최초0원 명시 가격 조건은 아래 실제 확인 후 ADR-037로 보완했다. 정확한 공식 `PS Core Free Product - Image`/`integrated_media` 상품에만 optional 가격 생략을 허용하며 나머지 상품에는 여전히 명시0원이 필요하다. 가격이 있으면 항상 유효한0원이어야 한다. 가짜 응답 통과를 실제 무료 라이선스 검증으로 표시하지 않는다.
 
 ```powershell
 bun run shutterstock:preflight
@@ -170,3 +170,13 @@ bun run setup:shutterstock --free
 `bun run shutterstock:license:verify --execute-free-license`는 무료 구독 확인 뒤 기존 검색/상세/원장/다운로드 어댑터를 source-only 목적으로 실행한다. AI 승인값이나 운영 source를 설정하지 않으며 고객 상품/키도 사용하지 않는다. 라이선스 claim/grant와 로컬 JPEG/정규화 결과는 ignored .tmp/shutterstock-license-probe/에 보관한다. 불확실/실패 receipt가 있으면 새 라이선스를 재발급하지 않는다. 단순 재실행이 무료 할당을 반복 차감하는 것을 막는다.
 
 공식 응답의 최초 license download URL을 grant 저장 뒤 바로 사용하도록 보완했다. 대부분의 platform 라이선스는 재다운로드를 보장하지 않으므로 새 발급 직후에도 무조건 redownload API를 호출하던 가정을 제거했다. 링크가 없는 경우/기존 grant의 복구에만 redownload를 시도하며 새 발급으로 대체하지 않는다. 이를 합성403 redownload 회귀로 검사한다. 근거: https://api-reference.shutterstock.com/#licensing-and-downloading 및 https://www.shutterstock.com/ta/explore/developers-support-licensing-downloading .
+
+## 실제 무료 발급·다운로드 결과 — 2026-11-12
+
+사용자가 무료 설정을 직접 저장한 후 API 구독1개가 생성됐다. 실제 응답의 `PS Core Free Product - Image`/`integrated_media`/가격 생략은 [공식 무료 cURL 튜토리얼](https://www.shutterstock.com/de/developers/documentation/tutorial/curl) 예시와 일치한다. ADR-037에 따라 이 정확한 상품만 가격 생략을 허용하고, 명시 가격은 항상0원·유효 통화여야 한다. 단순 royalty-free/Free Trial 문자열이나 다른 상품의 가격 생략은 허용하지 않는다. 공식 문서는 이 상품을 Platform License로 설명하므로 내부 분류는 platform을 유지한다.
+
+검증 CLI를 명시 실행해 무료 라이선스1건을 발급하고 최초 grant의 URL로417457바이트 JPEG를 받았다. 실제 디코딩은667×1000이며 워터마크 없는 실제 모델 착용 사진을 확인했다. API 라이선스 이력에서 license/이미지/구독/medium이 private 원장과 일치하고, 무료 잔여는500→499건이다. 발급 재시도·redownload·유료 결제/플랜·AI 호출0회다. receipt/JPEG/정규화 PNG와 읽기 이력 대조·파일 hash는 ignored `.tmp/shutterstock-license-probe/`에만 있다. CLI 재실행은 verified receipt가 있으면 외부 요청 없이 끝나며 새 할당을 차감하지 않는다.
+
+이 결과는 source-only 연결/발급/다운로드 검증이다. 운영 source/secret을 변경하거나 외부 AI 사용 승인값을 만들지 않았으며 실제 기획·생성·출력 권리 검증은 별개다. 실제 비용 필드는 provider가 제공하지 않아 null을 유지하고, 확인된 무료 상품/할당 차감 근거와 구분한다.
+
+최종 format/lint/typecheck/unit/build140/140(진단/경고0) 통과. 공식 무료 응답·유료/모호한 상품 차단·최초 URL 사용·claim/grant 순서 회귀가 포함된다. 이번 코드는 commit/push하며 production 재배포/소스 활성화는 수행하지 않는다.

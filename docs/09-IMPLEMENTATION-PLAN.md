@@ -371,5 +371,7 @@ production desktop/mobile 전체 Mock E2E **4/4 통과**: 저장된 분석 재�
 - [x] 실제 Access Token의 앱 일치·필요 scope3개·HTTP200 확인. 구독 목록은200/빈 배열로 진단했다.
 - [x] 실제 앱 편집에서 무료500장 구독 checkbox를 확인했고, 신규 구독 저장 전 확인 단계까지 준비했다. token/Consumer Key를 노출하거나 재발급하지 않았다.
 - [x] subscription_required 구분, 최초 license 응답의 다운로드 링크 사용, AI 승인과 분리된 source-only 발급·검증 도구를 구현했다.
-- [ ] 무료 구독 저장 후 API 구독 응답/무상 근거/정식 라이선스1건/실파일 decode 확인.
+- [x] 사용자가 무료 구독을 직접 저장한 뒤 공식 무료 상품/500건·미래 만료·medium JPG 확인. 공식 튜토리얼과 실제 integrated_media/가격 생략 차이를 ADR-037로 보완했다. 라이선스 POST1회·JPEG GET1회·667×1000 실제 decode, GET 이력의 grant/이미지/구독/medium 일치와 잔여499건 확인. 자동 재발급·redownload·AI·유료 플랜 호출0회. 워터마크 없는 모델 착용컷을 육안 확인했고 고객 자료·운영 source/secret은 변경하지 않았다.
 - [x] format/lint/typecheck/unit/build138/138 통과. source-only CLI --help의 무외부 호출 확인. 코드/문서 검증을 commit/push하며 무료 구독 저장 전이라 실제 license/download 및 운영 설정/배포는 수행하지 않았다.
+
+이번 후속 source-only 검증 결과와 초기 미검증 기록을 구별한다. 실제 라이선스/파일과 private 원장·서명 URL은 ignored .tmp에만 보관했다. 공식 무료 응답 호환과 명시 유료/다른 상품 거부 회귀를 추가했으며 최종 format/lint/typecheck/unit/build140/140(진단/경고0)이 통과했다. verified receipt 재실행도 외부 요청0회였다. 코드/문서를 commit/push하고 운영 설정/재배포는 수행하지 않는다. 운영 Shutterstock 활성화·외부 AI 사용 범위 승인·기획/생성의 실제 품질은 이번 무료 소스 검증에 포함하지 않는다.

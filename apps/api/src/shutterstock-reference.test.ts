@@ -272,6 +272,62 @@ test("source-only free verification uses the same guarded adapter without assert
   ).toBe(true);
 });
 
+test("the official integrated-media free product uses its first download grant without a price field", async () => {
+  const f = fixture((url) => {
+    if (url.pathname === "/v2/user/subscriptions")
+      return json({
+        data: [
+          {
+            ...subscription,
+            license: "integrated_media",
+            description: "PS Core Free Product - Image",
+            portfolio: false,
+            allotment: {
+              downloads_left: 500,
+              downloads_limit: 500,
+              content_tiers: {
+                standard_images: { downloads_left: 500, downloads_limit: 500 },
+              },
+            },
+          },
+        ],
+      });
+    if (url.pathname === "/v2/images/licenses")
+      return json({
+        data: [
+          {
+            image_id: mediaId,
+            license_id: licenseId,
+            allotment_charge: 1,
+            download: { url: downloadUrl },
+          },
+        ],
+      });
+    if (url.pathname.endsWith("/downloads")) return json({}, 403);
+  });
+  const result = await verifyFreeShutterstockSource(
+    mockAnalysisFixture,
+    {
+      accessToken: settings.SHUTTERSTOCK_ACCESS_TOKEN,
+      subscriptionId: settings.SHUTTERSTOCK_SUBSCRIPTION_ID,
+    },
+    f.options,
+  );
+  expect(result.bytes).toEqual(jpeg);
+  expect(result.actualCostUsd).toBeNull();
+  expect(f.grant?.license).toBe("platform");
+  expect(f.licenseCalls()).toHaveLength(1);
+  expect(f.calls.some((c) => c.url.pathname.endsWith("/downloads"))).toBe(
+    false,
+  );
+  expect(f.events.indexOf("claim")).toBeLessThan(
+    f.events.indexOf("/v2/images/licenses"),
+  );
+  expect(f.events.indexOf("grant")).toBeLessThan(
+    f.events.indexOf(`/gatekeeper/synthetic/shutterstock_${mediaId}.jpg`),
+  );
+});
+
 test("unsupported collection and cross-collection grants cannot silently upgrade", async () => {
   expect(() =>
     readShutterstockSettings({ ...settings, SHUTTERSTOCK_COLLECTION: "full" }),

@@ -239,3 +239,9 @@ ADR-036에서 유료 전체 컬렉션 대신 무료 파일럿을 선택했다. �
 실제 토큰의 앱 일치와 licenses.create/licenses.view/purchases.view, HTTP200을 확인했지만 subscriptions data는 비어 있었다. 실제 앱 화면의 Free Images 승인/100시간당 검색 접근은 라이선스용 무료 subscription 생성과 별개였다. Photo Studio ··· → 편집에 월500장 무료 구독 checkbox가 미선택인 것을 확인하고 선택만 준비했으며, 신규 구독 저장의 action-time 확인을 요청했다. 승인 전에는 저장하지 않고 license POST/download/AI0회를 유지한다. 원문/토큰/구독식별자는 ignored .tmp 밖에 기록하지 않는다.
 
 preflight는 빈 구독을 subscription_required로 분리하고, source-only 무료 검증 도구는 AI 승인 플래그를 만들지 않은 채 같은 라이선스 어댑터/claim/grant/실제 decode를 검사하도록 추가했다. 최초 발급의 download.url을 바로 사용해 platform의 재다운로드 제한과 충돌하던 가정을 수정했고 합성 회귀를 추가했다. 최종 check138/138 통과. 현재 단계에서 실제 무료 발급·다운로드나 운영 활성화가 완료됐다고 표시하지 않는다.
+
+## 2026-11-12 — 실제 무료 라이선스·다운로드 확인
+
+사용자가 무료 구독을 직접 저장한 뒤 subscriptions200/1개·정확한 공식 무료 상품명·integrated_media·잔여500건·미래 만료·medium JPG를 확인했다. 공식 튜토리얼도 이 상품/코드/가격 생략을 명시하므로 ADR-037에서 ADR-036의 가격 필수 조건을 정확한 상품에만 한정해 보완했다. 미확인 상품의 가격 생략이나 명시 유료 가격은 여전히 차단한다. API의 integrated_media와 내부 Platform 사용권 분류를 구분한다.
+
+source-only 실행에서 검색/상세/구독5GET·라이선스1POST·미디어1GET로417457바이트 JPEG를 받고667×1000 실제 디코딩을 통과했다. 추가2GET으로 발급 이력의 license/image/subscription/medium 일치와 무료 잔여499건을 대조했고 원본·정규화 파일의 SHA-256도 private 증거에 보관했다. 최초 응답 링크를 사용해 redownload0회, 재발급0회다. 실제 모델 착용컷 육안 확인을 실사 생성 품질 개선으로 해석하지 않는다. AI/유료 플랜 호출·운영 설정/배포/고객 자료 변경0회이며 Commons 기본과 외부 AI 사용 범위 guard는 유지한다.
