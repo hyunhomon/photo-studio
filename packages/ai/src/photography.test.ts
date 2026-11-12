@@ -240,6 +240,7 @@ test("existing capture snapshots remain readable while new material-light correc
     undefined,
     "photo-v3-reference",
     "photo-v4-directed-composition",
+    "photo-v5-material-light",
     CAPTURE_PROTOCOL_VERSION,
   ]) {
     const prompt = compilePhotographicPrompt(plan, 1, {
@@ -282,4 +283,32 @@ test("existing capture snapshots remain readable while new material-light correc
       prompt.indexOf("MATERIALS AT THREE SCALES"),
     );
   }
+});
+
+test("matching a selected photographic reference releases numerical optics defaults and stale visual claims", () => {
+  const plan = mockPlan(mockAnalysisFixture);
+  plan.referenceNotes =
+    "Synthetic observed side light; support and sleeve share visible focus";
+  const matched = compilePhotographicPrompt(plan, 1, {
+    lookImage: "synthetic-look",
+  });
+  expect(matched).toContain(plan.referenceNotes);
+  expect(matched).toContain("REFERENCE OPTICS");
+  expect(matched).toContain("Do not impose numerical lens");
+  expect(matched).not.toContain("approximately f/");
+  expect(matched).not.toContain("Approximate focus envelope");
+  expect(matched).toContain("Reference 2's actual pixels");
+  expect(matched).toContain("do not paste the reference garment's texture");
+  // A plan's former observation text cannot stand in for a visual reference
+  // that the user did not actually select for this generation.
+  const withoutLook = compilePhotographicPrompt(plan, 1);
+  expect(withoutLook).not.toContain(plan.referenceNotes);
+  expect(withoutLook).toContain("No photographic-look image is attached");
+  expect(withoutLook).toContain("approximately f/");
+  plan.camera.referenceComposition = "inspire";
+  const inspired = compilePhotographicPrompt(plan, 1, {
+    lookImage: "synthetic-look",
+  });
+  expect(inspired).toContain("Borrow lighting and tonal rendering only");
+  expect(inspired).not.toContain("REFERENCE OPTICS");
 });

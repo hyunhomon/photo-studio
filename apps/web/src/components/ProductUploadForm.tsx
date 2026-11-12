@@ -11,6 +11,7 @@ import {
 import { Button } from "@photo-studio/ui";
 import type { ProductDto } from "@photo-studio/schemas";
 import { errorMessage, request } from "../lib/api";
+import ReferenceDiscovery from "./ReferenceDiscovery";
 
 export function PhotoPicker({
   label,
@@ -282,13 +283,16 @@ export default function ProductUploadForm({
         />
         {!productId && (
           <>
-            <PhotoPicker
-              label="촬영 레퍼런스 (선택)"
-              files={look}
-              onChange={setLook}
-              max={1}
-              disabled={busy}
-            />
+            <div className="min-w-0">
+              <PhotoPicker
+                label="촬영 레퍼런스 (선택)"
+                files={look}
+                onChange={setLook}
+                max={1}
+                disabled={busy}
+              />
+              <ReferenceDiscovery garment="" />
+            </div>
             <PhotoPicker
               label="인물 참조 (선택)"
               files={person}

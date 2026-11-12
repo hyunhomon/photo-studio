@@ -58,6 +58,7 @@ export const resetTables = [
   "invite_redemptions",
   "invite_codes",
   "auth_events",
+  "auth_lifecycle_events",
   "rate_limits",
   "storage_cleanup",
   "media_purges",

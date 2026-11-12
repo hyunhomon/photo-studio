@@ -1,5 +1,10 @@
 import { resolve } from "node:path";
 import production from "../infra/production.json";
+import {
+  captureAuth,
+  verifyAuth,
+  type AuthBaseline,
+} from "./auth-preservation";
 const root = resolve(import.meta.dir, ".."),
   cli = resolve(root, "apps/api/node_modules/wrangler/bin/wrangler.js"),
   origin = `https://${production.hostname}`;
@@ -81,10 +86,13 @@ const sessions: Record<
   string,
   { token: string; userId: string; csrf: string }
 > = {};
+const realAuthBefore = await captureAuth(query, backup.key);
+let sentinelBefore: AuthBaseline | undefined;
+let sentinelId: string | undefined;
 let flowHash: string | undefined;
 let failure: unknown;
 try {
-  for (const name of ["desktop-chromium", "mobile-chromium"]) {
+  for (const name of ["desktop-chromium", "mobile-chromium", "auth-sentinel"]) {
     const userId = crypto.randomUUID(),
       sessionToken = crypto.randomUUID() + crypto.randomUUID(),
       csrf = crypto.randomUUID(),
@@ -110,6 +118,9 @@ try {
       ],
     );
   }
+  sentinelId = sessions["auth-sentinel"]?.userId;
+  if (!sentinelId) throw new Error("Missing synthetic auth sentinel.");
+  sentinelBefore = await captureAuth(query, backup.key, sentinelId);
   const start = await fetch(`${origin}/auth/openrouter/start`, {
     redirect: "manual",
   });
@@ -177,6 +188,16 @@ try {
 } catch (error) {
   failure = error;
 }
+if (sentinelBefore && sentinelId) {
+  try {
+    await verifyAuth(query, backup.key, sentinelBefore, sentinelId);
+    console.info(
+      "PASS: untouched synthetic auth sentinel retained its exact connection and session throughout browser tests.",
+    );
+  } catch (error) {
+    failure ??= error;
+  }
+}
 try {
   for (const session of Object.values(sessions)) {
     const exists = await query<{ n: number }>(
@@ -211,12 +232,28 @@ try {
     );
     if (remaining[0]?.n)
       throw new Error("Synthetic test account cleanup incomplete");
+    const auditTable = await query<{ name: string }>(
+      "SELECT name FROM sqlite_master WHERE type='table' AND name='auth_lifecycle_events'",
+    );
+    if (auditTable.length)
+      await query(
+        "DELETE FROM auth_lifecycle_events WHERE subject_hash=? AND is_test=1",
+        [await hash(`${backup.key}:auth-subject:v1:${session.userId}`)],
+      );
   }
   if (flowHash)
     await query("DELETE FROM oauth_flows WHERE state_hash=?", [flowHash]);
 } catch (error) {
   failure ??= error;
   console.error("Synthetic test cleanup failed; resolve before release.");
+}
+try {
+  const preservation = await verifyAuth(query, backup.key, realAuthBefore);
+  console.info(
+    `Auth preservation: ${preservation.unchanged} unchanged existing accounts; ${preservation.explicitChanges} changes explained by explicit lifecycle events. Hashes and credentials were not logged.`,
+  );
+} catch (error) {
+  failure ??= error;
 }
 if (failure) throw failure;
 console.info(

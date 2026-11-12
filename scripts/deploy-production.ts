@@ -3,6 +3,7 @@ import { createRequire } from "node:module";
 import { relative, resolve, sep } from "node:path";
 import { parseConfigFileTextToJson } from "typescript";
 import production from "../infra/production.json";
+import { captureAuth, verifyAuth } from "./auth-preservation";
 
 // The only remote environment is production. Local Wrangler files remain
 // offline development configuration. Account/zone/database identifiers stay
@@ -201,6 +202,38 @@ if (!databases.some((d) => d.name === production.database)) {
 const database = databases.find((d) => d.name === production.database);
 if (!database)
   throw new Error("Production D1 database was not found after provisioning.");
+const authDatabaseId = database.uuid;
+async function authQuery<T>(sql: string, params: unknown[] = []): Promise<T[]> {
+  const rows = await api<{ results: T[]; success: boolean }[]>(
+    `${accountPath}/d1/database/${authDatabaseId}/query`,
+    { method: "POST", body: JSON.stringify({ sql, params }) },
+  );
+  if (rows.some((row) => !row.success))
+    throw new Error("Auth preservation read failed.");
+  return rows.flatMap((row) => row.results);
+}
+const existingKeyFile = Bun.file(resolve(stateDir, "encryption-key.json"));
+const auditKey = (await existingKeyFile.exists())
+  ? ((await existingKeyFile.json()) as { key: string }).key
+  : "initial-empty-deployment";
+const authBefore = await captureAuth(authQuery, auditKey);
+const canaryFile = Bun.file(resolve(stateDir, "auth-canary.json"));
+const canaryId = (await canaryFile.exists())
+  ? ((await canaryFile.json()) as { userId: string }).userId
+  : undefined;
+const canaryBefore = canaryId
+  ? await captureAuth(authQuery, auditKey, canaryId)
+  : undefined;
+if (
+  canaryBefore &&
+  (canaryBefore.state.size !== 1 ||
+    [...canaryBefore.state.values()].some(
+      (v) => v.connectionCount !== 1 || v.sessionCount !== 1,
+    ))
+)
+  throw new Error(
+    "Deployment auth canary is missing its synthetic connection/session.",
+  );
 const buckets = await api<{ buckets: { name: string }[] }>(
   `${accountPath}/r2/buckets?per_page=100`,
 );
@@ -441,6 +474,16 @@ if (!ready)
   throw new Error(
     "Deployment uploaded, but public HTTPS health is not ready yet. Do not recreate resources; check DNS/TLS propagation.",
   );
+const authPreserved = await verifyAuth(authQuery, auditKey, authBefore);
+if (canaryBefore && canaryId) {
+  await verifyAuth(authQuery, auditKey, canaryBefore, canaryId);
+  console.info(
+    "PASS: non-empty synthetic auth canary connection/session preserved byte for byte across deployment.",
+  );
+}
+console.info(
+  `Auth preservation: ${authPreserved.unchanged} unchanged existing accounts; ${authPreserved.explicitChanges} changes explained by explicit lifecycle events. No credential/hash output.`,
+);
 console.info(
   `PASS: ${origin}/health, production D1, private R2, Workflow. No provider calls.`,
 );

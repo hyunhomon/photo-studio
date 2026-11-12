@@ -310,4 +310,14 @@ production desktop/mobile 전체 Mock E2E **4/4 통과**: 저장된 분석 재�
 - [x] 박스 없는 스피너와 제목 아래 텍스트 단계. 완료/진행 중 초록색, 칩/경과 시간 제거.
 - [x] format/lint/typecheck/test/build 통과(단위69/69, 타입 진단0), local desktop/mobile Mock 8/8. 분석 후 + 업로드/새 썸네일 선택·3장 제한·업로드 단독 AI 미실행·기존 기획 생성·새 분석 snapshot·타 계정/active 차단·잘못된 사진의 ready 복구·pending 경계/단계 색/경과 시간 제거 검증 및 캡처 점검.
 - [x] 7409eaf API/Workflow→웹 배포 및 83f1a51 모바일 갤러리 보완 웹 재배포. 최종 운영 desktop/mobile Mock 8/8(wrapper exit0), 공개 HTTPS/CORS/OAuth/폰트/반응형 smoke 및 운영 캡처 통과. 확대 버튼이 프레임 밖으로 밀리던 회귀를 실제 경계 assertion으로 검출·수정했다. 반복 검사 중 OAuth 10분 제한을 확인해 다음 구간에서 같은 기준으로 재검증했으며 제한/검사를 완화하지 않았다. 합성 계정0 확인, 새 migration/자료 초기화/secret 변경/유료 AI 호출 없음.
-- [ ] 최종 조회에서 실사용 계정의 OpenRouter 연결/세션이 없는 상태다. 초기 조회 때는 존재했으나 소실 원인은 확인하지 못했다. 자동 테스트는 별도 is_test 계정만 사용·삭제하며 기존 계정 인증은 사용자 재연결이 필요하다. 이를 연결 보존 완료로 표시하지 않는다.
+- [x] 후속 조사에서 07:34:30 KST의 인증된 로그아웃200과 같은 초 D1 연결 삭제로 원인을 확인했다(ADR-032). 배포/만료/자동 E2E 로그아웃이 아니며 사용자 휴먼 테스트 설명과 일치한다. 실제 계정 재연결은 사용자의 OAuth로만 수행한다.
+
+### 인증 원인·보존 검사·촬영 참조 증강 — 2026-11-12 (ADR-032/033)
+
+- [x] 07:34:30 KST의 인증된 로그아웃200과 같은 초 D1 연결 삭제로 원인 확인. 배포/만료/자동 E2E 삭제와 구분, 과거 원인 미확인 항목을 대체한다.
+- [x] 원자적 lifecycle audit/30일 보관, 실제 인증 전후 보존 검사와 별도 non-empty 합성 canary, 타 계정 로그아웃/삭제 격리.
+- [x] 외부 Pinterest generic 검색·권한 있는 원본 업로드/미리보기·비공개 Pin 출처와 계획/생성 snapshot/내보내기. URL은 fetch/모델 전송하지 않음.
+- [x] 동일 planning/generation 호출의 촬영 증거 증강, 고정 optics 충돌 제거, studio-v10/photo-v6 및 이전 버전 호환.
+- [ ] 최종 format/lint/typecheck/test/build, local/production Mock 및 실제 배포 전후 인증 canary 검증/정리.
+- [ ] 공식 Pinterest 자동 검색/수집은 앱·해당 저장/제3자 처리 승인과 자격 증명 미준비로 미연동. 외부 수동 검색과 구별한다.
+- [ ] v6의 실제 촬영 현실감 개선은 사용자의 같은 입력 유료 실행 비교 전 미검증. 자동 유료 호출하지 않음.

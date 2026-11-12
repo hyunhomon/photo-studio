@@ -1,0 +1,1 @@
+ALTER TABLE `assets` ADD `source_pin_url` text;

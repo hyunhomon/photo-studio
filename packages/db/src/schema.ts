@@ -95,6 +95,22 @@ export const authEvents = sqliteTable("auth_events", {
   createdAt: integer("created_at").notNull(),
 });
 
+// Keyed, pseudonymous lifecycle evidence. Never store raw identity, IP, cookies or keys.
+export const authLifecycleEvents = sqliteTable(
+  "auth_lifecycle_events",
+  {
+    id: text("id").primaryKey(),
+    subjectHash: text("subject_hash").notNull(),
+    event: text("event").notNull(),
+    reason: text("reason").notNull(),
+    isTest: integer("is_test", { mode: "boolean" }).notNull(),
+    connectionsAffected: integer("connections_affected").notNull().default(0),
+    sessionsAffected: integer("sessions_affected").notNull().default(0),
+    createdAt: integer("created_at").notNull(),
+  },
+  (t) => [index("auth_lifecycle_subject_time").on(t.subjectHash, t.createdAt)],
+);
+
 export const products = sqliteTable(
   "products",
   {
@@ -128,6 +144,7 @@ export const assets = sqliteTable(
     sizeBytes: integer("size_bytes").notNull(),
     width: integer("width").notNull(),
     height: integer("height").notNull(),
+    sourcePinUrl: text("source_pin_url"),
     createdAt: integer("created_at").notNull(),
   },
   (t) => [index("asset_product_owner").on(t.productId, t.userId)],

@@ -2,7 +2,6 @@ import { Hono } from "hono";
 import { deleteCookie } from "hono/cookie";
 import { z } from "zod";
 import {
-  and,
   assets,
   attempts,
   createDb,
@@ -22,6 +21,7 @@ import { cancelProducts, jobDtos } from "./pipeline";
 import { deleteObjects, purgeUserMedia } from "./storage";
 import { AppError } from "./errors";
 import { rateLimit } from "./auth";
+import { authAuditStatement } from "./auth-audit";
 export function operationsRoutes() {
   const api = new Hono<AppContext>();
   api.get("/usage", async (c) => {
@@ -106,6 +106,7 @@ export function operationsRoutes() {
           width: assets.width,
           height: assets.height,
           mimeType: assets.mimeType,
+          sourcePinUrl: assets.sourcePinUrl,
           createdAt: assets.createdAt,
         })
         .from(assets)
@@ -236,9 +237,18 @@ export function operationsRoutes() {
         503,
       );
     }
-    await createDb(c.env.DB)
-      .delete(users)
-      .where(and(eq(users.id, userId), eq(users.status, "deleting")));
+    await c.env.DB.batch([
+      await authAuditStatement(
+        c.env,
+        userId,
+        "account_deleted",
+        "explicit_account_deletion",
+        { captureExisting: true },
+      ),
+      c.env.DB.prepare(
+        "DELETE FROM users WHERE id=? AND status='deleting'",
+      ).bind(userId),
+    ]);
     deleteCookie(
       c,
       c.env.APP_ENV === "production" ? "__Host-ps_session" : "ps_session",

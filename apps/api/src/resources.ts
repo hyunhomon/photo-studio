@@ -36,6 +36,7 @@ export const assetDto = (row: typeof assets.$inferSelect): AssetDto => ({
   width: row.width,
   height: row.height,
   createdAt: row.createdAt,
+  sourcePinUrl: row.sourcePinUrl,
 });
 export async function ownedProduct(
   env: Env,

@@ -77,6 +77,7 @@ export interface AssetDto {
   width: number;
   height: number;
   createdAt: number;
+  sourcePinUrl?: string | null;
 }
 export interface ProductDto {
   id: string;

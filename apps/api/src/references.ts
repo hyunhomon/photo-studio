@@ -8,6 +8,7 @@ import { normalizeImage } from "./images";
 import { rateLimit } from "./auth";
 import { assertIdle } from "./pipeline";
 import { clearObjectQueue, deleteObject, queueObject } from "./storage";
+import { canonicalPinUrl } from "./reference-source";
 
 export function referenceRoutes(
   deps: { normalize?: typeof normalizeImage } = {},
@@ -20,6 +21,12 @@ export function referenceRoutes(
     await assertIdle(c.env, owner, product.id);
     const form = await c.req.formData();
     const role = referenceRoleSchema.parse(form.get("role"));
+    const sourcePinUrl = canonicalPinUrl(form.get("sourcePinUrl"));
+    if (sourcePinUrl && role !== "look_reference")
+      throw new AppError(
+        "INVALID_REFERENCE_SOURCE",
+        "Pinterest 출처는 촬영감 참조에만 연결할 수 있습니다.",
+      );
     if (form.get("rightsConfirmed") !== "true")
       throw new AppError(
         "REFERENCE_CONSENT_REQUIRED",
@@ -48,7 +55,7 @@ export function referenceRoutes(
       });
       // This atomic statement guards concurrent uploads, new jobs and deletion.
       const saved = await c.env.DB.prepare(
-        "INSERT INTO assets(id,user_id,product_id,kind,r2_key,mime_type,size_bytes,width,height,created_at) SELECT ?,p.user_id,p.id,?,?,?,?,?,?,? FROM products p JOIN users u ON u.id=p.user_id WHERE p.id=? AND p.user_id=? AND p.status='ready' AND u.status='active' AND NOT EXISTS(SELECT 1 FROM assets a WHERE a.product_id=p.id AND a.user_id=p.user_id AND a.kind=?) AND NOT EXISTS(SELECT 1 FROM generation_jobs j WHERE j.product_id=p.id AND j.user_id=p.user_id AND j.status IN ('queued','running'))",
+        "INSERT INTO assets(id,user_id,product_id,kind,r2_key,mime_type,size_bytes,width,height,created_at,source_pin_url) SELECT ?,p.user_id,p.id,?,?,?,?,?,?,?,? FROM products p JOIN users u ON u.id=p.user_id WHERE p.id=? AND p.user_id=? AND p.status='ready' AND u.status='active' AND NOT EXISTS(SELECT 1 FROM assets a WHERE a.product_id=p.id AND a.user_id=p.user_id AND a.kind=?) AND NOT EXISTS(SELECT 1 FROM generation_jobs j WHERE j.product_id=p.id AND j.user_id=p.user_id AND j.status IN ('queued','running'))",
       )
         .bind(
           id,
@@ -59,6 +66,7 @@ export function referenceRoutes(
           image.width,
           image.height,
           Date.now(),
+          sourcePinUrl,
           product.id,
           owner,
           role,

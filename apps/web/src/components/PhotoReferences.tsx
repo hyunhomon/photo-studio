@@ -7,6 +7,8 @@ import type {
   ReferenceRole,
 } from "@photo-studio/schemas";
 import { apiBase, errorMessage, request } from "../lib/api";
+import ReferenceDiscovery from "./ReferenceDiscovery";
+import { PhotoPicker } from "./ProductUploadForm";
 
 const roles = [
   {
@@ -36,6 +38,7 @@ export default function PhotoReferences({
     [busy, setBusy] = useState(false),
     [error, setError] = useState("");
   const [remove, setRemove] = useState<AssetDto | null>(null);
+  const [sourcePinUrl, setSourcePinUrl] = useState("");
   const info = roles.find((r) => r.value === role);
   async function upload() {
     if (!file || !role) return;
@@ -46,6 +49,8 @@ export default function PhotoReferences({
       body.set("role", role);
       body.set("rightsConfirmed", "true");
       body.set("image", file);
+      if (role === "look_reference" && sourcePinUrl.trim())
+        body.set("sourcePinUrl", sourcePinUrl.trim());
       await request(
         `/api/v1/products/${product.id}/references`,
         { method: "POST", body, signal: AbortSignal.timeout(60000) },
@@ -101,6 +106,11 @@ export default function PhotoReferences({
               className="rounded-xl border border-line bg-studio p-4"
             >
               <h3 className="font-semibold">{r.title}</h3>
+              {r.value === "look_reference" && (
+                <ReferenceDiscovery
+                  garment={product.analysis?.garmentType ?? ""}
+                />
+              )}
               {asset ? (
                 <div className="group relative mt-4 w-fit">
                   <img
@@ -117,6 +127,16 @@ export default function PhotoReferences({
                   >
                     <Trash2 size={15} aria-hidden="true" />
                   </button>
+                  {asset.sourcePinUrl && (
+                    <a
+                      href={asset.sourcePinUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-2 block text-xs text-muted underline"
+                    >
+                      핀 출처
+                    </a>
+                  )}
                 </div>
               ) : (
                 <Button
@@ -126,6 +146,7 @@ export default function PhotoReferences({
                   onClick={() => {
                     setRole(r.value);
                     setFile(null);
+                    setSourcePinUrl("");
                     setError("");
                   }}
                 >
@@ -143,7 +164,11 @@ export default function PhotoReferences({
           if (!busy) setRole(null);
         }}
         title={info?.button ?? "참조 사진 등록"}
-        description=""
+        description={
+          role === "look_reference"
+            ? "사용권 있는 실제 촬영 원본을 등록해 주세요. 사진은 기획과 생성의 시각 참조로 사용합니다."
+            : ""
+        }
       >
         <form
           className="mt-5 space-y-5"
@@ -152,21 +177,27 @@ export default function PhotoReferences({
             void upload();
           }}
         >
-          <label className="relative flex min-h-32 cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-control bg-studio p-5 text-center">
-            <ImagePlus size={24} aria-hidden="true" />
-            <span className="mt-3 text-xs font-semibold">
-              {file ? file.name : `${info?.title} 사진 선택`}
-            </span>
-            <input
-              aria-label={`${info?.title} 사진 선택`}
-              type="file"
-              accept="image/jpeg,image/png,image/webp"
-              required
-              disabled={busy}
-              className="absolute inset-0 size-full cursor-pointer opacity-0"
-              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-            />
-          </label>
+          <PhotoPicker
+            label={`${info?.title} 사진 선택`}
+            files={file ? [file] : []}
+            onChange={(files) => setFile(files[0] ?? null)}
+            max={1}
+            disabled={busy}
+          />
+          {role === "look_reference" && (
+            <label className="block text-xs text-muted">
+              핀 출처 (선택)
+              <input
+                type="url"
+                className="studio-input mt-2"
+                placeholder="https://www.pinterest.com/pin/…/"
+                value={sourcePinUrl}
+                maxLength={300}
+                onChange={(e) => setSourcePinUrl(e.target.value)}
+                disabled={busy}
+              />
+            </label>
+          )}
           {error && (
             <p role="alert" className="text-sm text-danger">
               {error}

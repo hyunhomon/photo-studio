@@ -1,5 +1,6 @@
 import { resolve, relative, sep } from "node:path";
 import production from "../infra/production.json";
+import { captureAuth, verifyAuth } from "./auth-preservation";
 
 // UI releases reuse the verified production identity and never deploy the API,
 // migrate D1, update secrets, or touch ongoing customer Workflows.
@@ -118,6 +119,45 @@ if (
 console.info(
   "Verified production web identity. Publishing UI only; API, data and Workflows are untouched.",
 );
+const apiConfig = (await Bun.file(
+  resolve(root, ".wrangler/production/api.json"),
+).json()) as { d1_databases: { database_id: string }[] };
+const auditKey = (
+  (await Bun.file(
+    resolve(root, ".wrangler/production/encryption-key.json"),
+  ).json()) as { key: string }
+).key;
+const authDatabaseId = apiConfig.d1_databases[0]?.database_id;
+if (!authDatabaseId) throw new Error("Missing production auth database.");
+async function authQuery<T>(sql: string, params: unknown[] = []): Promise<T[]> {
+  const rows = await api<{ results: T[]; success: boolean }[]>(
+    `/accounts/${pinned.accountId}/d1/database/${authDatabaseId}/query`,
+    { method: "POST", body: JSON.stringify({ sql, params }) },
+  );
+  if (rows.some((row) => !row.success))
+    throw new Error("Auth preservation read failed.");
+  return rows.flatMap((row) => row.results);
+}
+const authBefore = await captureAuth(authQuery, auditKey);
+const canaryFile = Bun.file(
+  resolve(root, ".wrangler/production/auth-canary.json"),
+);
+const canaryId = (await canaryFile.exists())
+  ? ((await canaryFile.json()) as { userId: string }).userId
+  : undefined;
+const canaryBefore = canaryId
+  ? await captureAuth(authQuery, auditKey, canaryId)
+  : undefined;
+if (
+  canaryBefore &&
+  (canaryBefore.state.size !== 1 ||
+    [...canaryBefore.state.values()].some(
+      (v) => v.connectionCount !== 1 || v.sessionCount !== 1,
+    ))
+)
+  throw new Error(
+    "Deployment auth canary is missing its synthetic connection/session.",
+  );
 await run("Production web build", ["bun", "run", "build"], {
   cwd: webRoot,
   env: {
@@ -162,6 +202,16 @@ await run("Production web publish", [
   "--config",
   builtPath,
 ]);
+const authPreserved = await verifyAuth(authQuery, auditKey, authBefore);
+if (canaryBefore && canaryId) {
+  await verifyAuth(authQuery, auditKey, canaryBefore, canaryId);
+  console.info(
+    "PASS: non-empty synthetic auth canary connection/session preserved byte for byte across web deployment.",
+  );
+}
+console.info(
+  `Auth preservation: ${authPreserved.unchanged} unchanged existing accounts; ${authPreserved.explicitChanges} changes explained by explicit lifecycle events. No credential/hash output.`,
+);
 console.info(
   `PASS: published web UI at ${origin}. No API deployment, migration or AI invocation.`,
 );

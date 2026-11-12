@@ -40,6 +40,7 @@ import {
 import { clearObjectQueue, deleteObject, queueObject } from "./storage";
 import { normalizeImage } from "./images";
 import { rateLimit } from "./auth";
+import { referenceSource, type ReferenceSource } from "./reference-source";
 
 export interface GenerationSnapshot extends PlanSnapshot {
   planId: string;
@@ -221,13 +222,14 @@ export function generationRoutes() {
       const asset = await ownedGenerated(c.env, userId, input.regenerationOf);
       if (asset.productId !== p.id) throw notFound();
     }
+    const referenceSources: ReferenceSource[] = [];
     for (const [id, kind] of [
       [input.personReferenceId, "person_reference"],
       [input.lookReferenceId, "look_reference"],
     ] as const) {
       if (!id) continue;
       const reference = await createDb(c.env.DB)
-        .select({ id: assets.id })
+        .select({ id: assets.id, sourcePinUrl: assets.sourcePinUrl })
         .from(assets)
         .where(
           and(
@@ -239,6 +241,9 @@ export function generationRoutes() {
         )
         .get();
       if (!reference) throw notFound();
+      referenceSources.push(
+        referenceSource(reference.id, kind, reference.sourcePinUrl),
+      );
     }
     const sourceIds = await sourceSnapshot(
       c.env,
@@ -268,6 +273,7 @@ export function generationRoutes() {
     ].slice(0, 20);
     const snapshot: GenerationSnapshot = {
       sourceIds,
+      referenceSources,
       analysisSnapshot: analysis ?? undefined,
       preset: null,
       description: "",

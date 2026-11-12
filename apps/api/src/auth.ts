@@ -15,6 +15,7 @@ import type { AppContext, Env, Identity } from "./env";
 import { challenge, decrypt, encrypt, hash, randomToken } from "./crypto";
 import { AppError } from "./errors";
 import { OAuthError } from "./auth-errors";
+import { authAuditStatement } from "./auth-audit";
 
 type C = Context<AppContext>;
 const week = 7 * 24 * 60 * 60;
@@ -126,19 +127,40 @@ export async function rateLimit(
       429,
     );
 }
-export async function issueSession(c: C, userId: string) {
+export async function issueSession(
+  c: C,
+  userId: string,
+  replaceSessionId?: string,
+) {
   const token = randomToken();
   const csrf = randomToken();
-  await createDb(c.env.DB)
-    .insert(sessions)
-    .values({
-      id: crypto.randomUUID(),
+  const now = Date.now();
+  await c.env.DB.batch([
+    c.env.DB.prepare(
+      "INSERT INTO sessions(id,user_id,token_hash,csrf,created_at,expires_at) VALUES(?,?,?,?,?,?)",
+    ).bind(
+      crypto.randomUUID(),
       userId,
-      tokenHash: await hash(token),
+      await hash(token),
       csrf,
-      createdAt: Date.now(),
-      expiresAt: Date.now() + week * 1000,
-    });
+      now,
+      now + week * 1000,
+    ),
+    ...(replaceSessionId
+      ? [
+          c.env.DB.prepare(
+            "DELETE FROM sessions WHERE id=? AND user_id=?",
+          ).bind(replaceSessionId, userId),
+        ]
+      : []),
+    await authAuditStatement(
+      c.env,
+      userId,
+      replaceSessionId ? "session_refreshed" : "session_issued",
+      replaceSessionId ? "explicit_refresh" : "sign_in",
+      { sessions: replaceSessionId ? 2 : 1, at: now },
+    ),
+  ]);
   setCookie(c, sessionName(c.env), token, cookieOptions(c.env, week));
   return csrf;
 }
@@ -363,30 +385,29 @@ export function authRoutes(deps: AuthDeps = {}) {
               c.env.DB.prepare(
                 "INSERT INTO provider_connections(id,user_id,provider,key_envelope,linked_at) VALUES(?,?,'openrouter',?,?)",
               ).bind(crypto.randomUUID(), userId, envelope, now),
+              await authAuditStatement(
+                c.env,
+                userId,
+                "provider_connected",
+                "oauth_callback",
+                { connections: 1, at: now },
+              ),
             ]);
           } else {
-            await db.batch([
-              db
-                .insert(connections)
-                .values({
-                  id: crypto.randomUUID(),
-                  userId,
-                  provider: "openrouter",
-                  keyEnvelope: envelope,
-                  linkedAt: now,
-                })
-                .onConflictDoUpdate({
-                  target: [connections.userId, connections.provider],
-                  set: {
-                    keyEnvelope: envelope,
-                    linkedAt: now,
-                    revokedAt: null,
-                  },
-                }),
-              db
-                .update(users)
-                .set({ lastLoginAt: now })
-                .where(and(eq(users.id, userId), eq(users.status, "active"))),
+            await c.env.DB.batch([
+              c.env.DB.prepare(
+                "INSERT INTO provider_connections(id,user_id,provider,key_envelope,linked_at) VALUES(?,?,'openrouter',?,?) ON CONFLICT(user_id,provider) DO UPDATE SET key_envelope=excluded.key_envelope,linked_at=excluded.linked_at,revoked_at=NULL",
+              ).bind(crypto.randomUUID(), userId, envelope, now),
+              c.env.DB.prepare(
+                "UPDATE users SET last_login_at=? WHERE id=? AND status='active'",
+              ).bind(now, userId),
+              await authAuditStatement(
+                c.env,
+                userId,
+                "provider_connected",
+                "oauth_callback",
+                { connections: 1, at: now },
+              ),
             ]);
           }
         } catch (error) {
@@ -461,10 +482,7 @@ export function authRoutes(deps: AuthDeps = {}) {
   auth.post("/refresh", async (c) => {
     const identity = await requireIdentity(c);
     requireCsrf(c, identity);
-    const csrf = await issueSession(c, identity.userId);
-    await createDb(c.env.DB)
-      .delete(sessions)
-      .where(eq(sessions.id, identity.sessionId));
+    const csrf = await issueSession(c, identity.userId, identity.sessionId);
     return c.json({ data: { csrf } });
   });
   const disconnectAndLogout = async (c: C) => {
@@ -483,6 +501,15 @@ export function authRoutes(deps: AuthDeps = {}) {
       list.results.map((p) => p.id),
     );
     await c.env.DB.batch([
+      await authAuditStatement(
+        c.env,
+        identity.userId,
+        "credentials_disconnected",
+        c.req.path === "/auth/logout"
+          ? "explicit_logout"
+          : "explicit_disconnect",
+        { captureExisting: true },
+      ),
       c.env.DB.prepare("DELETE FROM provider_connections WHERE user_id=?").bind(
         identity.userId,
       ),
@@ -509,14 +536,40 @@ export function authRoutes(deps: AuthDeps = {}) {
   return auth;
 }
 export async function cleanupIdentity(env: Env) {
+  const now = Date.now();
+  // Bound a cleanup batch; expired sessions are already rejected by getIdentity.
+  const expired = await env.DB.prepare(
+    "SELECT DISTINCT user_id FROM sessions WHERE expires_at<? LIMIT 100",
+  )
+    .bind(now)
+    .all<{ user_id: string }>();
+  const expiryEvents = (
+    await Promise.all(
+      expired.results.map(async ({ user_id }) => [
+        await authAuditStatement(
+          env,
+          user_id,
+          "session_expired",
+          "scheduled_expiry",
+          { expiredBefore: now, at: now },
+        ),
+        env.DB.prepare(
+          "DELETE FROM sessions WHERE user_id=? AND expires_at<?",
+        ).bind(user_id, now),
+      ]),
+    )
+  ).flat();
   await env.DB.batch([
+    ...expiryEvents,
+    env.DB.prepare("DELETE FROM auth_lifecycle_events WHERE created_at<?").bind(
+      now - 30 * 86400000,
+    ),
     env.DB.prepare("DELETE FROM auth_events WHERE created_at<?").bind(
       Date.now() - 7 * 86400000,
     ),
     env.DB.prepare("DELETE FROM oauth_flows WHERE expires_at<?").bind(
       Date.now(),
     ),
-    env.DB.prepare("DELETE FROM sessions WHERE expires_at<?").bind(Date.now()),
     env.DB.prepare("DELETE FROM rate_limits WHERE expires_at<?").bind(
       Date.now(),
     ),

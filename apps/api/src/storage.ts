@@ -1,4 +1,5 @@
 import type { Env } from "./env";
+import { authAuditStatement } from "./auth-audit";
 export async function queueObject(env: Env, key: string) {
   await env.DB.prepare(
     "INSERT INTO storage_cleanup (key,expires_at) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET expires_at=excluded.expires_at",
@@ -39,6 +40,13 @@ export async function cleanupStorage(env: Env) {
     try {
       await purgeUserMedia(env, purge.user_id, 2);
       checked.push(
+        await authAuditStatement(
+          env,
+          purge.user_id,
+          "account_deleted",
+          "deletion_retry_cleanup",
+          { captureExisting: true },
+        ),
         env.DB.prepare(
           "DELETE FROM users WHERE id=? AND status='deleting'",
         ).bind(purge.user_id),

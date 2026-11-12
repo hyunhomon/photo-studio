@@ -60,6 +60,85 @@ test("planning derives editable photographic choices from a selected visual refe
   expect(response.usage.actualCostUsd).toBe(0.0001);
   expect(calls).toBe(1);
 });
+
+test("a photographic observation brief reaches generation with original evidence and current edits in two provider calls", async () => {
+  const notes =
+    "구도: 합성 계단에 기대는 반신. 빛: 왼쪽 단단한 광원, 계단 그림자는 오른쪽. 초점: 소매와 받침은 함께 선명. 표면: 천 조직은 가까운 부분만 보임. 한계: 정확한 조리개는 확인 불가.";
+  const planned = { ...mockPlan(mockAnalysisFixture), referenceNotes: notes };
+  const stages: string[] = [];
+  const transport = Object.assign(
+    async (input: unknown, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body));
+      if (String(input).endsWith("/images")) {
+        stages.push("generation");
+        expect(
+          body.input_references.map(
+            (r: { image_url: { url: string } }) => r.image_url.url,
+          ),
+        ).toEqual(["synthetic-garment", "synthetic-look"]);
+        expect(body.n).toBe(1);
+        expect(body.prompt).toContain(notes);
+        expect(body.prompt).toContain("Synthetic explicit high camera angle");
+        expect(body.prompt).toContain(
+          "Synthetic retain pose; change only contact shadow",
+        );
+        expect(body.prompt).toContain("original garment under that same light");
+        expect(body.prompt).not.toContain("approximately f/");
+        return Response.json({
+          data: [
+            { b64_json: btoa("synthetic-image"), media_type: "image/png" },
+          ],
+        });
+      }
+      stages.push("planning");
+      const task = JSON.parse(body.messages[1].content[0].text);
+      expect(task.referenceTask).toContain("구도 / 빛 / 초점 / 표면 / 한계");
+      expect(task.referenceTask).toContain(
+        "actual camera, pose, location, lighting and materialDirection",
+      );
+      expect(task.referenceTask).toContain("Unclear details belong in 한계");
+      expect(body.messages[1].content[1].image_url.url).toBe("synthetic-look");
+      return Response.json({
+        choices: [
+          {
+            finish_reason: "stop",
+            message: { content: JSON.stringify(planned) },
+          },
+        ],
+      });
+    },
+    { preconnect: fetch.preconnect },
+  ) as typeof fetch;
+  const adapter = openRouterAdapter(
+    "synthetic-key",
+    "https://synthetic.invalid/reference-evidence",
+    transport,
+  );
+  const plan = await adapter.plan(
+    "synthetic-vision",
+    mockAnalysisFixture,
+    null,
+    "Synthetic brief",
+    { lookImage: "synthetic-look" },
+  );
+  await adapter.generate(
+    "synthetic-image",
+    ["synthetic-garment"],
+    {
+      ...plan.value,
+      camera: {
+        ...plan.value.camera,
+        angle: "Synthetic explicit high camera angle",
+      },
+    },
+    "medium",
+    {
+      lookImage: "synthetic-look",
+      adjustments: "Synthetic retain pose; change only contact shadow",
+    },
+  );
+  expect(stages).toEqual(["planning", "generation"]);
+});
 test("portable planning schema, lossless JSON parsing and app-owned constants tolerate provider formatting without changing garment facts", async () => {
   let calls = 0;
   const transport = Object.assign(

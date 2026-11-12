@@ -5,6 +5,7 @@ import { runPlanStage } from "./pipeline";
 import { runGenerationStage } from "./generation";
 import { cleanupStorage } from "./storage";
 import type { ProductDto } from "@photo-studio/schemas";
+import { referenceForm } from "../test/references";
 test("owner-only usage distinguishes unknown costs; safe export excludes credentials; account deletion cascades", async () => {
   const s = await studioFixture(),
     planJob = await s.startPlan();
@@ -68,6 +69,11 @@ test("owner-only usage distinguishes unknown costs; safe export excludes credent
   expect(
     (await s.call<UsageDto>("/usage", "GET", undefined, b)).data.calls,
   ).toBe(0);
+  const look = referenceForm("look_reference");
+  look.set("sourcePinUrl", "https://www.pinterest.com/pin/123456789/");
+  expect(
+    (await s.call(`/products/${s.product.id}/references`, "POST", look)).status,
+  ).toBe(201);
   const exported = await s.app.request(
     "/api/v1/account/export",
     { headers: s.headers },
@@ -76,6 +82,11 @@ test("owner-only usage distinguishes unknown costs; safe export excludes credent
   expect(exported.status).toBe(200);
   const text = await exported.text();
   const history = JSON.parse(text);
+  expect(
+    history.assets.find(
+      (asset: { kind: string }) => asset.kind === "look_reference",
+    ).sourcePinUrl,
+  ).toBe("https://www.pinterest.com/pin/123456789/");
   expect(history.evaluations).toHaveLength(1);
   expect(history.feedback[0].note).toBe("Synthetic historical note");
   expect(history.feedback[0].decision).toBe("rejected");
@@ -181,4 +192,15 @@ test("scheduled cleanup finishes a failed account deletion after its session has
   expect(
     s.sqlite.query("SELECT count(*) n FROM provider_connections").get(),
   ).toEqual({ n: 0 });
+  expect(
+    s.sqlite
+      .query(
+        "SELECT reason,connections_affected,sessions_affected FROM auth_lifecycle_events WHERE event='account_deleted'",
+      )
+      .get(),
+  ).toEqual({
+    reason: "deletion_retry_cleanup",
+    connections_affected: 1,
+    sessions_affected: 1,
+  });
 });

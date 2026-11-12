@@ -40,6 +40,7 @@ import { AppError, notFound } from "./errors";
 import { ownedProduct } from "./resources";
 import { decrypt, hash } from "./crypto";
 import { rateLimit } from "./auth";
+import { referenceSource, type ReferenceSource } from "./reference-source";
 
 export type JobRow = typeof jobs.$inferSelect;
 export interface PlanSnapshot {
@@ -52,6 +53,7 @@ export interface PlanSnapshot {
   lookReferenceId?: string | null;
   personReferenceId?: string | null;
   referenceConsent?: boolean;
+  referenceSources?: ReferenceSource[];
   /** Legacy snapshots only; no evaluator is invoked (ADR-019). */
   evaluationModel?: string;
 }
@@ -662,13 +664,14 @@ export function pipelineRoutes() {
         409,
       );
     await rateLimit(c, `analysis:${userId}`, 20);
+    const referenceSources: ReferenceSource[] = [];
     for (const [id, kind] of [
       [input.lookReferenceId, "look_reference"],
       [input.personReferenceId, "person_reference"],
     ] as const) {
       if (!id) continue;
       const reference = await createDb(c.env.DB)
-        .select({ id: assets.id })
+        .select({ id: assets.id, sourcePinUrl: assets.sourcePinUrl })
         .from(assets)
         .where(
           and(
@@ -680,6 +683,9 @@ export function pipelineRoutes() {
         )
         .get();
       if (!reference) throw notFound();
+      referenceSources.push(
+        referenceSource(reference.id, kind, reference.sourcePinUrl),
+      );
     }
     const total = await c.env.DB.prepare(
       "SELECT coalesce(sum(size_bytes),0) n FROM assets WHERE user_id=? AND product_id=? AND (kind='input' OR id=? OR id=?)",
@@ -716,6 +722,7 @@ export function pipelineRoutes() {
           }
         : {}),
       sourceIds: await sourceSnapshot(c.env, userId, p.id),
+      referenceSources,
       preset,
       description: input.description,
       lookReferenceId: input.lookReferenceId,
