@@ -319,7 +319,7 @@ production desktop/mobile 전체 Mock E2E **4/4 통과**: 저장된 분석 재�
 - [x] 외부 Pinterest generic 검색·권한 있는 원본 업로드/미리보기·비공개 Pin 출처와 계획/생성 snapshot/내보내기. URL은 fetch/모델 전송하지 않음.
 - [x] 동일 planning/generation 호출의 촬영 증거 증강, 고정 optics 충돌 제거, studio-v10/photo-v6 및 이전 버전 호환.
 - [x] 최종 format/lint/typecheck/test/build 통과(단위79/79, 타입 진단0), local/production desktop/mobile Mock 각8/8, native workerd OAuth/가짜 provider HTTP 계약 및 합성 촬영6종 통과. 3b0891f/25cfd3d commit/push, additive0011/0012와 API/Workflow→웹 운영 배포. 두 배포와 운영 전체 테스트 전후 기존 실제 인증 불변, 별도 non-empty canary 원문 불변 및 세 번째 untouched 합성 sentinel 불변을 확인했다. wrapper exit0, 공개 smoke/화면 확인, 합성 계정0·실제 연결/세션 유지 확인. 테스트/검증 계정만 정리했으며 고객 데이터 초기화·secret 교체·유료 AI 호출 없음.
-- [ ] 공식 Pinterest 자동 검색/수집은 앱·해당 저장/제3자 처리 승인과 자격 증명 미준비로 미연동. 외부 수동 검색과 구별한다.
+- 공식 Pinterest 자동 검색/수집은 앱·해당 저장/제3자 처리 승인과 자격 증명 미준비로 미연동. 후속 사용자 지시에 따라 기본 자동 소스는 ADR-034의 Commons로 대체하며 Pinterest 연동을 완료로 표시하지 않는다.
 - [ ] v6의 실제 촬영 현실감 개선은 사용자의 같은 입력 유료 실행 비교 전 미검증. 자동 유료 호출하지 않음.
 
 ### 분석 후 실제 자동 참조 검색 — 2026-11-12 (ADR-034)
@@ -327,5 +327,7 @@ production desktop/mobile 전체 Mock E2E **4/4 통과**: 저장된 분석 재�
 - [x] 공식 Commons API/CC0/다른 공급자 조건 조사와 실제 검색/JPEG 다운로드. 별도 키 없는 경로 선택.
 - [x] 상품 분석→자동 reference_search→기존 기획→생성 이미지 전달, manual 우선/명시 opt-out/실패 무가짜 fallback.
 - [x] 별도 private autoasset·job별 immutable 연결/claim·라이선스/작성자/출처·실패 telemetry·소유권/크기/host/redirect 검증.
-- [ ] 최종 format/lint/typecheck/test/build·local/production Mock, 실제 운영 Commons 검색/다운로드/R2 및 AI0회 확인·배포·정리.
+- [x] 최종 format/lint/typecheck/test/build 통과(단위93/93, 타입 진단0), local desktop/mobile Mock10/10 및 native workerd OAuth/합성 provider HTTP 계약 통과. 자동 참조 기본 흐름·실제 선택 asset의 planning/generation 전달·수동 override/opt-out·타 계정 차단·검색 실패 시 분석 보존/유료 기획 미실행·저장 부분 실패와 응답 유실·합성 probe 접근 제한을 검증했다.
+- [x] 85b9b01/b5754f3/f050792 commit/push 및 additive0013·API/Workflow→웹 배포 완료. REST Workflow의 문자열 payload 차이로 첫 probe가 실패했으나 공통 검증을 보완한 뒤 최종 배포에서도 실제 Commons 검색/JPEG/CC0/private R2 읽기·출처 보관과 AI attempt0을 확인했다. probe 자기 합성 자료 정리 및 실제 인증 불변, 배포 전후 non-empty canary의 연결·세션 원문 불변을 확인했다. 공개 HTTPS/CORS/OAuth/폰트/반응형 smoke 통과.
+- [x] 최종 production desktop/mobile Mock10/10, wrapper exit0. 업로드 단독 무AI→상품 분석→자동 참조 검색/기획→같은 참조 자동 생성→지시형 개선→원본/이전 컷 비교→내보내기/다운로드→삭제, 타 계정 격리와 인증 pending/OAuth 복귀를 검증했다. 운영 자동 참조 desktop/mobile 화면을 점검했다. 별도 untouched sentinel 및 실제 계정 인증 불변, 전체 검사 후 standalone canary 원문 불변을 확인하고 자기 합성 자료만 정리했다. 마지막 읽기 전용 집계는 합성 계정0, 실제 계정1/연결1/세션2였다. 고객 자료 초기화·secret 변경·유료 AI 호출 없음.
 - [ ] 실사 품질 개선은 사용자의 실제 유료 생성 비교 전 미검증. 자동 참조가 사진 현실감을 보장하지 않는다.

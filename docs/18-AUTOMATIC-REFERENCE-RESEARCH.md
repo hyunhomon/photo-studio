@@ -8,7 +8,7 @@
 
 API 검색은 파일 namespace6, bitmap, CC-Zero category를 사용한다. 검색 category만으로 허가를 추정하지 않고 `imageinfo.extmetadata.LicenseShortName`과 `LicenseUrl`을 확인한다. 허용한 CC0와 모순되는 제한 표기·불확실한 라이선스는 제외한다. metadata는 HTML이므로 단순 텍스트로 처리하고 HTML로 렌더링하지 않는다. AI·일러스트·작품·인물 관련 표기와 비사진 후보를 제외하고 촬영 metadata를 활용하되, 자동 필터가 모든 내용이나 권리를 확정한다고 주장하지 않는다.
 
-원본은 해상도가 크므로 `iiurlwidth=1024&iiurlheight=1024`의 bounded thumbnail을 요청한다. 다운로드는 허용된 Wikimedia media host의 HTTPS 주소로 한정하고 크기·signature·디코딩 검사를 수행한다. 사진은 private R2에 저장하고 출처 페이지·작가·CC0 URL·선택 시각을 보관한다. 원본 의류·성인 인물 참조와 자동 배경/촬영감 증거의 역할을 구분한다.
+원본은 해상도가 크므로 `iiurlwidth=768&iiurlheight=768`의 bounded thumbnail을 요청한다. CDN 응답 크기는 요청값과 다를 수 있으므로 실제 디코딩 후에도 양변1024px 상한을 검사한다. 다운로드는 허용된 Wikimedia media host의 HTTPS 주소로 한정하고 크기·signature·디코딩 검사를 수행한다. 사진은 private R2에 저장하고 출처 페이지·작가·CC0 URL·선택 시각을 보관한다. 원본 의류·성인 인물 참조와 자동 배경/촬영감 증거의 역할을 구분한다.
 
 [User-Agent 정책](https://foundation.wikimedia.org/wiki/Policy:Wikimedia_Foundation_User-Agent_Policy/en)에 따라 서비스 이름과 연락 가능한 URL을 명시하고 브라우저를 사칭하지 않는다. [API 이용 정책](https://www.mediawiki.org/wiki/Wikimedia_APIs/Access_policy), [rate limits](https://www.mediawiki.org/wiki/Wikimedia_APIs/Rate_limits)을 준수하며 429/503의 지연 요구를 우회하지 않는다. 불필요한 반복·대량 수집을 하지 않고 한 작업의 선택 결과를 재사용한다. Wikimedia가 서비스를 보증하거나 제휴했다는 표현은 하지 않는다.
 
@@ -35,3 +35,13 @@ API 검색은 파일 namespace6, bitmap, CC-Zero category를 사용한다. 검�
 참조 검색·이미지 전송 검증과 결과의 실제 촬영 현실감은 별개다. 자동 유료 생성을 하지 않으며, 실제 실사 효과는 같은 상품/인물/프레이밍의 사용자 실행 비교 전 미검증이다.
 
 구현 경로의 추가 실제 디코딩에서, 1024 양방향 요청에도 CDN이 실제1280×853 JPEG를 반환하는 후보를 확인했다. API의 thumbwidth/height만 신뢰하지 않고 실제 디코딩 후에도 상한을 검사한다. 요청은768 양방향으로 낮춰 현재960×640 실제 사진/PNG변환1,640,149bytes를 검증했다. 앞으로도 CDN 크기 정책이 바뀌면 실제1024 상한을 넘는 이미지는 유료 기획 전에 거부한다. 검색/저장 실패·부분 D1 쓰기·커밋 응답 유실·DB 상태 불명확 시 참조 원문과 ledger가 어긋나지 않는 회귀도 포함한다.
+
+## 운영 Cloudflare 실검색 검증
+
+`85b9b01`의 첫 배포 후 reference-only probe는 검색 전 `Missing operation`으로 실패했다. binding 호출과 달리 REST Workflow API의 payload가 JSON 문자열로 전달되는 차이가 원인이었다. `b5754f3`에서 두 형태를 공통 Zod 검증으로 정규화한 뒤 같은 검사를 통과했다. 실패한 probe 자료도 별도 cleanup으로 정리했으며, 이 실패를 검색 성공이나 생성 검증으로 계산하지 않는다.
+
+`f050792`에서 live probe의 합성 계정·전용 표식 검사를 캐시 반환과 작업 변경보다 앞에 두었다. 해당 버전을 production API/Workflow·웹에 배포한 뒤 `bun run scripts/reference-search-live-smoke.ts`가 다시 exit0으로 통과했다. 실제 Commons API 검색→CC0/촬영 metadata 확인→JPEG 다운로드/디코딩→private R2 저장→인증된 이미지 읽기와 출처 보관을 확인했다. probe에는 provider connection이 없었고 AI attempt는 **0회**였다. 자기 합성 계정·사진·진단 이력만 정리했으며 기존 실제 계정 인증은 전후 불변이었다.
+
+이 검사는 외부 검색 공급자와 운영 Cloudflare의 통신을 실제로 확인한 것이다. 기획/생성의 참조 픽셀 전달은 가짜 provider 응답을 사용한 계약·브라우저 검사로 검증하며, 유료 모델 출력의 실사 품질 향상을 증명한 것은 아니다.
+
+최종 format/lint/typecheck/test/build 단위93/93, local/production desktop/mobile Mock 각10/10 및 native workerd OAuth/합성 provider 계약을 통과했다. 운영 전체 검사 후 기존 실제 인증·별도 untouched sentinel·standalone canary 원문 불변을 확인했다. 테스트/검색 probe/canary 자기 자료를 정리한 뒤 합성 계정0, 실제 계정1/연결1/세션2를 읽기 전용 집계로 확인했다. 고객 사진·계정/연결 초기화와 secret 교체는 없었다.
