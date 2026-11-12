@@ -331,3 +331,8 @@ production desktop/mobile 전체 Mock E2E **4/4 통과**: 저장된 분석 재�
 - [x] 85b9b01/b5754f3/f050792 commit/push 및 additive0013·API/Workflow→웹 배포 완료. REST Workflow의 문자열 payload 차이로 첫 probe가 실패했으나 공통 검증을 보완한 뒤 최종 배포에서도 실제 Commons 검색/JPEG/CC0/private R2 읽기·출처 보관과 AI attempt0을 확인했다. probe 자기 합성 자료 정리 및 실제 인증 불변, 배포 전후 non-empty canary의 연결·세션 원문 불변을 확인했다. 공개 HTTPS/CORS/OAuth/폰트/반응형 smoke 통과.
 - [x] 최종 production desktop/mobile Mock10/10, wrapper exit0. 업로드 단독 무AI→상품 분석→자동 참조 검색/기획→같은 참조 자동 생성→지시형 개선→원본/이전 컷 비교→내보내기/다운로드→삭제, 타 계정 격리와 인증 pending/OAuth 복귀를 검증했다. 운영 자동 참조 desktop/mobile 화면을 점검했다. 별도 untouched sentinel 및 실제 계정 인증 불변, 전체 검사 후 standalone canary 원문 불변을 확인하고 자기 합성 자료만 정리했다. 마지막 읽기 전용 집계는 합성 계정0, 실제 계정1/연결1/세션2였다. 고객 자료 초기화·secret 변경·유료 AI 호출 없음.
 - [ ] 실사 품질 개선은 사용자의 실제 유료 생성 비교 전 미검증. 자동 참조가 사진 현실감을 보장하지 않는다.
+
+### 모델 착용컷 자동 소스 후속 조사 — 2026-11-12
+
+- [x] 공식 stock/API/모델 릴리즈/외부 AI 처리 조건과 개방형 패션 데이터셋 재조사. 비학습 AI 편집 허용 근거가 있는 Shutterstock를 조건부 1순위, Getty Creative를 기업 계약 후보로 정리했다. Pexels 단건 추론을 학습과 혼동해 금지로 단정하지 않는다. 근거/한계와 구체 연동 계약은 `19-MODEL-SHOT-REFERENCE-SOURCES.md`에 기록했다.
+- [ ] Photo Studio의 자동 선택·서버 보관·외부 참조 추론·고객별 상업 출력까지 포괄하는 공급 계약/키와 모델 사용 범위를 확보한 뒤 실제 착용컷 검색·기획·생성 연동. 현재 환경 사진 연동과 구별하며 미연동을 완료로 표시하지 않는다.
