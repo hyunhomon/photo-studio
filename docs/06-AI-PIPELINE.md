@@ -132,3 +132,7 @@ PlanDto.lookReferenceId는 사용한 사진의 연결이며 새 generation에 �
 ## 촬영 증거 증강 — ADR-033
 
 `studio-v10-reference-evidence` / `photo-v6-reference-evidence`는 업로드한 권한 있는 촬영 사진에서 구도/빛/초점/표면/한계를 기존 planning 1회에 관찰하고 실제 카메라·조명·소재 지시에 연결한다. 참조 구도를 따를 때 수치 optics 기본값을 강제하지 않는다. 생성에 해당 참조가 없으면 과거 referenceNotes를 시각적 근거처럼 주장하지 않는다. server-derived referenceSources는 사용자가 입력한 Pin 출처의 비공개 snapshot이며 모델 입력이 아니다. 추가 AI 단계/자동 검색/유료 retry는 없고, 공식 Pinterest API 미연동과 실제 품질 미검증을 구별한다. 근거/선행 조건은 17-AUTH-AND-REFERENCE-RESEARCH.md.
+
+## 분석 후 자동 검색 — ADR-034
+
+현재 studio-v11/photo-v7은 사용자 분석 클릭 뒤 일반 장소 키워드를 정하고 Commons 공식 API에서 개별 CC0 선언·카메라 metadata·제한/유형·thumbnail 크기를 검사한다. 선택 사진을 private auto_look_reference로 저장하며 reference_retrievals에 출처/작성자/라이선스/지연/실패/연결 ID를 기록한다. 기획과 생성에 실제 픽셀을 함께 보내고 자동 환경 사진은 얼굴/다른 의류/빈 장면의 crop을 복제하지 않는다. 사용자 직접 사진을 우선하며 명시 opt-out이 가능하다. 검색 실패는 분석을 보존하고 유료 기획 전에 중단한다. Mock와 실제 source-only 운영 검사는 분리한다. 근거와 한계는 18-AUTOMATIC-REFERENCE-RESEARCH.md.

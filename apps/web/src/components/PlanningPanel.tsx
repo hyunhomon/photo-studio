@@ -15,6 +15,7 @@ import type {
   StudioDraft,
 } from "@photo-studio/schemas";
 import { errorMessage, type Me, request } from "../lib/api";
+import AutomaticReferencePreview from "./AutomaticReferencePreview";
 
 export const jobLabels: Record<string, string> = {
   queued: "작업 대기",
@@ -30,12 +31,29 @@ const stageLabels: Record<string, string> = {
   queued: "시작 대기",
   analysis: "상품 분석",
   planning: "촬영 기획",
+  reference_search: "레퍼런스 검색",
   review_plan: "콘셉트 확인",
   generation: "이미지 생성",
   evaluation: "품질 평가",
   review: "결과 검수",
 };
 const failureLabels: Record<string, string> = {
+  AUTO_REFERENCE_STORAGE_UNCERTAIN:
+    "참조 저장 상태를 확인하지 못해 AI 기획을 시작하지 않았습니다. 작업 상태를 확인한 뒤 다시 실행해 주세요.",
+  AUTO_REFERENCE_NO_MATCH:
+    "사용 조건에 맞는 촬영 레퍼런스를 찾지 못했습니다. 분석은 보존됐으니 기획을 다시 실행하거나 사진을 직접 등록해 주세요.",
+  AUTO_REFERENCE_UNAVAILABLE:
+    "촬영 레퍼런스 검색에 연결하지 못했습니다. 분석은 보존됐으며 잠시 후 기획만 다시 실행할 수 있습니다.",
+  AUTO_REFERENCE_RATE_LIMITED:
+    "촬영 레퍼런스 검색 요청이 많습니다. 잠시 후 기획만 다시 실행해 주세요.",
+  AUTO_REFERENCE_NO_ELIGIBLE_IMAGE:
+    "사용 조건에 맞는 촬영 레퍼런스를 찾지 못했습니다. 기획을 다시 실행하거나 사진을 직접 등록해 주세요.",
+  AUTO_REFERENCE_SOURCE_UNAVAILABLE:
+    "촬영 레퍼런스 검색에 연결하지 못했습니다. 잠시 후 기획만 다시 실행해 주세요.",
+  AUTO_REFERENCE_IMAGE_TOO_LARGE:
+    "촬영 레퍼런스 사진의 크기를 확인하지 못했습니다. 기획을 다시 실행하거나 사진을 직접 등록해 주세요.",
+  AUTO_REFERENCE_IN_PROGRESS:
+    "이 요청의 레퍼런스 검색이 이미 시작됐습니다. 진행 상태를 확인해 주세요.",
   INSUFFICIENT_PROVIDER_CREDIT:
     "OpenRouter 크레딧 또는 키 한도를 확인해 주세요.",
   PROVIDER_KEY_INVALID: "OpenRouter를 다시 연결해 주세요.",
@@ -82,11 +100,13 @@ export function JobStatus({
             "작업을 완료하지 못했습니다. 사용 기록을 확인한 뒤 새 작업을 시작할 수 있습니다."}
         </p>
       )}
-      {job.status === "failed" && job.stage === "planning" && (
-        <p className="mt-2 text-xs leading-6 text-muted">
-          완료된 상품 분석은 보존했습니다. ‘기획만 재생성’로 이어갈 수 있습니다.
-        </p>
-      )}
+      {job.status === "failed" &&
+        ["planning", "reference_search"].includes(job.stage) && (
+          <p className="mt-2 text-xs leading-6 text-muted">
+            완료된 상품 분석은 보존했습니다. ‘기획만 재생성’로 이어갈 수
+            있습니다.
+          </p>
+        )}
       {job.status === "queued" && job.errorCode === "DISPATCH_PENDING" && (
         <Button className="mt-3" variant="secondary" onClick={onDispatch}>
           작업 연결 재확인
@@ -234,10 +254,12 @@ export function PlanEditor({
   plan,
   onChange,
   busy,
+  automaticReference = false,
 }: {
   plan: PlanDto;
   onChange: (spec: ShootPlan) => void;
   busy: boolean;
+  automaticReference?: boolean;
 }) {
   const v = plan.spec,
     set = onChange;
@@ -315,7 +337,7 @@ export function PlanEditor({
             onChange={(s) => set({ ...v, lighting: s })}
           />
         </fieldset>
-        {plan.lookReferenceId && (
+        {plan.lookReferenceId && !automaticReference && (
           <div className="mt-4">
             <p className="mb-2 text-xs font-medium text-muted">레퍼런스 반영</p>
             <Select
@@ -409,9 +431,15 @@ export default function PlanningPanel({
 }) {
   const requestId = useRef(crypto.randomUUID());
   const scroll = useRef<HTMLDivElement>(null);
-  const [tab, setTab] = useState(0),
-    [useLook, setUseLook] = useState(true);
+  const [tab, setTab] = useState(0);
+  const [referenceMode, setReferenceMode] = useState<
+    "automatic" | "manual" | "none" | null
+  >(null);
   const lookReference = product.assets.find((a) => a.kind === "look_reference");
+  const selectedReferenceMode =
+    referenceMode === "manual" && !lookReference
+      ? "automatic"
+      : (referenceMode ?? (lookReference ? "manual" : "automatic"));
   const [data, setData] = useState<PipelineDto>({ plans: [], jobs: [] }),
     [presets, setPresets] = useState<PresetDto[]>([]),
     [preset, setPreset] = useState(""),
@@ -473,7 +501,11 @@ export default function PlanningPanel({
             idempotencyKey: requestId.current,
             presetId: preset || null,
             description,
-            lookReferenceId: useLook ? (lookReference?.id ?? null) : null,
+            lookReferenceId:
+              selectedReferenceMode === "manual"
+                ? (lookReference?.id ?? null)
+                : null,
+            useAutomaticReference: selectedReferenceMode === "automatic",
             personReferenceId:
               product.assets.find((a) => a.kind === "person_reference")?.id ??
               null,
@@ -485,6 +517,16 @@ export default function PlanningPanel({
     );
   }
   const plan = data.plans[0];
+  const latestPlanningJob = data.jobs.find((job) => job.kind === "plan");
+  const latestReference = data.retrievals?.find(
+    (reference) => reference.jobId === latestPlanningJob?.id,
+  );
+  const planReference = data.retrievals?.find(
+    (reference) =>
+      reference.status === "selected" &&
+      reference.assetId &&
+      reference.assetId === plan?.lookReferenceId,
+  );
   useEffect(() => {
     if (plan?.id) setTab(2);
   }, [plan?.id]);
@@ -526,17 +568,20 @@ export default function PlanningPanel({
               </div>
 
               <div className="mt-5 grid min-w-0 grid-cols-1 gap-4">
-                {lookReference && (
-                  <Select
-                    label="기획 레퍼런스"
-                    value={useLook ? "use" : "omit"}
-                    onChange={(v) => setUseLook(v === "use")}
-                    options={[
-                      { value: "use", label: "등록한 촬영 구도로 기획" },
-                      { value: "omit", label: "참조 없이 기획" },
-                    ]}
-                  />
-                )}
+                <Select
+                  label="기획 레퍼런스"
+                  value={selectedReferenceMode}
+                  onChange={(value) =>
+                    setReferenceMode(value as "automatic" | "manual" | "none")
+                  }
+                  options={[
+                    { value: "automatic", label: "상품에 맞는 사진 자동 검색" },
+                    ...(lookReference
+                      ? [{ value: "manual", label: "등록한 촬영 구도로 기획" }]
+                      : []),
+                    { value: "none", label: "참조 없이 기획" },
+                  ]}
+                />
                 <Select
                   label="사용할 브랜드 프리셋"
                   value={preset}
@@ -585,6 +630,7 @@ export default function PlanningPanel({
                 <p className="text-xs text-muted">Mock · 외부 비용 없음</p>
               )}
             </section>
+            <AutomaticReferencePreview reference={latestReference} />
             {referencesPanel}
           </TabPanel>
           <TabPanel unmount={false} className="p-5">
@@ -604,6 +650,11 @@ export default function PlanningPanel({
             )}
           </TabPanel>
           <TabPanel unmount={false} className="p-5">
+            {planReference && (
+              <div className="mb-5">
+                <AutomaticReferencePreview reference={planReference} />
+              </div>
+            )}
             {plan && (
               <PlanEditor
                 key={`${plan.id}-${plan.status}`}
@@ -615,6 +666,7 @@ export default function PlanningPanel({
                       : plan.spec,
                 }}
                 busy={busy || active}
+                automaticReference={Boolean(planReference)}
                 onChange={(spec) =>
                   onDraft({ ...draft, planId: plan.id, spec })
                 }

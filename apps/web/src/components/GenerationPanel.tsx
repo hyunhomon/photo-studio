@@ -60,10 +60,32 @@ export default function GenerationPanel({
   const [comparePrevious, setComparePrevious] = useState(false);
   const [usePerson, setUsePerson] = useState(false),
     [useLook, setUseLook] = useState(false);
+  const plan = pipeline.plans[0];
   const personReference = product.assets.find(
       (a) => a.kind === "person_reference",
     ),
-    lookReference = product.assets.find((a) => a.kind === "look_reference");
+    manualLookReference = product.assets.find(
+      (a) => a.kind === "look_reference",
+    );
+  const plannedAutomaticReference = pipeline.retrievals?.find(
+    (reference) =>
+      reference.status === "selected" &&
+      reference.assetId === plan?.lookReferenceId,
+  );
+  const plannedAutomaticAsset = product.assets.find(
+    (asset) =>
+      asset.kind === "auto_look_reference" &&
+      asset.id === plan?.lookReferenceId,
+  );
+  const useManualLook =
+    manualLookReference &&
+    ((plan && manualLookReference.createdAt > plan.createdAt) ||
+      (!plannedAutomaticReference &&
+        !plannedAutomaticAsset &&
+        (!plan || plan.lookReferenceId === manualLookReference.id)));
+  const lookReferenceId = useManualLook
+    ? manualLookReference.id
+    : (plannedAutomaticReference?.assetId ?? plannedAutomaticAsset?.id ?? null);
   const latestResult = useRef<string | null>(null),
     refreshSequence = useRef(0);
   const refresh = useCallback(async () => {
@@ -91,7 +113,6 @@ export default function GenerationPanel({
   const generationJob = pipeline.jobs.find((j) => j.kind === "generate");
   const result = results.find((r) => r.asset.id === selected) ?? results[0],
     source = inputs.find((a) => a.id === sourceId) ?? inputs[0],
-    plan = pipeline.plans[0],
     active = pipeline.jobs.some((j) =>
       ["queued", "running"].includes(j.status),
     );
@@ -121,7 +142,7 @@ export default function GenerationPanel({
     setReason("lighting_focus");
     setNote("");
     setUsePerson(Boolean(personReference));
-    setUseLook(Boolean(lookReference));
+    setUseLook(Boolean(lookReferenceId));
     requestId.current = crypto.randomUUID();
     setOpen(true);
   }
@@ -137,7 +158,7 @@ export default function GenerationPanel({
             draft.planId === plan.id ? (draft.spec ?? plan.spec) : plan.spec,
         };
     const person = fromRevision ? usePerson : Boolean(personReference),
-      look = fromRevision ? useLook : Boolean(lookReference);
+      look = fromRevision ? useLook : Boolean(lookReferenceId);
     if (!fromRevision) requestId.current = crypto.randomUUID();
     try {
       await action(async () => {
@@ -157,7 +178,8 @@ export default function GenerationPanel({
               regenerationOf: id,
               regenerationReason: id ? reason : null,
               personReferenceId: person ? (personReference?.id ?? null) : null,
-              lookReferenceId: look ? (lookReference?.id ?? null) : null,
+              lookReferenceId: look ? lookReferenceId : null,
+              useAutomaticReference: look && !useManualLook,
               referenceConsent: true,
             }),
           },
@@ -349,13 +371,18 @@ export default function GenerationPanel({
               ]}
             />
           )}
-          {lookReference && (
+          {lookReferenceId && (
             <Select
               label="촬영 참조"
               value={useLook ? "use" : "omit"}
               onChange={(v) => setUseLook(v === "use")}
               options={[
-                { value: "use", label: "등록한 구도로 생성" },
+                {
+                  value: "use",
+                  label: useManualLook
+                    ? "등록한 구도로 생성"
+                    : "자동 검색한 촬영감 반영",
+                },
                 { value: "omit", label: "참조 구도 제외" },
               ]}
             />

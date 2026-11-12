@@ -7,7 +7,6 @@ import type {
   ReferenceRole,
 } from "@photo-studio/schemas";
 import { apiBase, errorMessage, request } from "../lib/api";
-import ReferenceDiscovery from "./ReferenceDiscovery";
 import { PhotoPicker } from "./ProductUploadForm";
 
 const roles = [
@@ -106,11 +105,6 @@ export default function PhotoReferences({
               className="rounded-xl border border-line bg-studio p-4"
             >
               <h3 className="font-semibold">{r.title}</h3>
-              {r.value === "look_reference" && (
-                <ReferenceDiscovery
-                  garment={product.analysis?.garmentType ?? ""}
-                />
-              )}
               {asset ? (
                 <div className="group relative mt-4 w-fit">
                   <img

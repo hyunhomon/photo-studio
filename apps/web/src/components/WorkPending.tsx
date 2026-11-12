@@ -13,6 +13,9 @@ export default function WorkPending({
       ? [["generation", "이미지 생성"]]
       : [
           ["analysis", "상품 이해"],
+          ...(job.useAutomaticReference || job.stage === "reference_search"
+            ? [["reference_search", "레퍼런스 검색"]]
+            : []),
           ["planning", "촬영 기획"],
         ];
   return (

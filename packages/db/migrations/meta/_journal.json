@@ -92,6 +92,13 @@
       "when": 1794447399012,
       "tag": "0012_reference_provenance",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "6",
+      "when": 1794449147945,
+      "tag": "0013_automatic_reference",
+      "breakpoints": true
     }
   ]
 }

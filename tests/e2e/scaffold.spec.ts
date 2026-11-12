@@ -283,31 +283,9 @@ test("Mock: direct multi-photo upload, reference planning, compare, revise, expo
   const form = page.getByRole("form", { name: "상품 등록 폼" });
   const upload = form.getByLabel("상품 사진", { exact: true });
   await expect(form.getByRole("textbox")).toHaveCount(0);
-  await form
-    .getByRole("button", { name: "Pinterest에서 찾기", exact: true })
-    .click();
-  const discovery = page.getByRole("dialog", {
-    name: "촬영 레퍼런스 찾기",
-    exact: true,
-  });
-  await expect(discovery).toBeVisible();
-  const searchLink = discovery.getByRole("link", {
-    name: "Pinterest 검색 열기",
-    exact: true,
-  });
-  expect(
-    new URL((await searchLink.getAttribute("href")) ?? "").searchParams.get(
-      "q",
-    ),
-  ).toBe("clothing fashion lookbook studio photography natural fabric shadows");
-  await discovery
-    .getByRole("button", { name: "찾을 촬영 스타일", exact: true })
-    .click();
-  await page.getByRole("option", { name: "창가 자연광", exact: true }).click();
-  await expect(searchLink).toHaveAttribute("href", /window\+daylight/);
-  await expect(searchLink).toHaveAttribute("rel", "noopener noreferrer");
-  await page.keyboard.press("Escape");
-  await expect(discovery).toHaveCount(0);
+  await expect(
+    form.getByRole("button", { name: "Pinterest에서 찾기", exact: true }),
+  ).toHaveCount(0);
   await expect(page.locator("header")).toHaveCount(0);
   const pickers = form.locator(".photo-picker");
   await expect(pickers).toHaveCount(3);

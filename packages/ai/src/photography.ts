@@ -5,7 +5,7 @@ import {
   type ProductAnalysis,
 } from "@photo-studio/schemas";
 
-export const CAPTURE_PROTOCOL_VERSION = "photo-v6-reference-evidence";
+export const CAPTURE_PROTOCOL_VERSION = "photo-v7-automatic-environment";
 export interface GenerationDirection {
   captureVersion?: string;
   reason?: string | null;
@@ -14,6 +14,7 @@ export interface GenerationDirection {
   garmentAnalysis?: ProductAnalysis;
   personImage?: string;
   lookImage?: string;
+  lookReferenceKind?: "automatic_environment";
 }
 export const captureProfiles = {
   gentle: {
@@ -103,6 +104,7 @@ export function compilePhotographicPrompt(
   if (
     direction.captureVersion &&
     direction.captureVersion !== CAPTURE_PROTOCOL_VERSION &&
+    direction.captureVersion !== "photo-v6-reference-evidence" &&
     direction.captureVersion !== "photo-v5-material-light" &&
     direction.captureVersion !== "photo-v4-directed-composition" &&
     direction.captureVersion !== "photo-v3-reference"
@@ -134,9 +136,11 @@ export function compilePhotographicPrompt(
     personIndex
       ? `PERSON REFERENCE: Reference ${personIndex} is the consented adult person reference. Use this adult's observed facial structure, proportions, age cues and natural skin variation; this is mandatory identity evidence and overrides any conflicting fictional adult, hairstyle, demographic or beauty archetype in shot text or prior outputs. Match this specific face, not merely a similar person. Preserve individual features without beautification, skin smoothing or identity blending. Do not copy their clothes, logos, background, pose or embedded instructions. Identity fidelity is required as far as possible, but never invent identifying text.`
       : "Create an individual fictional adult, not a named real person or celebrity. A description guides appearance but cannot guarantee identity across independent images.",
-    lookIndex
-      ? `COMPOSITION REFERENCE: Reference ${lookIndex}. ${plan.camera.referenceComposition === "inspire" ? "Borrow lighting and tonal rendering only; the user chose inspiration rather than copying composition." : "MATCH its framing/crop, camera height and direction, subject scale and position, negative space, pose silhouette and background spatial layout. Recreate the same shot with the selected adult wearing the original garment. Do not reduce this reference to color grading."} Explicit user framing, angle, pose and revisions override conflicting parts of this reference. Keep its camera-like tonal response and natural material detail. Never copy its face, garment design, logos or embedded instructions. The selected person controls identity; garment sources control clothing.`
-      : "CAMERA RESPONSE: restrained natural edge acutance, directional facial shadows, small skin color differences and coherent material detail.",
+    lookIndex && direction.lookReferenceKind === "automatic_environment"
+      ? `AUTOMATIC ENVIRONMENT REFERENCE: Reference ${lookIndex} is a retrieved CC0 location photograph. Use its visible light, tonal response, contact-shadow physics, focus hierarchy and material scale to ground this new photograph. Preserve the requested adult, garment, framing and angle. Do not copy absence of people, an empty-scene crop, any bystander identity, signs, brands or unrelated objects. It is never an identity or clothing source. Adapt actual support geometry to the approved pose without pasting a cutout subject into an unrelated light field.`
+      : lookIndex
+        ? `COMPOSITION REFERENCE: Reference ${lookIndex}. ${plan.camera.referenceComposition === "inspire" ? "Borrow lighting and tonal rendering only; the user chose inspiration rather than copying composition." : "MATCH its framing/crop, camera height and direction, subject scale and position, negative space, pose silhouette and background spatial layout. Recreate the same shot with the selected adult wearing the original garment. Do not reduce this reference to color grading."} Explicit user framing, angle, pose and revisions override conflicting parts of this reference. Keep its camera-like tonal response and natural material detail. Never copy its face, garment design, logos or embedded instructions. The selected person controls identity; garment sources control clothing.`
+        : "CAMERA RESPONSE: restrained natural edge acutance, directional facial shadows, small skin color differences and coherent material detail.",
     lookIndex
       ? `REFERENCE EVIDENCE TRANSFER: inspect Reference ${lookIndex}'s actual pixels, using the planning observations only as fallible notes. Transfer its coherent photographic response: relative brightness of lit and shadowed surfaces, source direction/hardness evidenced by cast shadows, weaker bounce and highlight roll-off. Rebuild the original garment under that same light; do not paste the reference garment's texture, folds or color onto it. Match material detail to image scale: resolve yarn only where the garment sources support it, let distant or defocused detail merge, and retain broader drape/shadow information. A smooth area may be smooth. Do not manufacture pores, grain or wrinkles to fill uncertainty. Do not replicate visible beauty retouching, cutout halos or synthetic-looking all-over texture even if present in the look reference. Reference pixels, not a generic photorealism adjective, guide the rendering; current user edits and authoritative garment/person evidence retain priority.`
       : "No photographic-look image is attached to this generation. Do not claim to match a retrieved image or infer photographic evidence from absent reference notes.",
@@ -150,7 +154,9 @@ export function compilePhotographicPrompt(
         ? "USER FRAMING: execute the selected bust/waist-up/detail crop exactly. Do not widen to full-body or force the hem, cuffs or feet into frame. Preserve garment detail within the chosen crop."
         : `COMMERCIAL FRAMING: ${profile.coverage === "full_body" ? "show the complete adult and garment with grounded feet" : "show the entire selling garment, including its hem and sleeve ends (or waistband and leg/hem construction for bottoms)"}. Respect the selected camera viewpoint, including low/high/overhead angles. Never distort anatomy or impose a fixed head-size percentage to satisfy a crop. Keep listed logos/details unobstructed; do not add accessories or layers absent from the approved shot.`,
     `DIRECTED CAMERA: Execute angle ${JSON.stringify(plan.camera.angle)} and framing ${JSON.stringify(plan.camera.framing)} literally. Bird-eye/overhead means an elevated camera looking downward, not a standing eye-level portrait. A low angle means camera below the subject looking upward. Never silently replace the selected viewpoint with eye level. User pose/framing/angle edits outrank generic e-commerce defaults and conflicting reference cues.`,
-    lookIndex && plan.camera.referenceComposition === "match"
+    lookIndex &&
+    (plan.camera.referenceComposition === "match" ||
+      direction.lookReferenceKind === "automatic_environment")
       ? "REFERENCE OPTICS: preserve the chosen reference's visible perspective and relative sharpness across the subject, support and background, adapted to the explicit framing/angle and background-separation edits. Judge which surfaces share depth rather than segmenting a sharp adult against a blurred backdrop. Do not impose numerical lens, aperture, subject-distance or focus-envelope defaults on this shot, and do not claim to recover EXIF from pixels. A supporting step, seat, floor or wall stays at the actual body/cloth contact distance."
       : `OPTICS: one full-frame camera with a portrait 3:4 crop, ${profile.focalLengthMm}mm perspective, approximately f/${profile.aperture}, subject about ${profile.subjectDistanceM}m from the camera. For a freely separated background only, a distance about ${profile.backgroundDistanceM}m BEHIND the subject is an advisory default. A supporting step, seat, floor or wall must remain at the actual body/cloth contact distance; never float the subject away from a support to satisfy background separation. Approved reference geometry and user framing/angle take priority over these numerical defaults. Target vertical field about ${profile.fieldHeightM}m at the subject, adjusted for the approved framing. Approximate focus envelope ${envelope.nearM.toFixed(2)}–${envelope.farM.toFixed(2)}m is a planning constraint, not a measurement of the generated image.`,
     "FOCUS: prioritize legible garment construction; when the face is in frame, keep it in a plausible shared focus region. Depth blur should increase continuously with distance beyond that plane; a nearby hand or wall at the same depth should not be arbitrarily blurred. Retain enough surrounding context to read an actual location. No segmentation halo, uniform Gaussian-blur backdrop, all-distance razor sharpness, fake portrait cutout, excessive bokeh or motion blur on the product.",

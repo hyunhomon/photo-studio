@@ -52,6 +52,9 @@ export async function studioFixture() {
   const product = (await call<ProductDto>("/products", "POST", form)).data;
   const planInput = {
     consent: true,
+    // Legacy unit fixtures isolate analysis/generation; automatic search is
+    // exercised explicitly in automatic-reference integration tests.
+    useAutomaticReference: false,
     idempotencyKey: crypto.randomUUID(),
     description: "Synthetic test",
     presetId: null,

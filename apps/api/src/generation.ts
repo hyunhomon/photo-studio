@@ -41,6 +41,7 @@ import { clearObjectQueue, deleteObject, queueObject } from "./storage";
 import { normalizeImage } from "./images";
 import { rateLimit } from "./auth";
 import { referenceSource, type ReferenceSource } from "./reference-source";
+import { getAutomaticReferences } from "./automatic-reference";
 
 export interface GenerationSnapshot extends PlanSnapshot {
   planId: string;
@@ -54,6 +55,7 @@ export interface GenerationSnapshot extends PlanSnapshot {
   personReferenceId?: string | null;
   lookReferenceId?: string | null;
   referenceConsent?: boolean;
+  lookReferenceKind?: "automatic_environment";
 }
 export const generatedKey = (job: JobRow) =>
   `${job.userId}/${job.productId}/generated/${job.id}.png`;
@@ -133,6 +135,7 @@ export async function runGenerationStage(
             garmentAnalysis: input.analysisSnapshot,
             personImage,
             lookImage,
+            lookReferenceKind: input.lookReferenceKind,
           },
         );
         await recordUsage(env, job, stage, result.usage);
@@ -218,6 +221,26 @@ export function generationRoutes() {
       )
       .get();
     if (!plan) throw notFound();
+    const automatic = plan.lookReferenceId
+      ? (await getAutomaticReferences(c.env, userId, p.id)).find(
+          (item) =>
+            item.jobId === plan.id &&
+            item.status === "selected" &&
+            item.assetId === plan.lookReferenceId,
+        )
+      : undefined;
+    const lookReferenceId =
+      input.lookReferenceId ??
+      (input.useAutomaticReference ? (automatic?.assetId ?? null) : null);
+    const usingAutomatic = Boolean(
+      automatic && lookReferenceId === automatic.assetId,
+    );
+    if (usingAutomatic && !input.useAutomaticReference)
+      throw new AppError(
+        "AUTO_REFERENCE_DISABLED",
+        "자동 참조를 사용하지 않도록 선택했습니다.",
+        400,
+      );
     if (input.regenerationOf) {
       const asset = await ownedGenerated(c.env, userId, input.regenerationOf);
       if (asset.productId !== p.id) throw notFound();
@@ -225,25 +248,48 @@ export function generationRoutes() {
     const referenceSources: ReferenceSource[] = [];
     for (const [id, kind] of [
       [input.personReferenceId, "person_reference"],
-      [input.lookReferenceId, "look_reference"],
+      [lookReferenceId, "look_reference"],
     ] as const) {
       if (!id) continue;
       const reference = await createDb(c.env.DB)
-        .select({ id: assets.id, sourcePinUrl: assets.sourcePinUrl })
+        .select({
+          id: assets.id,
+          sourcePinUrl: assets.sourcePinUrl,
+          kind: assets.kind,
+        })
         .from(assets)
         .where(
           and(
             eq(assets.id, id),
             eq(assets.userId, userId),
             eq(assets.productId, p.id),
-            eq(assets.kind, kind),
           ),
         )
         .get();
       if (!reference) throw notFound();
-      referenceSources.push(
-        referenceSource(reference.id, kind, reference.sourcePinUrl),
-      );
+      if (reference.kind === kind)
+        referenceSources.push(
+          referenceSource(reference.id, kind, reference.sourcePinUrl),
+        );
+      else if (
+        kind === "look_reference" &&
+        reference.kind === "auto_look_reference" &&
+        usingAutomatic &&
+        automatic
+      )
+        referenceSources.push({
+          assetId: reference.id,
+          role: "look_reference",
+          discovery:
+            automatic.provider === "mock"
+              ? "mock_automatic"
+              : "wikimedia_commons",
+          sourceUrl: automatic.sourcePage,
+          creator: automatic.creator,
+          license: automatic.license,
+          licenseUrl: automatic.licenseUrl,
+        });
+      else throw notFound();
     }
     const sourceIds = await sourceSnapshot(
       c.env,
@@ -276,8 +322,16 @@ export function generationRoutes() {
     // available for later use with the original planning image.
     const generationSpec = {
       ...spec,
+      ...(usingAutomatic
+        ? {
+            camera: {
+              ...spec.camera,
+              referenceComposition: "inspire" as const,
+            },
+          }
+        : {}),
       referenceNotes:
-        input.lookReferenceId && input.lookReferenceId === plan.lookReferenceId
+        lookReferenceId && lookReferenceId === plan.lookReferenceId
           ? spec.referenceNotes
           : "",
     };
@@ -296,8 +350,12 @@ export function generationRoutes() {
       captureVersion: CAPTURE_PROTOCOL_VERSION,
       reviewMode: "manual",
       personReferenceId: input.personReferenceId,
-      lookReferenceId: input.lookReferenceId,
-      referenceConsent: input.referenceConsent,
+      lookReferenceId,
+      referenceConsent: input.referenceConsent || usingAutomatic,
+      useAutomaticReference: usingAutomatic,
+      ...(usingAutomatic
+        ? { lookReferenceKind: "automatic_environment" as const }
+        : {}),
       analysisModel: c.env.OPENROUTER_ANALYSIS_MODEL,
       imageModel: identity.isTest
         ? "mock/reference-copy-v1"

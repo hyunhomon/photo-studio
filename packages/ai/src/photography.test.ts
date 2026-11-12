@@ -312,3 +312,19 @@ test("matching a selected photographic reference releases numerical optics defau
   expect(inspired).toContain("Borrow lighting and tonal rendering only");
   expect(inspired).not.toContain("REFERENCE OPTICS");
 });
+
+test("automatic environment evidence cannot become identity or empty-scene framing and does not impose numeric optics", () => {
+  const plan = mockPlan(mockAnalysisFixture);
+  plan.camera.referenceComposition = "inspire";
+  plan.camera.framing = "Synthetic bust shot";
+  plan.camera.angle = "Synthetic high angle";
+  const prompt = compilePhotographicPrompt(plan, 1, {
+    lookImage: "data:image/png;base64,synthetic",
+    lookReferenceKind: "automatic_environment",
+  });
+  expect(prompt).toContain("AUTOMATIC ENVIRONMENT REFERENCE");
+  expect(prompt).toContain("never an identity or clothing source");
+  expect(prompt).toContain("Synthetic bust shot");
+  expect(prompt).toContain("Synthetic high angle");
+  expect(prompt).not.toContain("OPTICS: one full-frame");
+});

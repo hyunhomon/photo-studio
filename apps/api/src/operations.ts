@@ -22,6 +22,7 @@ import { deleteObjects, purgeUserMedia } from "./storage";
 import { AppError } from "./errors";
 import { rateLimit } from "./auth";
 import { authAuditStatement } from "./auth-audit";
+import { getAutomaticReferences } from "./automatic-reference";
 export function operationsRoutes() {
   const api = new Hono<AppContext>();
   api.get("/usage", async (c) => {
@@ -88,6 +89,7 @@ export function operationsRoutes() {
       version: 1,
       exportedAt: new Date().toISOString(),
       account,
+      automaticReferences: await getAutomaticReferences(c.env, userId),
       products: await db
         .select({
           id: products.id,

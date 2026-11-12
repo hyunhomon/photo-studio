@@ -46,6 +46,7 @@ export const resetTables = [
   "feedback",
   "quality_evaluations",
   "generation_attempts",
+  "reference_retrievals",
   "generation_jobs",
   "shoot_plans",
   "assets",

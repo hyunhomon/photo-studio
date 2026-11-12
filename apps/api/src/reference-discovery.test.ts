@@ -6,9 +6,8 @@ import { runPlanStage } from "./pipeline";
 import { runGenerationStage } from "./generation";
 import { mockAdapter } from "@photo-studio/ai";
 import type { JobDto, ProductDto } from "@photo-studio/schemas";
-import { pinterestSearchUrl } from "../../web/src/lib/reference-discovery";
 
-test("Pinterest discovery only uses curated words and canonical user-entered pin URLs, never arbitrary fetch targets", () => {
+test("manual Pin provenance accepts only canonical user-entered URLs, never arbitrary fetch targets", () => {
   const source = "https://kr.pinterest.com/pin/123456789/?utm_source=synthetic";
   expect(canonicalPinUrl(source)).toBe(
     "https://www.pinterest.com/pin/123456789/",
@@ -23,17 +22,6 @@ test("Pinterest discovery only uses curated words and canonical user-entered pin
     "https://www.pinterest.com/search/pins/",
   ])
     expect(() => canonicalPinUrl(url)).toThrow();
-  const search = new URL(
-    pinterestSearchUrl(
-      "Private account secret-custom-design",
-      "private-not-a-style",
-    ),
-  );
-  expect(search.origin).toBe("https://www.pinterest.com");
-  expect(search.searchParams.get("q")).toBe(
-    "clothing fashion lookbook studio photography natural fabric shadows",
-  );
-  expect(pinterestSearchUrl("후드 집업", "daylight")).toContain("hoodie+");
 });
 
 test("user-uploaded look provenance is private, starts no AI and survives in server-derived plan/generation snapshots", async () => {

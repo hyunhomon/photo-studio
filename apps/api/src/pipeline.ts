@@ -20,6 +20,7 @@ import {
   type PlanDto,
   type PresetInput,
   type ProductAnalysis,
+  type AutomaticReferenceDto,
   planRequestSchema,
   presetInputSchema,
   productAnalysisSchema,
@@ -41,6 +42,10 @@ import { ownedProduct } from "./resources";
 import { decrypt, hash } from "./crypto";
 import { rateLimit } from "./auth";
 import { referenceSource, type ReferenceSource } from "./reference-source";
+import {
+  ensureAutomaticReference,
+  getAutomaticReferences,
+} from "./automatic-reference";
 
 export type JobRow = typeof jobs.$inferSelect;
 export interface PlanSnapshot {
@@ -54,11 +59,13 @@ export interface PlanSnapshot {
   personReferenceId?: string | null;
   referenceConsent?: boolean;
   referenceSources?: ReferenceSource[];
+  useAutomaticReference?: boolean;
   /** Legacy snapshots only; no evaluator is invoked (ADR-019). */
   evaluationModel?: string;
 }
 export interface PipelineDeps {
   adapter?: (env: Env, job: JobRow) => Promise<ModelAdapter>;
+  automaticReference?: typeof ensureAutomaticReference;
 }
 export const activeSql = "status IN ('queued','running')";
 export async function assertIdle(env: Env, userId: string, productId: string) {
@@ -138,6 +145,7 @@ function jobWithAttempts(
   job: JobRow,
   list: (typeof attempts.$inferSelect)[],
 ): JobDto {
+  const snapshot = JSON.parse(job.requestJson) as PlanSnapshot;
   return {
     id: job.id,
     productId: job.productId,
@@ -147,6 +155,12 @@ function jobWithAttempts(
     errorCode: job.errorCode,
     createdAt: job.createdAt,
     finishedAt: job.finishedAt,
+    ...(job.kind === "plan" && snapshot.useAutomaticReference !== undefined
+      ? {
+          useAutomaticReference:
+            snapshot.useAutomaticReference && !snapshot.lookReferenceId,
+        }
+      : {}),
     attempts: list.map((a) => ({
       stage: a.stage,
       model: a.model,
@@ -540,8 +554,39 @@ export async function runPlanStage(
       const analysis = productAnalysisSchema.parse(
         snapshot.analysisSnapshot ?? JSON.parse(p.analysisJson ?? "null"),
       );
-      const lookImage = snapshot.lookReferenceId
-        ? (await imageData(env, job, [snapshot.lookReferenceId]))[0]
+      let lookReferenceId = snapshot.lookReferenceId;
+      let automatic: AutomaticReferenceDto | null = null;
+      if (!lookReferenceId && snapshot.useAutomaticReference === true) {
+        await env.DB.prepare(
+          "UPDATE generation_jobs SET status='running',stage='reference_search',error_code=NULL WHERE id=? AND user_id=? AND status IN ('queued','running')",
+        )
+          .bind(job.id, job.userId)
+          .run();
+        automatic = await (deps.automaticReference ?? ensureAutomaticReference)(
+          env,
+          job,
+          analysis,
+        );
+        if (automatic.status !== "selected" || !automatic.assetId)
+          throw new ProviderError(
+            automatic.failureCode ?? "AUTO_REFERENCE_NOT_FOUND",
+          );
+        lookReferenceId = automatic.assetId;
+      }
+      const selectedIds = [
+        ...snapshot.sourceIds,
+        ...(lookReferenceId ? [lookReferenceId] : []),
+        ...(snapshot.personReferenceId ? [snapshot.personReferenceId] : []),
+      ];
+      const inputSize = await env.DB.prepare(
+        `SELECT coalesce(sum(size_bytes),0) n FROM assets WHERE user_id=? AND product_id=? AND id IN (${selectedIds.map(() => "?").join(",")})`,
+      )
+        .bind(job.userId, job.productId, ...selectedIds)
+        .first<{ n: number }>();
+      if ((inputSize?.n ?? 0) > 12 * 1024 * 1024)
+        throw new ProviderError("SOURCE_TOO_LARGE");
+      const lookImage = lookReferenceId
+        ? (await imageData(env, job, [lookReferenceId]))[0]
         : undefined;
       const personImage = snapshot.personReferenceId
         ? (await imageData(env, job, [snapshot.personReferenceId]))[0]
@@ -556,10 +601,19 @@ export async function runPlanStage(
             snapshot.analysisModel,
             analysis,
             snapshot.preset,
-            snapshot.description,
-            { lookImage, personImage },
+            automatic
+              ? `${snapshot.description}\nAutomatic environment reference: use observed lighting, material response and focus cues only. Do not copy the architecture-only crop, absence of people, or a reference person's identity. Preserve the approved adult, garment evidence and requested framing/angle.`
+              : snapshot.description,
+            {
+              lookImage,
+              personImage,
+              ...(automatic
+                ? { lookReferenceKind: "automatic_environment" as const }
+                : {}),
+            },
           ),
       );
+      if (automatic) plan.camera.referenceComposition = "inspire";
       const versions = await env.DB.prepare(
         "SELECT coalesce(max(version),0)+1 n FROM shoot_plans WHERE product_id=? AND user_id=?",
       )
@@ -575,7 +629,7 @@ export async function runPlanStage(
           status: "draft",
           specJson: JSON.stringify(shootPlanSchema.parse(plan)),
           sourceIdsJson: JSON.stringify(snapshot.sourceIds),
-          lookReferenceId: snapshot.lookReferenceId ?? null,
+          lookReferenceId: lookReferenceId ?? null,
           createdAt: Date.now(),
         })
         .onConflictDoNothing();
@@ -650,6 +704,7 @@ export function pipelineRoutes() {
           c.env,
           await Promise.all(list.map((j) => reconcileJob(c.env, j))),
         ),
+        retrievals: await getAutomaticReferences(c.env, userId, p.id),
       },
     } satisfies { data: PipelineDto });
   });
@@ -722,6 +777,7 @@ export function pipelineRoutes() {
           }
         : {}),
       sourceIds: await sourceSnapshot(c.env, userId, p.id),
+      useAutomaticReference: input.useAutomaticReference,
       referenceSources,
       preset,
       description: input.description,

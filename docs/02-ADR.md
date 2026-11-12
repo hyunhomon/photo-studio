@@ -275,3 +275,12 @@
 - 공개 Pinterest keyword API는 제한 beta이며 소유 핀 검색과 다르다. 자동 수집, API 데이터 저장·외부 AI 공유는 일반 연결만으로 허용됐다고 볼 수 없다. 승인된 앱/해당 사용 승인·이미지 권리가 없는 현재 환경에서 자동 스크래핑·숨은 다운로더·가짜 검색 결과를 구현하지 않는다. 공식 API 자동 검색은 이 선행 조건이 충족되기 전 미연동이다. 근거/남은 조건은 17-AUTH-AND-REFERENCE-RESEARCH.md.
 - 기존 planning 1회에서 실제 선택 참조의 구도/빛/초점/표면/한계를 간결히 관찰하고 실제 pose/camera/lighting/material 필드에 연결한다. 생성에는 같은 사진 픽셀과 관찰을 함께 전달한다. 의류와 인물·촬영감 역할을 분리하며 실제 선택 이미지 없는 과거 관찰은 시각적 증거로 사용하지 않는다.
 - studio-v10-reference-evidence / photo-v6-reference-evidence. 참조 구도를 따르는 경우 충돌하던 고정 렌즈/조리개/거리/심도 수치를 제거하고 관찰된 원근·광원·접촉 그림자·초점 분포로 조건화한다. 사용자 최신 수정이 우선하며 의류 구조를 고정한다. v3/v4/v5 snapshot 호환, 추가 AI 단계/평가/자동 재생성 없음. 실제 실사 품질 효과는 인간의 같은 입력 비교 전 미검증이다.
+
+## ADR-034: 분석 후 자동 CC0 환경 참조 검색 — Accepted (사용자 지정, 2026-11-12)
+
+- 사용자 의도는 수동 검색/업로드가 아니라 상품 분석 후 자동 검색→기획→생성이다. ADR-033의 수동 Pinterest 발견을 기본 경로에서 제거하고, 공식 Wikimedia Commons Action API를 기본 검색 소스로 사용한다. 새 검색 자격 증명/유료 검색 서비스는 필요 없다. 사용자 업로드 참조는 선택적 우선 override다.
+- 분석 실행 클릭 뒤 분석 결과의 의류·계절/소재와 프리셋의 장소 유형을 일반 키워드 whitelist로 변환한다. 상품명/브랜드/사진/자유 지시를 검색에 전송하지 않는다. Commons의 개별 파일 CC0 선언과 원본 설명 URL·작성자·카메라 metadata를 확인하고 제한/인물/로고/AI·그림 표시를 제외한다. 배경·빛·소재 사진만 자동 조건화하며 웹 인물을 신원 참조로 쓰지 않는다. 저작권 외 권리와 metadata 오류를 완벽히 판별한다고 주장하지 않는다.
+- 고정 API 호스트와 허용된 Wikimedia 이미지 호스트의 HTTPS thumbnail만 최대1024×1024/6MB/25초 경계에서 읽고 signature/실제 디코딩 검증 뒤 private R2에 저장한다. redirect와 임의 외부 URL/내부 네트워크 대상은 허용하지 않는다. 검색 최대2회/후보5개, 낮은 전역 요청 한도, job별 claim과 결과 재사용으로 반복 접근을 제한한다.
+- reference_retrievals는 plan job 단위의 별도 비과금 telemetry/provenance다. 상태·검색어 정책·출처/작성자/CC0·지연/실패와 선택 asset을 기록한다. immutable AI 요청을 뒤늦게 덮어쓰지 않는다. 자동 사진은 별도 auto_look_reference kind이며 기존 계획에 연결한 ID를 생성에서도 서버가 자동 선택한다. 사용자가 끄거나 직접 업로드로 대체할 수 있다.
+- 분석 후 reference_search를 실행하고 실제 선택 이미지를 기존 planning 호출과 generation 호출에 전달한다. 자동 환경 이미지는 인물/의류/빈 장면의 crop을 복제하지 않고 조명·소재·초점·접촉 그림자의 기준으로 쓴다. AI 평가/새 유료 추출 단계는 없다. 검색 실패/적합 사진 없음은 분석을 보존하고 유료 기획 전에 중단하며 자동 증강 성공으로 표시하지 않는다.
+- additive0013, studio-v11-automatic-environment / photo-v7-automatic-environment. 기존 계획/참조/이전 프로토콜을 읽는다. Mock는 명시적 합성 참조이며 실제 CC0 검색 성공으로 표시하지 않는다. 별도 admin reference-only Workflow로 운영 egress·실제 Commons 검색/다운로드·private R2를 검증하되 inference attempt가0인지 검사한다. 근거와 제한은 18-AUTOMATIC-REFERENCE-RESEARCH.md.

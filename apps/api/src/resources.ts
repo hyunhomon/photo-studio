@@ -487,7 +487,11 @@ export function resourceRoutes(deps: ResourceDeps = {}) {
       await (
         await import("./pipeline")
       ).immutableSources(c.env, owner, asset.productId);
-    if (asset.kind === "person_reference" || asset.kind === "look_reference") {
+    if (
+      asset.kind === "person_reference" ||
+      asset.kind === "look_reference" ||
+      asset.kind === "auto_look_reference"
+    ) {
       await (
         await import("./pipeline")
       ).assertIdle(c.env, owner, asset.productId);

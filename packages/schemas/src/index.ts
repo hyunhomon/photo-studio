@@ -157,15 +157,34 @@ export interface JobDto {
   createdAt: number;
   finishedAt: number | null;
   attempts: AttemptDto[];
+  useAutomaticReference?: boolean;
+}
+export interface AutomaticReferenceDto {
+  id: string;
+  jobId: string;
+  assetId: string | null;
+  status: "searching" | "selected" | "failed";
+  provider: "wikimedia_commons" | "mock";
+  query: string;
+  sourcePage: string | null;
+  creator: string | null;
+  license: string | null;
+  licenseUrl: string | null;
+  title: string | null;
+  failureCode: string | null;
+  durationMs: number;
+  createdAt: number;
 }
 export interface PipelineDto {
   plans: PlanDto[];
   jobs: JobDto[];
+  retrievals?: AutomaticReferenceDto[];
 }
 export const planRequestSchema = z
   .object({
     consent: z.literal(true),
     reuseAnalysis: z.boolean().default(false),
+    useAutomaticReference: z.boolean().default(true),
     editedAnalysis: productAnalysisSchema.optional(),
     personReferenceId: z.uuid().nullable().default(null),
     idempotencyKey: z.uuid(),
@@ -231,6 +250,7 @@ export const generateRequestSchema = z
     planId: z.uuid(),
     editedAnalysis: productAnalysisSchema.optional(),
     editedPlan: shootPlanSchema.optional(),
+    useAutomaticReference: z.boolean().default(true),
     quality: z.enum(["medium", "high"]),
     count: z.literal(1),
     regenerationOf: z.uuid().nullable().default(null),

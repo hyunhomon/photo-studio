@@ -321,3 +321,11 @@ production desktop/mobile 전체 Mock E2E **4/4 통과**: 저장된 분석 재�
 - [x] 최종 format/lint/typecheck/test/build 통과(단위79/79, 타입 진단0), local/production desktop/mobile Mock 각8/8, native workerd OAuth/가짜 provider HTTP 계약 및 합성 촬영6종 통과. 3b0891f/25cfd3d commit/push, additive0011/0012와 API/Workflow→웹 운영 배포. 두 배포와 운영 전체 테스트 전후 기존 실제 인증 불변, 별도 non-empty canary 원문 불변 및 세 번째 untouched 합성 sentinel 불변을 확인했다. wrapper exit0, 공개 smoke/화면 확인, 합성 계정0·실제 연결/세션 유지 확인. 테스트/검증 계정만 정리했으며 고객 데이터 초기화·secret 교체·유료 AI 호출 없음.
 - [ ] 공식 Pinterest 자동 검색/수집은 앱·해당 저장/제3자 처리 승인과 자격 증명 미준비로 미연동. 외부 수동 검색과 구별한다.
 - [ ] v6의 실제 촬영 현실감 개선은 사용자의 같은 입력 유료 실행 비교 전 미검증. 자동 유료 호출하지 않음.
+
+### 분석 후 실제 자동 참조 검색 — 2026-11-12 (ADR-034)
+
+- [x] 공식 Commons API/CC0/다른 공급자 조건 조사와 실제 검색/JPEG 다운로드. 별도 키 없는 경로 선택.
+- [x] 상품 분석→자동 reference_search→기존 기획→생성 이미지 전달, manual 우선/명시 opt-out/실패 무가짜 fallback.
+- [x] 별도 private autoasset·job별 immutable 연결/claim·라이선스/작성자/출처·실패 telemetry·소유권/크기/host/redirect 검증.
+- [ ] 최종 format/lint/typecheck/test/build·local/production Mock, 실제 운영 Commons 검색/다운로드/R2 및 AI0회 확인·배포·정리.
+- [ ] 실사 품질 개선은 사용자의 실제 유료 생성 비교 전 미검증. 자동 참조가 사진 현실감을 보장하지 않는다.

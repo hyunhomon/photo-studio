@@ -149,6 +149,30 @@ export const assets = sqliteTable(
   },
   (t) => [index("asset_product_owner").on(t.productId, t.userId)],
 );
+export const referenceRetrievals = sqliteTable(
+  "reference_retrievals",
+  {
+    id: text("id")
+      .primaryKey()
+      .references(() => jobs.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    productId: text("product_id")
+      .notNull()
+      .references(() => products.id, { onDelete: "cascade" }),
+    assetId: text("asset_id"),
+    status: text("status").notNull(),
+    provider: text("provider").notNull(),
+    query: text("query").notNull(),
+    metadataJson: text("metadata_json").notNull(),
+    failureCode: text("failure_code"),
+    durationMs: integer("duration_ms").notNull(),
+    createdAt: integer("created_at").notNull(),
+  },
+  (t) => [index("retrieval_owner_product").on(t.userId, t.productId)],
+);
+
 export const presets = sqliteTable(
   "brand_presets",
   {
