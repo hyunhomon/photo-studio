@@ -1098,7 +1098,7 @@ test("unauthenticated studio starts OAuth directly with no invitation form", asy
       page.getByRole("heading", {
         name: "OpenRouter authorization destination",
       }),
-    ).toBeVisible();
+    ).toBeVisible({ timeout: 15000 });
     expect(authorize?.origin).toBe("https://openrouter.ai");
     expect(authorize?.searchParams.get("code_challenge_method")).toBe("S256");
   } else {

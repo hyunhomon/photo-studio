@@ -89,10 +89,17 @@ try {
         body: "<h1>OpenRouter OAuth destination</h1>",
       });
     });
+    // Studio hydration, session lookup and configuration precede the redirect.
+    // Verify that chain explicitly instead of racing the default 5s UI timeout.
+    const sessionResponse = page.waitForResponse(
+      (response) => response.url() === `${origin}/api/v1/me`,
+      { timeout: 15000 },
+    );
     await page.getByRole("link", { name: "사진으로 촬영 시작하기" }).click();
+    assert.equal((await sessionResponse).status(), 401);
     await expect(
       page.getByRole("heading", { name: "OpenRouter OAuth destination" }),
-    ).toBeVisible();
+    ).toBeVisible({ timeout: 15000 });
     assert.equal(authorize?.origin, "https://openrouter.ai");
     assert.equal(authorize?.searchParams.get("code_challenge_method"), "S256");
     await page.goto(`${origin}/studio?auth_error=OAUTH_CODE_REJECTED`);
