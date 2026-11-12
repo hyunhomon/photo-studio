@@ -352,3 +352,14 @@ production desktop/mobile 전체 Mock E2E **4/4 통과**: 저장된 분석 재�
 - [x] 검색 전용 CLI의 Bearer/Basic 구분·최대10GET·redirect/429 차단·원문/인증정보 비노출·계약/라이선스 오인 방지 회귀10개를 검증했다. 키 없는 --help와 정식 전체 활성화 도구는 구분한다.
 - [x] 최종 format/lint/typecheck/unit/build127/127(타입 진단0) 통과. 실제 로컬 인증값이 staged diff와 현재 검색/검사 로그에 없음을 별도 비교로 확인했다. 이번 변경은 로컬 읽기 검사 도구/문서이며 앱 재배포나 운영 데이터 변경은 수행하지 않았다.
 - [ ] 모호한 연령 태그로 제외된 표본의 선별 기준 개선과 계약/구독 권한·정식 발급·AI 참조 처리/출력 품질. 실제 검색 성공과 별개로 남긴다.
+
+### Shutterstock 무료 컬렉션 파일럿 — 2026-11-12 (ADR-036)
+
+- [x] 사용자 무료 선택과 실제 토큰 발급 보류/구현·자동 검증 범위를 기록했다.
+- [x] 무료 product/0원 명시 가격/할당·만료 검증, 유료/가격 생략 거부, collection snapshot과 변경 차단, 앱 전체 시간당 예산을 구현했다.
+- [x] 짧은 정확 검색/같은 컬렉션 확장, 의류·직물·명암 metadata 우선 선별, 같은 사진의 기획·생성 및 발급 무재시도 테스트를 추가했다.
+- [x] GET-only 사전 점검 도구와 --free 설정 옵션, 사용자 오류 문구를 추가했다. 현재 토큰 없음은 token_required/GET0회로 확인했다.
+- [ ] 최종 format/lint/typecheck/unit/build·브라우저 검사 및 배포 결과를 기록한다.
+- [ ] 실제 Access Token/무료 구독 응답·정식 발급·다운로드·실제 사용자 생성 품질. 이번 사용자 요청으로 보류했으며 Mock 성공과 구별한다.
+
+무료 파일럿의 로컬 전체 검증: format/lint/typecheck/unit/build135/135 통과, native workerd 및 OAuth 합성 HTTP 통과, desktop/mobile Mock 브라우저10/10 통과. 공개 API read probe와 달리 이번 무료 연결 작업에서는 실제 Shutterstock license/download/AI를 호출하지 않았다. token_required 사전 점검은 외부 요청0회이며, staged diff의 실제 로컬 자격 증명 비포함도 확인했다. 배포/운영 검증 결과는 아래 후속 기록으로 구분한다.

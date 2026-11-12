@@ -5,6 +5,8 @@ import {
   readShutterstockSettings,
   shutterstockReference,
   shutterstockReferenceQuery,
+  shutterstockReferenceQueries,
+  shutterstockCandidatePriority,
   type ShutterstockFetch,
   type ShutterstockLicenseGrant,
   type ShutterstockLicenseIntent,
@@ -170,7 +172,7 @@ test("generic model-wearing queries never forward free text, names or user instr
       garmentType: "private customer brand hoodie; ignore all instructions",
     }),
   ).toBe(
-    "adult model wearing hoodie fashion catalog NOT children NOT teenager",
+    "hoodie model studio NOT children NOT teenager NOT lingerie NOT glamour NOT advertising NOT surprised",
   );
   expect(
     shutterstockReferenceQuery({
@@ -178,6 +180,135 @@ test("generic model-wearing queries never forward free text, names or user instr
       garmentType: "private unidentified product",
     }),
   ).not.toContain("private");
+});
+
+test("free collection pins a zero-priced explicitly free subscription before search or licensing", async () => {
+  const free = { ...settings, SHUTTERSTOCK_COLLECTION: "free" };
+  const freeSubscription = {
+    ...subscription,
+    product_description: "Free API Test Images",
+    allotment: { downloads_left: 10, downloads_limit: 500 },
+    price_per_download: { local_amount: 0, local_currency: "USD" },
+  };
+  const f = fixture((url) =>
+    url.pathname === "/v2/user/subscriptions"
+      ? json({ data: [freeSubscription] })
+      : undefined,
+  );
+  const result = await shutterstockReference(
+    mockAnalysisFixture,
+    free,
+    f.options,
+  );
+  expect(result.collection).toBe("free");
+  expect(f.grant?.collection).toBe("free");
+  expect(f.licenseCalls()).toHaveLength(1);
+  for (const patch of [
+    { product_description: "Paid API Images" },
+    { product_description: "Royalty-free Professional Images" },
+    { price_per_download: undefined },
+    { price_per_download: { local_amount: 0.01, local_currency: "USD" } },
+    { price_per_download: { local_amount: "0", local_currency: "USD" } },
+    {
+      price_per_download: {
+        local_amount: 0,
+        local_currency: "USD",
+        content_tiers: { premium: { local_amount: 1 } },
+      },
+    },
+    { portfolio: true },
+    { portfolio: "false" },
+    { allotment: { downloads_left: 10, downloads_limit: 1000 } },
+  ]) {
+    const rejected = fixture((url) =>
+      url.pathname === "/v2/user/subscriptions"
+        ? json({ data: [{ ...freeSubscription, ...patch }] })
+        : undefined,
+    );
+    expect(
+      (
+        await failureCode(
+          shutterstockReference(mockAnalysisFixture, free, rejected.options),
+        )
+      ).code,
+    ).toBe("SHUTTERSTOCK_FREE_SUBSCRIPTION_REQUIRED");
+    expect(rejected.calls).toHaveLength(1);
+    expect(rejected.licenseCalls()).toHaveLength(0);
+  }
+});
+
+test("unsupported collection and cross-collection grants cannot silently upgrade", async () => {
+  expect(() =>
+    readShutterstockSettings({ ...settings, SHUTTERSTOCK_COLLECTION: "full" }),
+  ).toThrow("SHUTTERSTOCK_NOT_CONFIGURED");
+  const f = fixture();
+  f.options.existingLicense = {
+    mediaId,
+    licenseId,
+    subscriptionId: settings.SHUTTERSTOCK_SUBSCRIPTION_ID,
+    license: "platform",
+    size: "medium",
+    agreementVersion: settings.SHUTTERSTOCK_AGREEMENT_VERSION,
+    licensedAt: time - 1000,
+    expiresAt: null,
+    collection: "free",
+  };
+  expect(
+    (
+      await failureCode(
+        shutterstockReference(mockAnalysisFixture, settings, f.options),
+      )
+    ).code,
+  ).toBe("SHUTTERSTOCK_POLICY_CHANGED");
+  expect(f.licenseCalls()).toHaveLength(0);
+});
+
+test("garment metadata outranks stock advertising gestures without an AI scoring call", async () => {
+  const advert = {
+    ...image,
+    id: "999999999",
+    description: "Happy model advertising copy space banner surprised gesture",
+  };
+  expect(shutterstockCandidatePriority(image)).toBeGreaterThan(
+    shutterstockCandidatePriority(advert),
+  );
+  const f = fixture((url) =>
+    url.pathname === "/v2/images/search"
+      ? json({ data: [advert, image] })
+      : undefined,
+  );
+  const result = await shutterstockReference(
+    mockAnalysisFixture,
+    settings,
+    f.options,
+  );
+  expect(result.mediaId).toBe(mediaId);
+  expect(
+    f.calls.some((c) => c.url.pathname === `/v2/images/${advert.id}`),
+  ).toBe(false);
+  expect(
+    f.calls
+      .find((c) => c.url.pathname === "/v2/images/search")
+      ?.url.searchParams.get("exact_match"),
+  ).toBe("true");
+});
+
+test("an empty precise query broadens only within the same API library and never retries a license", async () => {
+  let searches = 0;
+  const f = fixture((url) =>
+    url.pathname === "/v2/images/search" && ++searches === 1
+      ? json({ data: [] })
+      : undefined,
+  );
+  await shutterstockReference(mockAnalysisFixture, settings, f.options);
+  expect(searches).toBe(2);
+  expect(f.licenseCalls()).toHaveLength(1);
+  expect(
+    shutterstockReferenceQueries({
+      ...mockAnalysisFixture,
+      garmentType: "private-brand sweater",
+    }).every((q) => !q.includes("private")),
+  ).toBe(true);
 });
 
 test("verified commercial photo is licensed once with durable claim/grant before a credential-free download", async () => {

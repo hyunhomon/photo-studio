@@ -10,6 +10,7 @@ import {
   ensureAutomaticReference,
   getAutomaticReferences,
   type ReferenceFetch,
+  reserveFreeStockBudget,
 } from "./automatic-reference";
 import { runPlanStage } from "./pipeline";
 import type { GenerationSnapshot } from "./generation";
@@ -93,6 +94,16 @@ function fakeStock(s: Studio, id: string) {
             asset_type: "images",
             expiration_time: new Date(Date.now() + 86_400_000).toISOString(),
             allotment: { downloads_left: 10 },
+            ...(s.env.SHUTTERSTOCK_COLLECTION === "free"
+              ? {
+                  product_description: "Free API Test Images",
+                  price_per_download: {
+                    local_amount: 0,
+                    local_currency: "USD",
+                  },
+                  allotment: { downloads_left: 10, downloads_limit: 500 },
+                }
+              : {}),
             formats: [{ media_type: "image", format: "jpg", size: "medium" }],
           },
         ],
@@ -220,9 +231,10 @@ test("a licensed photo decode failure retains its grant and never licenses again
     s.sqlite.query("SELECT count(*) n FROM generation_attempts").get(),
   ).toEqual({ n: 0 });
 });
-async function readyStock() {
+async function readyStock(collection?: "free") {
   const s = await studioFixture();
   configure(s);
+  if (collection) s.env.SHUTTERSTOCK_COLLECTION = collection;
   const queued = await startStock(s);
   const source = fakeStock(s, queued.id);
   const adapter = mockAdapter(),
@@ -256,6 +268,62 @@ async function readyStock() {
   expect(planned.lookReferenceId).toBe(reference.assetId);
   return { ...s, planned, reference, queued, source };
 }
+
+test("free pilot plans and generates from identical licensed pixels, and rejects collection changes", async () => {
+  const s = await readyStock("free");
+  const metadata = JSON.parse(ledger(s, s.queued.id).metadata_json);
+  expect(metadata.collection).toBe("free");
+  expect(metadata.policyVersion).toBe("shutterstock-free-fashion-v2");
+  expect(metadata.licensing.grant.collection).toBe("free");
+  const queued = await enqueueImage(s);
+  expect(queued.status).toBe(202);
+  const adapter = mockAdapter(),
+    generate = adapter.generate;
+  let calls = 0;
+  adapter.generate = async (...args) => {
+    calls++;
+    expect(args[4]?.lookImage).toBe(expectedImage);
+    expect(args[4]?.requireNonTraining).toBe(true);
+    return generate(...args);
+  };
+  await runGenerationStage(s.env, queued.data.id, "generation", {
+    adapter: async () => adapter,
+  });
+  expect(calls).toBe(1);
+  expect(s.source.licensePosts).toBe(1);
+  s.env.SHUTTERSTOCK_COLLECTION = "contracted";
+  await expect(
+    assertStockReferenceUsage(s.env, owner(s), s.product.id, [s.queued.id]),
+  ).rejects.toMatchObject({ code: "SHUTTERSTOCK_POLICY_CHANGED" });
+});
+
+test("free hourly budget is shared and stops before a seventh worst-case retrieval", async () => {
+  const s = await studioFixture();
+  for (let n = 0; n < 6; n++) await reserveFreeStockBudget(s.env);
+  await expect(reserveFreeStockBudget(s.env)).rejects.toMatchObject({
+    code: "SHUTTERSTOCK_FREE_QUOTA_EXHAUSTED",
+  });
+  configure(s);
+  s.env.SHUTTERSTOCK_COLLECTION = "free";
+  const queued = await startStock(s);
+  const source = fakeStock(s, queued.id);
+  await expect(
+    ensureAutomaticReference(
+      s.env,
+      await jobRow(s, queued.id),
+      mockAnalysisFixture,
+      {
+        fetch: source.fetcher,
+        normalize: source.normalize,
+      },
+    ),
+  ).rejects.toMatchObject({ code: "SHUTTERSTOCK_FREE_QUOTA_EXHAUSTED" });
+  expect(source.requests).toHaveLength(0);
+  expect(source.licensePosts).toBe(0);
+  expect(
+    JSON.parse(ledger(s, queued.id).metadata_json).licensing,
+  ).toBeUndefined();
+});
 
 test("a lost stock license response becomes outcome_unknown and a Workflow replay cannot bill again", async () => {
   const s = await studioFixture();

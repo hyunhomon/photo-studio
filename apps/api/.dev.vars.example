@@ -6,6 +6,7 @@
 # SHUTTERSTOCK_LICENSE=platform
 # SHUTTERSTOCK_AI_REFERENCE_APPROVED=true
 # SHUTTERSTOCK_AGREEMENT_VERSION=
+# SHUTTERSTOCK_COLLECTION=free
 # Read-only search probe also accepts Basic app credentials; no activation flags needed.
 # SHUTTERSTOCK_CONSUMER_KEY=
 # SHUTTERSTOCK_CONSUMER_SECRET=

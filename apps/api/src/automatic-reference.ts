@@ -17,6 +17,19 @@ import {
 } from "./shutterstock-reference";
 
 export const REFERENCE_POLICY_VERSION = "commons-cc0-environment-v1";
+/** Reserve a worst-case job budget before any source call or license claim. */
+export async function reserveFreeStockBudget(env: Env) {
+  const key = await hash(
+    `shutterstock-free-hour:${Math.floor(Date.now() / 3_600_000)}`,
+  );
+  const result = await env.DB.prepare(
+    "INSERT INTO rate_limits(key,hits,expires_at) VALUES(?,14,?) ON CONFLICT(key) DO UPDATE SET hits=hits+14 RETURNING hits",
+  )
+    .bind(key, Date.now() + 3_600_000)
+    .first<{ hits: number }>();
+  if (!result || result.hits > 90)
+    throw new ProviderError("SHUTTERSTOCK_FREE_QUOTA_EXHAUSTED");
+}
 export type AutomaticReferenceProvider = "wikimedia_commons" | "shutterstock";
 export function automaticReferenceProvider(
   env: Env,
@@ -65,6 +78,8 @@ export async function assertStockReferenceUsage(
       env.SHUTTERSTOCK_AI_REFERENCE_APPROVED !== "true" ||
       !env.SHUTTERSTOCK_AGREEMENT_VERSION ||
       grant.agreementVersion !== env.SHUTTERSTOCK_AGREEMENT_VERSION ||
+      (grant.collection ?? "contracted") !==
+        (env.SHUTTERSTOCK_COLLECTION ?? "contracted") ||
       (grant.expiresAt !== null && grant.expiresAt <= Date.now())
     )
       throw new ProviderError("SHUTTERSTOCK_POLICY_CHANGED");
@@ -489,6 +504,8 @@ export async function ensureAutomaticReference(
   }
   try {
     if (!isMock) {
+      if (provider === "shutterstock" && env.SHUTTERSTOCK_COLLECTION === "free")
+        await reserveFreeStockBudget(env);
       const keyHash = await hash(
         `reference-rate:${Math.floor(Date.now() / 60000)}`,
       );
@@ -563,6 +580,8 @@ export async function ensureAutomaticReference(
               adultAgeFilter: "20s",
               commercial: true,
               actualCostUsd: null,
+              collection:
+                "collection" in candidate ? candidate.collection : undefined,
             }
           : {}),
         ...(licensing ? { licensing } : {}),
@@ -572,7 +591,9 @@ export async function ensureAutomaticReference(
       throw new ProviderError("AUTO_REFERENCE_IMAGE_TOO_LARGE");
     metadata.policyVersion =
       provider === "shutterstock"
-        ? "shutterstock-licensed-fashion-v1"
+        ? env.SHUTTERSTOCK_COLLECTION === "free"
+          ? "shutterstock-free-fashion-v2"
+          : "shutterstock-licensed-fashion-v2"
         : REFERENCE_POLICY_VERSION;
     metadata.contentHash = [
       ...new Uint8Array(

@@ -15,6 +15,7 @@ const settingNames = [
   "SHUTTERSTOCK_LICENSE",
   "SHUTTERSTOCK_AI_REFERENCE_APPROVED",
   "SHUTTERSTOCK_AGREEMENT_VERSION",
+  "SHUTTERSTOCK_COLLECTION",
 ] as const;
 class SetupError extends Error {}
 function requireSafe(value: unknown, message: string): asserts value {
@@ -24,7 +25,7 @@ function requireSafe(value: unknown, message: string): asserts value {
 async function main() {
   const args = process.argv.slice(2);
   if (args.length === 1 && args[0] === "--help") {
-    console.info(`Usage: bun run setup:shutterstock
+    console.info(`Usage: bun run setup:shutterstock [--free]
 
 Interactive production setup; requires the existing pinned production configuration
 and Wrangler login. Enter a subscription ID and agreement version, confirm the
@@ -32,13 +33,22 @@ approved contract scope, then enter the token in Wrangler's hidden secret prompt
 The contract must cover automatic selection, private storage, customer outputs and
 non-training third-party planning/image inference. Confirmation does not obtain rights.
 
-Only the six Shutterstock/reference settings are updated. Existing OpenRouter
+--free pins the free collection: runtime requires explicit free-plan metadata,
+zero per-download price, remaining allotment and no portfolio pricing. Missing
+price evidence stops before licensing. It never upgrades or purchases a plan.
+Use bun run shutterstock:preflight first; a Consumer Key/Secret is search-only.
+
+Only the seven Shutterstock/reference settings are updated. Existing OpenRouter
 connections, sessions and the encryption master secret are preserved and checked.
 No Shutterstock search, licensing or AI inference is performed. No token is put in
 shell arguments, files or this tool's logs. --help requires no login or changes.`);
     return;
   }
-  requireSafe(args.length === 0, "Unknown option; use --help.");
+  requireSafe(
+    args.length === 0 || (args.length === 1 && args[0] === "--free"),
+    "Unknown option; use --help.",
+  );
+  const collection = args[0] === "--free" ? "free" : "contracted";
   requireSafe(
     process.stdin.isTTY && process.stdout.isTTY,
     "Interactive terminal required. Piped/non-interactive setup is disabled; use --help.",
@@ -286,6 +296,7 @@ shell arguments, files or this tool's logs. --help requires no login or changes.
         SHUTTERSTOCK_LICENSE: "platform",
         SHUTTERSTOCK_AI_REFERENCE_APPROVED: "true",
         SHUTTERSTOCK_AGREEMENT_VERSION: agreementVersion,
+        SHUTTERSTOCK_COLLECTION: collection,
       }),
     );
     complete = true;

@@ -10,14 +10,18 @@ export interface ShutterstockSettingsInput {
   SHUTTERSTOCK_LICENSE?: string;
   SHUTTERSTOCK_AI_REFERENCE_APPROVED?: string;
   SHUTTERSTOCK_AGREEMENT_VERSION?: string;
+  SHUTTERSTOCK_COLLECTION?: string;
 }
+export type ShutterstockCollection = "free" | "contracted";
 export interface ShutterstockSettings {
   accessToken: string;
   subscriptionId: string;
   license: "platform";
   agreementVersion: string;
+  collection: ShutterstockCollection;
 }
 export interface ShutterstockLicenseIntent {
+  collection?: ShutterstockCollection;
   mediaId: string;
   subscriptionId: string;
   license: "platform";
@@ -27,6 +31,7 @@ export interface ShutterstockLicenseIntent {
   customerRef: string;
 }
 export interface ShutterstockLicenseGrant {
+  collection?: ShutterstockCollection;
   mediaId: string;
   licenseId: string;
   subscriptionId: string;
@@ -38,6 +43,7 @@ export interface ShutterstockLicenseGrant {
   expiresAt: null;
 }
 export interface ShutterstockCandidate {
+  collection: ShutterstockCollection;
   bytes: Uint8Array;
   declaredMime: "image/jpeg";
   query: string;
@@ -111,11 +117,18 @@ export function readShutterstockSettings(
     !identifier(input.SHUTTERSTOCK_SUBSCRIPTION_ID)
   )
     throw new ProviderError("SHUTTERSTOCK_NOT_CONFIGURED");
+  if (
+    input.SHUTTERSTOCK_COLLECTION !== undefined &&
+    !["free", "contracted"].includes(input.SHUTTERSTOCK_COLLECTION)
+  )
+    throw new ProviderError("SHUTTERSTOCK_NOT_CONFIGURED");
   return {
     accessToken: input.SHUTTERSTOCK_ACCESS_TOKEN,
     subscriptionId: input.SHUTTERSTOCK_SUBSCRIPTION_ID,
     license: "platform",
     agreementVersion: input.SHUTTERSTOCK_AGREEMENT_VERSION.trim(),
+    collection:
+      input.SHUTTERSTOCK_COLLECTION === "free" ? "free" : "contracted",
   };
 }
 
@@ -131,7 +144,47 @@ export function shutterstockReferenceQuery(analysis: ProductAnalysis): string {
     [/니트|스웨터|가디건|knit|sweater|cardigan/i, "knitwear"],
     [/셔츠|티셔츠|shirt|tee/i, "shirt"],
   ].find(([pattern]) => (pattern as RegExp).test(analysis.garmentType))?.[1];
-  return `adult model wearing ${garment ?? "casual clothing"} fashion catalog NOT children NOT teenager`;
+  return `${garment ?? "clothing"} model studio NOT children NOT teenager NOT lingerie NOT glamour NOT advertising NOT surprised`;
+}
+
+export function shutterstockReferenceQueries(analysis: ProductAnalysis) {
+  const studio = shutterstockReferenceQuery(analysis);
+  return [studio, studio.replace("model studio", "fashion model")];
+}
+
+/** Metadata ranking is deterministic selection, never an AI quality score. */
+export function shutterstockCandidatePriority(value: unknown): number {
+  const row = object(value);
+  const text = [
+    row?.description,
+    ...(Array.isArray(row?.keywords) ? row.keywords : []),
+  ]
+    .filter((item) => typeof item === "string")
+    .join(" ");
+  let priority = 0;
+  if (
+    /\b(catalog|catalogue|lookbook|apparel|clothing|collection|outfit)\b/i.test(
+      text,
+    )
+  )
+    priority += 6;
+  if (
+    /\b(full length|full body|three quarter|waist up|standing|sitting)\b/i.test(
+      text,
+    )
+  )
+    priority += 3;
+  if (/\b(fabric|cotton|knit|denim|wool|texture|folds|drape)\b/i.test(text))
+    priority += 3;
+  if (/\b(daylight|shadow|concrete|neutral|gray|grey|studio)\b/i.test(text))
+    priority += 2;
+  if (
+    /\b(advertising|copy space|banner|billboard|gesture|finger|surprised|shocked|screaming|beauty face|cosmetology|lingerie)\b/i.test(
+      text,
+    )
+  )
+    priority -= 30;
+  return priority;
 }
 
 async function bounded(response: Response, max: number): Promise<Uint8Array> {
@@ -236,9 +289,9 @@ async function requestJson(
   }
 }
 
-function verifySubscription(
+export function verifyShutterstockSubscription(
   response: JsonObject,
-  settings: ShutterstockSettings,
+  settings: Pick<ShutterstockSettings, "subscriptionId" | "collection">,
   now: number,
 ) {
   const subscriptions = Array.isArray(response.data) ? response.data : [];
@@ -265,6 +318,30 @@ function verifySubscription(
     )
   )
     throw new ProviderError("SHUTTERSTOCK_SUBSCRIPTION_INVALID");
+  if (settings.collection === "free") {
+    const price = object(subscription.price_per_download);
+    // No invented is_free flag. Public API documents the product description
+    // and optional price; absent/ambiguous evidence never authorizes licensing.
+    if (
+      !/\bfree\b/i.test(
+        `${cleanText(subscription.product_description, 300)} ${cleanText(subscription.description, 300)}`.replace(
+          /royalty[- ]free/gi,
+          "",
+        ),
+      ) ||
+      price?.local_amount !== 0 ||
+      typeof price.local_currency !== "string" ||
+      !/^[A-Z]{3}$/.test(price.local_currency) ||
+      (price.content_tiers !== undefined &&
+        Object.keys(object(price.content_tiers) ?? { invalid: true }).length >
+          0) ||
+      (subscription.portfolio !== undefined &&
+        subscription.portfolio !== false) ||
+      !positiveInteger(allotment?.downloads_limit) ||
+      Number(allotment.downloads_limit) > 500
+    )
+      throw new ProviderError("SHUTTERSTOCK_FREE_SUBSCRIPTION_REQUIRED");
+  }
   const metadata = object(subscription.metadata);
   if (
     metadata &&
@@ -434,8 +511,8 @@ export async function shutterstockReference(
       signal: init.signal ? AbortSignal.any([budget, init.signal]) : budget,
     });
   const now = options.now ?? Date.now;
-  const query = shutterstockReferenceQuery(analysis);
-  verifySubscription(
+  let query = shutterstockReferenceQuery(analysis);
+  verifyShutterstockSubscription(
     await requestJson(fetcher, settings, "/v2/user/subscriptions"),
     settings,
     now(),
@@ -454,7 +531,8 @@ export async function shutterstockReference(
       grant.size !== "medium" ||
       !Number.isSafeInteger(grant.licensedAt) ||
       grant.licensedAt <= 0 ||
-      grant.expiresAt !== null
+      grant.expiresAt !== null ||
+      (grant.collection ?? "contracted") !== settings.collection
     )
       throw new ProviderError("SHUTTERSTOCK_POLICY_CHANGED");
     mediaId = grant.mediaId;
@@ -466,44 +544,59 @@ export async function shutterstockReference(
     if (!eligibleImage(details, mediaId))
       throw new ProviderError("SHUTTERSTOCK_NO_ELIGIBLE_IMAGE");
   } else {
-    const params = new URLSearchParams({
-      query,
-      image_type: "photo",
-      license: "commercial",
-      people_number: "1",
-      people_model_released: "true",
-      people_age: "20s",
-      safe: "true",
-      keyword_safe_search: "true",
-      orientation: "vertical",
-      view: "full",
-      per_page: "5",
-      sort: "relevance",
-    });
-    const search = await requestJson(
-      fetcher,
-      settings,
-      `/v2/images/search?${params}`,
-    );
-    if (identifier(search.search_id)) searchId = search.search_id;
-    const candidates = Array.isArray(search.data)
-      ? search.data.slice(0, 5)
-      : [];
-    for (const candidate of candidates) {
-      const id = object(candidate)?.id;
-      if (!mediaIdentifier(id)) continue;
-      const result = await requestJson(
+    const seen = new Set<string>();
+    for (const searchQuery of shutterstockReferenceQueries(analysis)) {
+      query = searchQuery;
+      const params = new URLSearchParams({
+        query: searchQuery,
+        exact_match: "true",
+        image_type: "photo",
+        license: "commercial",
+        people_number: "1",
+        people_model_released: "true",
+        people_age: "20s",
+        safe: "true",
+        keyword_safe_search: "true",
+        orientation: "vertical",
+        view: "full",
+        per_page: "12",
+        sort: "relevance",
+      });
+      const search = await requestJson(
         fetcher,
         settings,
-        `/v2/images/${id}?view=full`,
+        `/v2/images/search?${params}`,
       );
-      if (!eligibleImage(result, id)) continue;
-      details = result;
-      mediaId = id;
-      break;
+      searchId = identifier(search.search_id) ? search.search_id : undefined;
+      const candidates = Array.isArray(search.data)
+        ? search.data
+            .slice(0, 12)
+            .sort(
+              (a, b) =>
+                shutterstockCandidatePriority(b) -
+                shutterstockCandidatePriority(a),
+            )
+            .slice(0, 4)
+        : [];
+      for (const candidate of candidates) {
+        const id = object(candidate)?.id;
+        if (!mediaIdentifier(id) || seen.has(id)) continue;
+        seen.add(id);
+        const result = await requestJson(
+          fetcher,
+          settings,
+          `/v2/images/${id}?view=full`,
+        );
+        if (!eligibleImage(result, id)) continue;
+        details = result;
+        mediaId = id;
+        break;
+      }
+      if (details) break;
     }
     if (!details) throw new ProviderError("SHUTTERSTOCK_NO_ELIGIBLE_IMAGE");
     const intent: ShutterstockLicenseIntent = {
+      collection: settings.collection,
       mediaId,
       subscriptionId: settings.subscriptionId,
       license: "platform",
@@ -543,6 +636,7 @@ export async function shutterstockReference(
     )
       throw new ProviderError("SHUTTERSTOCK_LICENSE_UNCERTAIN", true);
     grant = {
+      collection: settings.collection,
       mediaId,
       licenseId: row.license_id,
       subscriptionId: settings.subscriptionId,
@@ -567,6 +661,7 @@ export async function shutterstockReference(
   const downloadExpiresAt = now() + 8 * 60 * 60 * 1000;
   const bytes = await download(fetcher, link.url, mediaId);
   return {
+    collection: settings.collection,
     bytes,
     declaredMime: "image/jpeg",
     query,

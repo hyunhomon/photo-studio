@@ -3,6 +3,12 @@ import type { AutomaticReferenceDto } from "@photo-studio/schemas";
 import { apiBase } from "../lib/api";
 
 export const referenceFailureLabels: Record<string, string> = {
+  SHUTTERSTOCK_FREE_SUBSCRIPTION_REQUIRED:
+    "무료 사진 이용권을 확인하지 못해 참조 검색을 중단했습니다. 운영자 확인이 필요합니다.",
+  SHUTTERSTOCK_FREE_QUOTA_EXHAUSTED:
+    "무료 사진 검색 한도에 도달했습니다. 한도가 갱신된 뒤 다시 실행하거나 사진을 직접 등록해 주세요.",
+  SHUTTERSTOCK_RATE_LIMITED:
+    "사진 검색 서비스의 요청 한도에 도달했습니다. 잠시 후 다시 실행해 주세요.",
   SHUTTERSTOCK_NOT_CONFIGURED:
     "자동 착용컷 검색 설정이 준비되지 않았습니다. 직접 등록한 사진을 사용할 수 있습니다.",
   SHUTTERSTOCK_AGREEMENT_REQUIRED:

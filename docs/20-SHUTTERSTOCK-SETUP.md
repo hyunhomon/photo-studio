@@ -143,3 +143,18 @@ Thank you.
 - [API Pricing](https://www.shutterstock.com/api/pricing/), [공식 독일어 Pricing](https://www.shutterstock.com/de/api/pricing), [Enterprise 안내](https://www.shutterstock.com/help/en/articles/10617114-what-is-shutterstock-s-enterprise-platform).
 - [API Platform License 설명](https://www.shutterstock.com/help/en/articles/10617007-what-is-the-shutterstock-api-platform-license), [API 약관](https://www.shutterstock.com/developers/api-terms), [2026-10-05 일반 라이선스](https://www.shutterstock.com/license).
 - [Cloudflare secret bulk의 stdin 입력](https://developers.cloudflare.com/workers/wrangler/commands/workers/#secret-bulk), [OpenAI API 입력의 비학습 기본 정책](https://developers.openai.com/api/docs/guides/your-data), [OpenRouter Images 모델 endpoint](https://openrouter.ai/api/v1/models/openai/gpt-image-2/endpoints).
+
+## 무료 파일럿 구현 — ADR-036
+
+사용자가 무료 컬렉션을 선택했으며 실제 토큰 발급은 보류하고 구현·자동 검증만 요청했다. `SHUTTERSTOCK_COLLECTION=free`는 실제 무료 product 설명·0원 명시 가격·월500 이하 할당과 나머지 platform/만료/format/metadata 조건을 함께 검사한다. 공식 Subscription 스키마의 `price_per_download`는 optional이다. 생략을 무료로 오해하지 않으므로 실제 응답에 없으면 `SHUTTERSTOCK_FREE_SUBSCRIPTION_REQUIRED`로 멈추고 별도 근거를 확인해야 한다. 가짜 응답 통과를 실제 무료 라이선스 검증으로 표시하지 않는다.
+
+```powershell
+bun run shutterstock:preflight
+bun run setup:shutterstock --free
+```
+
+첫 명령은 Access Token이 있을 때만 subscriptions GET1회를 수행한다. 토큰이 없으면 `token_required`와 종료코드2로 끝나며 API 요청은0회다. 응답 원문·토큰·구독ID는 출력하지 않는다. 읽기 검사 보고서는 ignored `.tmp/shutterstock-preflight.json`에 저장된다. 두 번째 명령은 실제 사용 범위/구독을 확인한 운영자의 수동 활성화 도구이며 이번 작업에서는 실행하지 않는다. 공용 AI 키·새 결제·공급자 연락·라이선스 발급·실제 AI 실험도 수행하지 않는다.
+
+검색은 최대2개의 짧은 일반 의류 query를 사용하고 각 검색의12후보를 metadata 순위로 정렬해 상위4개까지 상세 검사한다. 최대14 네트워크 요청 예산을 예약하며 앱 전체 UTC 시간 버킷90 요청으로 제한한다(최대6 신규 검색 작업/시간, 실패 작업도 예약을 환불하지 않는 보수적 정책). 공급자 자체 한도와 별도로 적용하며429는 자동 재시도하지 않는다. 수동 점검 등 앱 밖 요청도 공급자 한도에 포함되므로 여유 예산이 전체429 방지를 보장하지는 않는다.
+
+실제 발급 전에는 위4개 전체 라이브러리 샘플이 무료 API에서403이고 기존 무료 대조군만200인 결과도 유념한다. 전체 라이브러리 사진으로 자동 확대하지 않으며 적합한 무료 사진이 없으면 분석을 보존한 채 기획 전에 오류를 표시한다. 무료여도 외부 AI 입력/고객 출력 권한 확인은 별개이고 기존 승인·버전 guard를 자동 해제하지 않는다.
