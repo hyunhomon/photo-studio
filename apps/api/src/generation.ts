@@ -271,6 +271,16 @@ export function generationRoutes() {
         ...(analysis?.preservationPoints ?? []),
       ]),
     ].slice(0, 20);
+    // Observations belong to the planning image, not a replacement selected later.
+    // Filter only this call's snapshot: keep saved observations and manual edits
+    // available for later use with the original planning image.
+    const generationSpec = {
+      ...spec,
+      referenceNotes:
+        input.lookReferenceId && input.lookReferenceId === plan.lookReferenceId
+          ? spec.referenceNotes
+          : "",
+    };
     const snapshot: GenerationSnapshot = {
       sourceIds,
       referenceSources,
@@ -278,7 +288,7 @@ export function generationRoutes() {
       preset: null,
       description: "",
       planId: plan.id,
-      plan: spec,
+      plan: generationSpec,
       quality: input.quality,
       regenerationOf: input.regenerationOf,
       regenerationReason: input.regenerationReason,
