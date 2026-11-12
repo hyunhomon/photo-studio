@@ -223,3 +223,7 @@ ADR-032에서 이전 원인 미확인 보고를 바로잡는다. 07:34:30 KST의
 `bun run setup:shutterstock`는 운영 대상/기존 master secret을 확인하고 계약 버전·구독ID·native Wrangler 숨김 token 입력과5개 정책값의 atomic secret bulk를 제공한다. 실제 설정 도구는 계약 미확보 상태에서 실행하지 않았고 --help/도구 타입 검사만 수행했다. 무료 공개 한도와 유료 견적·일반 구독/API 차이, vendor에 보낼 미전송 문의 초안은 `20-SHUTTERSTOCK-SETUP.md`에 기록했다. 설정이 외부 승인을 취득하는 것은 아니다. 실제 API/라이선스/출력 품질은 사람의 승인된 계정 실행 전 미검증이다.
 
 최종 format/lint/typecheck/unit/build117/117(진단0), local/production desktop/mobile Mock 각10/10, native workerd OAuth/합성 provider HTTP와 공개 운영 smoke가 통과했다. 운영 E2E wrapper exit0, 기존 실제 인증/untouched sentinel 불변 및 standalone canary 원문 보존→자기 정리를 확인했다. 마지막 읽기 집계는 합성 계정0, 실제 계정1/연결1/세션2다. Wrangler secret 이름 검사에서 Shutterstock 설정이 아직 없음을 확인했다. 새 DB migration·고객 자료 초기화·master secret 교체·실제 stock/유료 AI 호출은 없다. 최신 운영 UI는 현재 기본 경로와 Mock 브라우저를 검증한 것이며, 실제 Shutterstock 인증/사진/발급/출력 검증으로 계산하지 않는다.
+
+## 2026-11-12 — 무료 API의 실제 Basic 검색 확인
+
+사용자 로컬 Consumer Key/Secret으로 읽기 전용 검색을 수행해 후드261/셔츠386/코트376건 반환을 확인했다. 공식 워터마크 후드 표본은 브라우저에서 실제 모델 착용을 확인했다. 각 상위2개 검사에서 metadata 통과는1/1/0이며, 거절된4개는 모호한 girl/boy 태그 조건이었다. 실제 미성년 판정이나 전체 결과 품질 합격으로 해석하지 않는다. 거절 사유 추가 진단을 포함해18GET을 사용했고 라이선스 발급/정식 다운로드/AI/운영 데이터·설정 변경은0회다. Basic으로 확인하지 않은 구독 권한과 외부 AI 사용 승인은 그대로 미검증이다. 운영 필터는 변경하지 않았으며 반복 실행 가능한 검색 전용 도구와 비밀정보 비노출/무과금 경계 테스트를 추가했다. 키와 상세 report는 ignored 파일에만 남기고 새 고객 정보나 사진을 Git/로그에 넣지 않는다.

@@ -345,3 +345,10 @@ production desktop/mobile 전체 Mock E2E **4/4 통과**: 저장된 분석 재�
 - [x] 최종 format/lint/typecheck/unit/build 통과(117/117, 타입 진단0), local/production desktop/mobile Mock 각각10/10, native workerd OAuth/합성 provider HTTP, 공개 HTTPS/CORS/OAuth/폰트/반응형 smoke 통과. adapter13개·파이프라인7개에서 공식 응답 optional 필드·구독/권리·동일 픽셀·라이선스 응답 유실·발급 후 실패·재요청0·타 계정 격리·계약 철회·파생 개선 비학습 승계·raw403을 검사했다. 참조 전용 축소와 일반 의류 원본 해상도 보존도 검증했다.
 - [x] a067246 commit/push 및 API/Workflow→웹 배포, 기존 실제 인증 및 배포 전후 non-empty canary 원문 불변 확인. 운영 전체 검사 중 untouched sentinel 불변, 최종 standalone canary verify/cleanup 완료. 읽기 집계는 합성 계정0, 실제 계정1/연결1/세션2. 운영 secret 이름 확인에서 Shutterstock 설정은 없었고 비활성 Commons 기본 상태임을 확인했다. 새 DB migration/고객 자료 초기화/master secret 교체·실제 Shutterstock/유료 AI 호출 없음. 설정 도구는 --help/타입 검사만 검증했으며 실제 secret 입력/적용을 실행한 것처럼 표시하지 않는다.
 - [ ] 승인된 실제 계약/키/구독으로 읽기 검색과 정식 라이선스, 사용자 실행 유료 비교. 현재 커넥터 준비/합성 검증과 실제 연동 성공을 구분한다.
+
+### 무료 API의 실제 모델 착용컷 검색 확인 — 2026-11-12
+
+- [x] 사용자 로컬 Consumer Key/Secret의 Basic 인증으로 GET 전용 검색 실행. 후드261/셔츠386/코트376건 반환, 각 상위2개 검사에서 metadata 통과1/1/0. 후드 표본의 공식 워터마크 preview에서 실제 모델 착용을 육안 확인했다. 거절 사유 추가 진단을 포함해18GET, 라이선스/정식 다운로드/AI/운영 DB·설정 변경0회. 키/암호는 ignored .dev.vars에만 유지하며 report도 ignored .tmp에 저장했다.
+- [x] 검색 전용 CLI의 Bearer/Basic 구분·최대10GET·redirect/429 차단·원문/인증정보 비노출·계약/라이선스 오인 방지 회귀10개를 검증했다. 키 없는 --help와 정식 전체 활성화 도구는 구분한다.
+- [x] 최종 format/lint/typecheck/unit/build127/127(타입 진단0) 통과. 실제 로컬 인증값이 staged diff와 현재 검색/검사 로그에 없음을 별도 비교로 확인했다. 이번 변경은 로컬 읽기 검사 도구/문서이며 앱 재배포나 운영 데이터 변경은 수행하지 않았다.
+- [ ] 모호한 연령 태그로 제외된 표본의 선별 기준 개선과 계약/구독 권한·정식 발급·AI 참조 처리/출력 품질. 실제 검색 성공과 별개로 남긴다.
