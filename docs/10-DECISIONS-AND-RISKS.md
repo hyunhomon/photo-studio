@@ -233,3 +233,9 @@ ADR-032에서 이전 원인 미확인 보고를 바로잡는다. 07:34:30 KST의
 ADR-036에서 유료 전체 컬렉션 대신 무료 파일럿을 선택했다. 사용자는 토큰 발급 질문에 ‘지금은 구현·자동 검증만 진행’으로 답했다. 따라서 검색 자격 증명을 실제 발급 토큰으로 오인하거나 운영 source/승인값을 임의 변경하지 않는다. 무료 구독·0원 명시 가격·할당과 기존 권리 guard를 검증하고, 제한된 검색/metadata 순위/시간 예산 및 같은 사진의 기획·생성 경로를 합성 응답으로 검사한다. API 가격 필드 생략은 무료의 근거가 아니므로 실제 응답 전에는 호환성을 확정하지 않는다. 외부 AI 사용권 확인은 기존 조건을 유지하며 파일럿 선택이 vendor 승인이 되었다고 기록하지 않는다. 실제 발급·AI 비교는 미검증이다.
 
 무료 파일럿 릴리스3043b40은 commit/push 후 API/Workflow와 웹에 배포했다. 최종 전체 check135/135, local Mock10/10, 공개 production smoke와 production Mock10/10이 통과했다. 첫 공개 검사의5초 OAuth 목적지 대기 실패와 최초 운영 E2E의 connect ECONNABORTED/ENETUNREACH(9/10)는 보완/전체 재검증 결과와 함께 구현 계획에 남겼다. 진단 helper의 Bun/Playwright 정지는 해당 helper만 중단하고 Node 실행으로 정상 OAuth 체인을 확인했으며, 실제 고객 인증이나 생성 요청을 호출하지 않았다. 운영 원격 설정은 기존 Commons이고 Shutterstock token/source secret을 설치하지 않았다. 기존 실제 계정 인증, 배포 canary와 운영 E2E untouched sentinel이 보존됐다. 실제 무료 구독 응답/라이선스·다운로드와 실사 생성 품질은 사용자 보류에 따라 미검증이다.
+
+## 2026-11-12 — 실제 토큰 확인과 무료 구독 등록 누락
+
+실제 토큰의 앱 일치와 licenses.create/licenses.view/purchases.view, HTTP200을 확인했지만 subscriptions data는 비어 있었다. 실제 앱 화면의 Free Images 승인/100시간당 검색 접근은 라이선스용 무료 subscription 생성과 별개였다. Photo Studio ··· → 편집에 월500장 무료 구독 checkbox가 미선택인 것을 확인하고 선택만 준비했으며, 신규 구독 저장의 action-time 확인을 요청했다. 승인 전에는 저장하지 않고 license POST/download/AI0회를 유지한다. 원문/토큰/구독식별자는 ignored .tmp 밖에 기록하지 않는다.
+
+preflight는 빈 구독을 subscription_required로 분리하고, source-only 무료 검증 도구는 AI 승인 플래그를 만들지 않은 채 같은 라이선스 어댑터/claim/grant/실제 decode를 검사하도록 추가했다. 최초 발급의 download.url을 바로 사용해 platform의 재다운로드 제한과 충돌하던 가정을 수정했고 합성 회귀를 추가했다. 최종 check138/138 통과. 현재 단계에서 실제 무료 발급·다운로드나 운영 활성화가 완료됐다고 표시하지 않는다.

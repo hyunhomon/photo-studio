@@ -1,5 +1,10 @@
 {
   "extends": "./tsconfig.base.json",
   "compilerOptions": { "types": ["bun"], "resolveJsonModule": true },
-  "include": ["scripts", "tests", "playwright.config.ts"]
+  "include": [
+    "scripts",
+    "tests",
+    "playwright.config.ts",
+    "apps/api/src/wasm.d.ts"
+  ]
 }

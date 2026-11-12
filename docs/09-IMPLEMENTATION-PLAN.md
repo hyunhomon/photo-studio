@@ -365,3 +365,11 @@ production desktop/mobile 전체 Mock E2E **4/4 통과**: 저장된 분석 재�
 무료 파일럿의 로컬 전체 검증: format/lint/typecheck/unit/build135/135 통과, native workerd 및 OAuth 합성 HTTP 통과, desktop/mobile Mock 브라우저10/10 통과. 공개 API read probe와 달리 이번 무료 연결 작업에서는 실제 Shutterstock license/download/AI를 호출하지 않았다. token_required 사전 점검은 외부 요청0회이며, staged diff의 실제 로컬 자격 증명 비포함도 확인했다. 배포/운영 검증 결과는 아래 후속 기록으로 구분한다.
 
 운영 검증의 첫 공개 smoke는 studio hydration→session→config→OAuth 흐름을 기본5초 안에 기다리다 실패했다. 진단에서 me401/config200/OAuth303과3초 이동을 확인했고, 공개 검사는 세션401을 먼저 검증하고 OAuth 목적지를 최대15초 기다리도록 보완했다. 첫 production E2E는 상품 생성 전 읽기 GET /me의 ECONNABORTED/ENETUNREACH로1개 실패(9/10)했으며 합성 자료 정리·기존 인증 보존은 통과했다. 같은 기준의 전체 재실행은10/10(wrapper exit0), 공개 smoke도 통과했다. 연결 오류를 앱의 키 삭제나 참조/생성 실패로 기록하지 않으며 과금 요청의 재시도를 추가하지 않았다. 테스트 보완 후 format/lint/tools 타입 검사도 통과했다. 운영 설정 읽기로 Shutterstock 토큰·source 설정 부재와 기존 암호화 secret 존재를 확인했다.
+
+### 실제 무료 소스 검증 재개 — 2026-11-12
+
+- [x] 실제 Access Token의 앱 일치·필요 scope3개·HTTP200 확인. 구독 목록은200/빈 배열로 진단했다.
+- [x] 실제 앱 편집에서 무료500장 구독 checkbox를 확인했고, 신규 구독 저장 전 확인 단계까지 준비했다. token/Consumer Key를 노출하거나 재발급하지 않았다.
+- [x] subscription_required 구분, 최초 license 응답의 다운로드 링크 사용, AI 승인과 분리된 source-only 발급·검증 도구를 구현했다.
+- [ ] 무료 구독 저장 후 API 구독 응답/무상 근거/정식 라이선스1건/실파일 decode 확인.
+- [x] format/lint/typecheck/unit/build138/138 통과. source-only CLI --help의 무외부 호출 확인. 코드/문서 검증을 commit/push하며 무료 구독 저장 전이라 실제 license/download 및 운영 설정/배포는 수행하지 않았다.

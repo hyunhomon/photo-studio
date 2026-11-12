@@ -160,3 +160,13 @@ bun run setup:shutterstock --free
 실제 발급 전에는 위4개 전체 라이브러리 샘플이 무료 API에서403이고 기존 무료 대조군만200인 결과도 유념한다. 전체 라이브러리 사진으로 자동 확대하지 않으며 적합한 무료 사진이 없으면 분석을 보존한 채 기획 전에 오류를 표시한다. 무료여도 외부 AI 입력/고객 출력 권한 확인은 별개이고 기존 승인·버전 guard를 자동 해제하지 않는다.
 
 릴리스3043b40의 무료 전용 경로는 unit/integration 합성 검증을 마치고 운영 코드에 배포했다. 실제 source는 여전히 Commons이며 사용자 선택에 따라 Shutterstock token/source/승인 secret을 설치하지 않았다. 최종 전체135테스트와 local/production Mock 각10브라우저 시나리오, 공개 production smoke가 통과했다. 첫 검사 실패와 재검증은 구현 계획에 기록한다. ‘배포됨’은 실 무료 구독 응답·발급·다운로드·실사 품질을 검증했다는 뜻이 아니다.
+
+## 실제 토큰·구독 진단 — 2026-11-12
+
+사용자가 실제 토큰을 저장하고 무료 라이선스1건·다운로드 검증을 요청했다. GET /v2/user/access_token200에서 기존 앱과 일치하고 licenses.create/licenses.view/purchases.view 모두 있음을 확인했다. GET /v2/user/subscriptions200의 data는 빈 배열이다. 따라서 토큰 오류나 결제 실패가 아니라 발급에 사용할 API 구독이 아직 없는 상태로 구분한다. 키·계정·앱 식별자는 출력하지 않았고 API 원문은 ignored .tmp에만 보관한다.
+
+실제 로그인된 앱 관리 화면에서 Photo Studio ··· → 편집 → ‘무료 이미지 구독 시작 — 매월 최대500개의 이미지에 라이선스 적용’ 체크박스를 확인했다. 이 항목은 세부 사항 탭의 Free Images 승인/검색 속도 제한과 별개다. 저장 전 checkbox가 미선택이었고, 현재는 선택만 준비한 상태로 신규 무료 구독 저장의 확인을 요청했다. 유료 플랜/결제/AI 호출은 수행하지 않는다.
+
+`bun run shutterstock:license:verify --execute-free-license`는 무료 구독 확인 뒤 기존 검색/상세/원장/다운로드 어댑터를 source-only 목적으로 실행한다. AI 승인값이나 운영 source를 설정하지 않으며 고객 상품/키도 사용하지 않는다. 라이선스 claim/grant와 로컬 JPEG/정규화 결과는 ignored .tmp/shutterstock-license-probe/에 보관한다. 불확실/실패 receipt가 있으면 새 라이선스를 재발급하지 않는다. 단순 재실행이 무료 할당을 반복 차감하는 것을 막는다.
+
+공식 응답의 최초 license download URL을 grant 저장 뒤 바로 사용하도록 보완했다. 대부분의 platform 라이선스는 재다운로드를 보장하지 않으므로 새 발급 직후에도 무조건 redownload API를 호출하던 가정을 제거했다. 링크가 없는 경우/기존 grant의 복구에만 redownload를 시도하며 새 발급으로 대체하지 않는다. 이를 합성403 redownload 회귀로 검사한다. 근거: https://api-reference.shutterstock.com/#licensing-and-downloading 및 https://www.shutterstock.com/ta/explore/developers-support-licensing-downloading .

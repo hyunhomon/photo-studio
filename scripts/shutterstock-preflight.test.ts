@@ -1,5 +1,8 @@
 import { expect, test } from "bun:test";
-import { inspectFreeShutterstockSubscriptions } from "./shutterstock-preflight";
+import {
+  inspectFreeShutterstockSubscriptions,
+  freeShutterstockSubscriptionStatus,
+} from "./shutterstock-preflight";
 const now = 1_800_000_000_000;
 const free = {
   id: "synthetic_free",
@@ -11,6 +14,23 @@ const free = {
   formats: [{ media_type: "image", format: "jpg", size: "medium" }],
   price_per_download: { local_amount: 0, local_currency: "USD" },
 };
+test("preflight distinguishes a missing subscription from invalid free metadata or malformed responses", () => {
+  expect(freeShutterstockSubscriptionStatus({ data: [] }, now)).toBe(
+    "subscription_required",
+  );
+  expect(
+    freeShutterstockSubscriptionStatus(
+      { data: [{ ...free, price_per_download: undefined }] },
+      now,
+    ),
+  ).toBe("free_subscription_unverified");
+  expect(freeShutterstockSubscriptionStatus({}, now)).toBe(
+    "source_unavailable",
+  );
+  expect(freeShutterstockSubscriptionStatus({ data: [free] }, now)).toBe(
+    "free_subscription_verified",
+  );
+});
 test("preflight selects only a fully verified free subscription without licensing", () => {
   expect(
     inspectFreeShutterstockSubscriptions(

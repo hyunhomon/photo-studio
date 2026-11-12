@@ -7,6 +7,7 @@ import {
   shutterstockReferenceQuery,
   shutterstockReferenceQueries,
   shutterstockCandidatePriority,
+  verifyFreeShutterstockSource,
   type ShutterstockFetch,
   type ShutterstockLicenseGrant,
   type ShutterstockLicenseIntent,
@@ -237,6 +238,40 @@ test("free collection pins a zero-priced explicitly free subscription before sea
   }
 });
 
+test("source-only free verification uses the same guarded adapter without asserting AI-use approval", async () => {
+  const freeSubscription = {
+    ...subscription,
+    product_description: "Free API Test Images",
+    allotment: { downloads_left: 10, downloads_limit: 500 },
+    price_per_download: { local_amount: 0, local_currency: "USD" },
+  };
+  const f = fixture((url) =>
+    url.pathname === "/v2/user/subscriptions"
+      ? json({ data: [freeSubscription] })
+      : undefined,
+  );
+  const result = await verifyFreeShutterstockSource(
+    mockAnalysisFixture,
+    {
+      accessToken: settings.SHUTTERSTOCK_ACCESS_TOKEN,
+      subscriptionId: settings.SHUTTERSTOCK_SUBSCRIPTION_ID,
+    },
+    f.options,
+  );
+  expect(result.collection).toBe("free");
+  expect(result.agreementVersion).toBe("source-only-platform-verification-v1");
+  expect(f.licenseCalls()).toHaveLength(1);
+  expect(() =>
+    readShutterstockSettings({
+      ...settings,
+      SHUTTERSTOCK_AI_REFERENCE_APPROVED: "false",
+    }),
+  ).toThrow("SHUTTERSTOCK_AGREEMENT_REQUIRED");
+  expect(
+    f.calls.every((c) => c.url.hostname.endsWith("shutterstock.com")),
+  ).toBe(true);
+});
+
 test("unsupported collection and cross-collection grants cannot silently upgrade", async () => {
   expect(() =>
     readShutterstockSettings({ ...settings, SHUTTERSTOCK_COLLECTION: "full" }),
@@ -364,6 +399,38 @@ test("verified commercial photo is licensed once with durable claim/grant before
   expect(result.modelRelease).toBe(true);
   expect(result.downloadExpiresAt).toBe(time + 8 * 60 * 60 * 1000);
   expect(f.grant?.expiresAt).toBeNull();
+});
+
+test("the initial license download URL works even when a platform subscription forbids redownload", async () => {
+  const f = fixture((url) =>
+    url.pathname === "/v2/images/licenses"
+      ? json({
+          data: [
+            {
+              image_id: mediaId,
+              license_id: licenseId,
+              download: { url: downloadUrl },
+              allotment_charge: 1,
+            },
+          ],
+        })
+      : url.pathname.endsWith("/downloads")
+        ? json({}, 403)
+        : undefined,
+  );
+  const result = await shutterstockReference(
+    mockAnalysisFixture,
+    settings,
+    f.options,
+  );
+  expect(result.bytes).toEqual(jpeg);
+  expect(f.licenseCalls()).toHaveLength(1);
+  expect(f.calls.some((c) => c.url.pathname.endsWith("/downloads"))).toBe(
+    false,
+  );
+  expect(f.events.indexOf("grant")).toBeLessThan(
+    f.events.indexOf(`/gatekeeper/synthetic/shutterstock_${mediaId}.jpg`),
+  );
 });
 
 test("inactive, wrong-license, malformed-balance or unsupported subscription never searches or licenses", async () => {

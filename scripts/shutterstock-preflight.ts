@@ -29,6 +29,26 @@ export function inspectFreeShutterstockSubscriptions(
   return [...new Set(eligible)];
 }
 
+export function freeShutterstockSubscriptionStatus(
+  response: unknown,
+  now = Date.now(),
+) {
+  if (
+    response === null ||
+    typeof response !== "object" ||
+    !Array.isArray((response as { data?: unknown }).data)
+  )
+    return "source_unavailable";
+  if ((response as { data: unknown[] }).data.length === 0)
+    return "subscription_required";
+  const count = inspectFreeShutterstockSubscriptions(response, now).length;
+  return count === 1
+    ? "free_subscription_verified"
+    : count > 1
+      ? "subscription_selection_required"
+      : "free_subscription_unverified";
+}
+
 async function main() {
   const args = process.argv.slice(2);
   if (args.length === 1 && args[0] === "--help") {
@@ -84,13 +104,9 @@ async function main() {
       const raw = await response.text();
       if (raw.length > 512 * 1024)
         throw new Error("Subscription response exceeded limit.");
-      subscriptions = inspectFreeShutterstockSubscriptions(JSON.parse(raw));
-      status =
-        subscriptions.length === 1
-          ? "free_subscription_verified"
-          : subscriptions.length > 1
-            ? "subscription_selection_required"
-            : "free_subscription_unverified";
+      const parsed: unknown = JSON.parse(raw);
+      subscriptions = inspectFreeShutterstockSubscriptions(parsed);
+      status = freeShutterstockSubscriptionStatus(parsed);
     }
   }
   await Bun.write(

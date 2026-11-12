@@ -497,6 +497,39 @@ export async function shutterstockReference(
   options: ShutterstockReferenceOptions,
 ): Promise<ShutterstockCandidate> {
   const settings = readShutterstockSettings(input);
+  return acquireShutterstockReference(analysis, settings, options);
+}
+
+/** Operator-only source verification. No AI-use approval is asserted here.
+ * The receipt is not stored as an application asset and cannot authorize AI.
+ */
+export async function verifyFreeShutterstockSource(
+  analysis: ProductAnalysis,
+  credentials: { accessToken: string; subscriptionId: string },
+  options: ShutterstockReferenceOptions,
+): Promise<ShutterstockCandidate> {
+  if (
+    !/^[\x21-\x7e]{16,4096}$/.test(credentials.accessToken) ||
+    !identifier(credentials.subscriptionId)
+  )
+    throw new ProviderError("SHUTTERSTOCK_NOT_CONFIGURED");
+  return acquireShutterstockReference(
+    analysis,
+    {
+      ...credentials,
+      collection: "free",
+      license: "platform",
+      agreementVersion: "source-only-platform-verification-v1",
+    },
+    options,
+  );
+}
+
+async function acquireShutterstockReference(
+  analysis: ProductAnalysis,
+  settings: ShutterstockSettings,
+  options: ShutterstockReferenceOptions,
+): Promise<ShutterstockCandidate> {
   if (
     !/^[A-Za-z0-9_-]{16,128}$/.test(options.customerRef) ||
     typeof options.beforeLicense !== "function" ||
@@ -520,6 +553,7 @@ export async function shutterstockReference(
   let details: JsonObject | null = null;
   let mediaId = "";
   let grant = options.existingLicense;
+  let firstDownloadUrl: unknown;
   let searchId: string | undefined;
   if (grant) {
     if (
@@ -651,13 +685,19 @@ export async function shutterstockReference(
     } catch {
       throw new ProviderError("SHUTTERSTOCK_LICENSE_UNCERTAIN", true);
     }
+    firstDownloadUrl = object(row.download)?.url;
   }
-  const link = await requestJson(
-    fetcher,
-    settings,
-    `/v2/images/licenses/${grant.licenseId}/downloads`,
-    { size: "medium" },
-  );
+  // Platform licenses need not support redownload. Use the original grant URL
+  // after its durable receipt; request redownload only when no link is present.
+  const link =
+    firstDownloadUrl !== undefined
+      ? { url: firstDownloadUrl }
+      : await requestJson(
+          fetcher,
+          settings,
+          `/v2/images/licenses/${grant.licenseId}/downloads`,
+          { size: "medium" },
+        );
   const downloadExpiresAt = now() + 8 * 60 * 60 * 1000;
   const bytes = await download(fetcher, link.url, mediaId);
   return {

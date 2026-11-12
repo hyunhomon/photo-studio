@@ -20,6 +20,7 @@
     "setup:shutterstock": "bun run scripts/configure-shutterstock.ts",
     "shutterstock:search": "bun run scripts/shutterstock-search-probe.ts",
     "shutterstock:preflight": "bun run scripts/shutterstock-preflight.ts",
+    "shutterstock:license:verify": "bun run scripts/shutterstock-license-probe.ts",
     "test:shutterstock:search": "bun test scripts/shutterstock-search-probe.test.ts",
     "typecheck": "tsc -p tsconfig.tools.json && bun run --sequential --filter '@photo-studio/*' typecheck",
     "lint": "biome lint .",
