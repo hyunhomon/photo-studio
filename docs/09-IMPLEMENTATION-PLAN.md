@@ -318,6 +318,6 @@ production desktop/mobile 전체 Mock E2E **4/4 통과**: 저장된 분석 재�
 - [x] 원자적 lifecycle audit/30일 보관, 실제 인증 전후 보존 검사와 별도 non-empty 합성 canary, 타 계정 로그아웃/삭제 격리.
 - [x] 외부 Pinterest generic 검색·권한 있는 원본 업로드/미리보기·비공개 Pin 출처와 계획/생성 snapshot/내보내기. URL은 fetch/모델 전송하지 않음.
 - [x] 동일 planning/generation 호출의 촬영 증거 증강, 고정 optics 충돌 제거, studio-v10/photo-v6 및 이전 버전 호환.
-- [ ] 최종 format/lint/typecheck/test/build, local/production Mock 및 실제 배포 전후 인증 canary 검증/정리.
+- [x] 최종 format/lint/typecheck/test/build 통과(단위79/79, 타입 진단0), local/production desktop/mobile Mock 각8/8, native workerd OAuth/가짜 provider HTTP 계약 및 합성 촬영6종 통과. 3b0891f/25cfd3d commit/push, additive0011/0012와 API/Workflow→웹 운영 배포. 두 배포와 운영 전체 테스트 전후 기존 실제 인증 불변, 별도 non-empty canary 원문 불변 및 세 번째 untouched 합성 sentinel 불변을 확인했다. wrapper exit0, 공개 smoke/화면 확인, 합성 계정0·실제 연결/세션 유지 확인. 테스트/검증 계정만 정리했으며 고객 데이터 초기화·secret 교체·유료 AI 호출 없음.
 - [ ] 공식 Pinterest 자동 검색/수집은 앱·해당 저장/제3자 처리 승인과 자격 증명 미준비로 미연동. 외부 수동 검색과 구별한다.
 - [ ] v6의 실제 촬영 현실감 개선은 사용자의 같은 입력 유료 실행 비교 전 미검증. 자동 유료 호출하지 않음.
