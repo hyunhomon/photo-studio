@@ -17,6 +17,7 @@
     "dev": "bun run --parallel --filter './apps/*' dev",
     "dev:web": "bun run --filter @photo-studio/web dev",
     "dev:api": "bun run --filter @photo-studio/api dev",
+    "setup:shutterstock": "bun run scripts/configure-shutterstock.ts",
     "typecheck": "tsc -p tsconfig.tools.json && bun run --sequential --filter '@photo-studio/*' typecheck",
     "lint": "biome lint .",
     "format": "prettier --write .",

@@ -284,3 +284,11 @@
 - reference_retrievals는 plan job 단위의 별도 비과금 telemetry/provenance다. 상태·검색어 정책·출처/작성자/CC0·지연/실패와 선택 asset을 기록한다. immutable AI 요청을 뒤늦게 덮어쓰지 않는다. 자동 사진은 별도 auto_look_reference kind이며 기존 계획에 연결한 ID를 생성에서도 서버가 자동 선택한다. 사용자가 끄거나 직접 업로드로 대체할 수 있다.
 - 분석 후 reference_search를 실행하고 실제 선택 이미지를 기존 planning 호출과 generation 호출에 전달한다. 자동 환경 이미지는 인물/의류/빈 장면의 crop을 복제하지 않고 조명·소재·초점·접촉 그림자의 기준으로 쓴다. AI 평가/새 유료 추출 단계는 없다. 검색 실패/적합 사진 없음은 분석을 보존하고 유료 기획 전에 중단하며 자동 증강 성공으로 표시하지 않는다.
 - additive0013, studio-v11-automatic-environment / photo-v7-automatic-environment. 기존 계획/참조/이전 프로토콜을 읽는다. Mock는 명시적 합성 참조이며 실제 CC0 검색 성공으로 표시하지 않는다. 별도 admin reference-only Workflow로 운영 egress·실제 Commons 검색/다운로드·private R2를 검증하되 inference attempt가0인지 검사한다. 근거와 제한은 18-AUTOMATIC-REFERENCE-RESEARCH.md.
+
+## ADR-035: 계약된 Shutterstock 착용컷 자동 참조 — Accepted (사용자 지정, 2026-11-12)
+
+- 사용자는 실제 모델 착용 사진을 자동 검색하는 공급자로 Shutterstock를 선택했다. `REFERENCE_SOURCE=shutterstock`와 서버 Access Token·고정 API Subscription ID·platform 라이선스·해당 외부 추론/고객 사용 계약 승인·계약 버전이 모두 있어야 활성화한다. 준비 전에는 ADR-034의 Commons 환경 검색을 유지한다. Shutterstock 선택 후 실패했을 때 Commons로 숨은 대체를 하지 않는다. 키가 계약 권한을 대신하지 않으며 일반 개인 이미지 구독을 플랫폼 계약으로 사용하지 않는다.
+- 분석 실행 클릭 뒤 일반 의류 키워드로 실사·commercial·성인 연령·인원1·모델 릴리즈 조건을 검색하고 개별 상세·구독 권한을 확인한다. 고객 사진/브랜드/프롬프트는 검색에 보내지 않는다. 라이선스 POST 전에 durable claim, 성공 응답의 grant를 다운로드 전에 저장한다. 동일 job의 불명확한 발급은 재요청하지 않는다. 기존 reference_retrievals의 private metadata에 별도 라이선스 원장을 기록하며 공급자 비용이 없으면 null을 유지한다. API 요청의 재판매 가격0을 공급자 실제 비용으로 해석하지 않는다.
+- 정식 라이선스된 동일 이미지 픽셀을 기획과 생성에 전달한다. 착용 자세·프레이밍·카메라 위치·직물 처짐/주름·접촉 그림자·피부 명암의 관계를 관찰하되 원본 의류 구조·동의된 인물·사용자 수정이 우선이다. 환경 전용의 inspire 강제를 착용컷에 적용하지 않는다. 서버의 허용 호스트/크기/실제 디코딩 검사, 참조 전용1024px 축소, 비공개 R2·소유권 검증을 유지한다. raw 참조 다운로드는 차단하고 출처를 표시한다.
+- `studio-v12-licensed-fashion` / `photo-v8-licensed-fashion`. 기획의 지원되는 data_collection deny와 생성의 검토된 OpenAI gpt-image-2/only openai/no fallback을 사용한다. Images API가 지원하지 않는 Chat/ZDR 옵션을 보내고 정책이 강제됐다고 주장하지 않는다. 비학습은 ZDR와 구별한다. 스톡 기반 이전 결과의 개선도 원래 라이선스/비학습 제약을 상속하며 참조를 끈다고 제약을 해제하지 않는다. 계약 변경/철회 시 유료 호출 전에 중단한다.
+- 현재 고객별 AI 비용은 OpenRouter BYOK, stock 비용은 별도 운영 API 계약이다. 서비스 자체 결제/구독/크레딧을 도입하지 않는다. 실제 키/계약 없는 검증은 가짜 API와 합성 provider로 수행하며 실제 라이선스·출력 품질은 미검증으로 남긴다. 발급/견적/계약과 활성화 절차는 `20-SHUTTERSTOCK-SETUP.md`를 따른다.

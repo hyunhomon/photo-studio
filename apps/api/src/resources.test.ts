@@ -12,6 +12,24 @@ import { defaultOptions as webpOptions } from "@jsquash/webp/meta.js";
 import JPEG_ENCODE from "@jsquash/jpeg/codec/enc/mozjpeg_enc.wasm";
 import WEBP_ENCODE from "@jsquash/webp/codec/enc/webp_enc_simd.wasm";
 
+test("licensed portrait references downsample within the AI bounds while garment uploads keep their evidence", async () => {
+  const source = syntheticPng(1200, 1800);
+  const garment = await normalizeImage(source, "image/png");
+  const reference = await normalizeImage(source, "image/png", 1024);
+  expect([garment.width, garment.height]).toEqual([1200, 1800]);
+  expect([reference.width, reference.height]).toEqual([683, 1024]);
+  expect(inspectImage(reference.bytes, "image/png")).toMatchObject({
+    width: 683,
+    height: 1024,
+  });
+  const unchanged = await normalizeImage(
+    syntheticPng(120, 180),
+    "image/png",
+    1024,
+  );
+  expect([unchanged.width, unchanged.height]).toEqual([120, 180]);
+});
+
 async function user(
   app: ReturnType<typeof createApp>,
   env: ReturnType<typeof memoryEnv>["env"],

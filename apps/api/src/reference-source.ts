@@ -31,7 +31,11 @@ export interface ReferenceSource {
   assetId: string;
   role: "person_reference" | "look_reference";
   discovery:
-    "user_upload" | "pinterest_manual" | "wikimedia_commons" | "mock_automatic";
+    | "user_upload"
+    | "pinterest_manual"
+    | "wikimedia_commons"
+    | "shutterstock"
+    | "mock_automatic";
   sourceUrl: string | null;
   creator?: string | null;
   license?: string | null;

@@ -1,4 +1,11 @@
 # Local Mock development. setup-local generates an ignored encryption secret; no operator inference key.
+# Optional licensed reference source. Keep disabled until the API agreement covers this use.
+# REFERENCE_SOURCE=shutterstock
+# SHUTTERSTOCK_ACCESS_TOKEN= (server secret; never commit a value)
+# SHUTTERSTOCK_SUBSCRIPTION_ID=
+# SHUTTERSTOCK_LICENSE=platform
+# SHUTTERSTOCK_AI_REFERENCE_APPROVED=true
+# SHUTTERSTOCK_AGREEMENT_VERSION=
 AI_MODE=mock
 ALLOWED_WEB_ORIGINS=http://localhost:4321
 OPENROUTER_BASE_URL=https://openrouter.ai/api/v1

@@ -241,6 +241,8 @@ test("existing capture snapshots remain readable while new material-light correc
     "photo-v3-reference",
     "photo-v4-directed-composition",
     "photo-v5-material-light",
+    "photo-v6-reference-evidence",
+    "photo-v7-automatic-environment",
     CAPTURE_PROTOCOL_VERSION,
   ]) {
     const prompt = compilePhotographicPrompt(plan, 1, {
@@ -327,4 +329,47 @@ test("automatic environment evidence cannot become identity or empty-scene frami
   expect(prompt).toContain("Synthetic bust shot");
   expect(prompt).toContain("Synthetic high angle");
   expect(prompt).not.toContain("OPTICS: one full-frame");
+});
+
+test("licensed fashion evidence transfers worn-cloth physics and composition without replacing garment, person or explicit edits", () => {
+  const plan = mockPlan(mockAnalysisFixture);
+  plan.camera.framing = "Synthetic bust crop";
+  plan.camera.angle = "Synthetic overhead viewpoint";
+  const direction = {
+    personImage: "synthetic-consented-person",
+    lookImage: "synthetic-licensed-fashion",
+    lookReferenceKind: "automatic_fashion" as const,
+    previousImage: "synthetic-previous",
+    reason: "material_rendering",
+    adjustments: "Synthetic keep overhead crop; repair only sleeve shadows",
+  };
+  const prompt = compilePhotographicPrompt(plan, 2, direction);
+  expect(prompt).toContain(
+    "references 1..2 are authoritative garment evidence",
+  );
+  expect(prompt).toContain(
+    "Reference 3 is the consented adult person reference",
+  );
+  expect(prompt).toContain("AUTOMATIC FASHION REFERENCE: Reference 4");
+  expect(prompt).toContain("Reference 5 is the prior generated frame");
+  expect(prompt).toContain("weight-bearing posture and support geometry");
+  expect(prompt).toContain(
+    "drape, compression folds, tension and cast/contact shadows",
+  );
+  expect(prompt).toContain("local face/neck/hand shading");
+  expect(prompt).toContain(
+    "never copy the stock garment's design, exact wrinkle map",
+  );
+  expect(prompt).toContain("selected person reference overrides its face");
+  expect(prompt).toContain(plan.camera.framing);
+  expect(prompt).toContain(plan.camera.angle);
+  expect(prompt).toContain(direction.adjustments);
+  expect(prompt).not.toContain("AUTOMATIC ENVIRONMENT REFERENCE");
+  expect(prompt).not.toContain("empty-scene crop");
+  expect(prompt).not.toContain("approximately f/");
+  plan.camera.referenceComposition = "inspire";
+  const inspired = compilePhotographicPrompt(plan, 2, direction);
+  expect(inspired).toContain("without imposing its pose or crop");
+  expect(inspired).not.toContain("REFERENCE FRAMING:");
+  expect(inspired).not.toContain("approximately f/");
 });

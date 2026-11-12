@@ -20,7 +20,11 @@ async function wasm(value: WebAssembly.Module) {
 let pngReady: Promise<unknown> | undefined,
   jpegReady: Promise<unknown> | undefined,
   webpReady: Promise<unknown> | undefined;
-export async function normalizeImage(input: Uint8Array, declared = "") {
+export async function normalizeImage(
+  input: Uint8Array,
+  declared = "",
+  maxDimension?: number,
+) {
   const meta = inspectImage(input, declared);
   try {
     const buffer = new Uint8Array(input).buffer;
@@ -47,6 +51,38 @@ export async function normalizeImage(input: Uint8Array, declared = "") {
       decoded.width * decoded.height !== meta.width * meta.height
     )
       throw new Error("Invalid decoded dimensions");
+    if (
+      maxDimension &&
+      Math.max(decoded.width, decoded.height) > maxDimension
+    ) {
+      const ratio = maxDimension / Math.max(decoded.width, decoded.height);
+      const width = Math.max(1, Math.round(decoded.width * ratio));
+      const height = Math.max(1, Math.round(decoded.height * ratio));
+      const data = new Uint8ClampedArray(width * height * 4);
+      // Bounded bilinear downsampling for licensed reference inputs only. Full
+      // garment evidence and generated images retain their original dimensions.
+      for (let y = 0; y < height; y++) {
+        const sy = Math.max(0, (y + 0.5) / ratio - 0.5);
+        const y0 = Math.min(decoded.height - 1, Math.floor(sy));
+        const y1 = Math.min(decoded.height - 1, y0 + 1);
+        const fy = sy - y0;
+        for (let x = 0; x < width; x++) {
+          const sx = Math.max(0, (x + 0.5) / ratio - 0.5);
+          const x0 = Math.min(decoded.width - 1, Math.floor(sx));
+          const x1 = Math.min(decoded.width - 1, x0 + 1);
+          const fx = sx - x0;
+          for (let c = 0; c < 4; c++) {
+            const a = decoded.data[(y0 * decoded.width + x0) * 4 + c] ?? 0;
+            const b = decoded.data[(y0 * decoded.width + x1) * 4 + c] ?? 0;
+            const d = decoded.data[(y1 * decoded.width + x0) * 4 + c] ?? 0;
+            const e = decoded.data[(y1 * decoded.width + x1) * 4 + c] ?? 0;
+            data[(y * width + x) * 4 + c] =
+              (a * (1 - fx) + b * fx) * (1 - fy) + (d * (1 - fx) + e * fx) * fy;
+          }
+        }
+      }
+      decoded = { width, height, data, colorSpace: "srgb" } as ImageData;
+    }
     pngReady ??= wasm(PNG).then(async (module) => {
       await initPng(module);
       await initPngEncode(module);

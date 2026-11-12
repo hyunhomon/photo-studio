@@ -45,6 +45,10 @@ import { referenceSource, type ReferenceSource } from "./reference-source";
 import {
   ensureAutomaticReference,
   getAutomaticReferences,
+  automaticReferenceProvider,
+  validateAutomaticReferenceConfig,
+  assertStockReferenceUsage,
+  type AutomaticReferenceProvider,
 } from "./automatic-reference";
 
 export type JobRow = typeof jobs.$inferSelect;
@@ -60,6 +64,7 @@ export interface PlanSnapshot {
   referenceConsent?: boolean;
   referenceSources?: ReferenceSource[];
   useAutomaticReference?: boolean;
+  automaticReferenceProvider?: AutomaticReferenceProvider;
   /** Legacy snapshots only; no evaluator is invoked (ADR-019). */
   evaluationModel?: string;
 }
@@ -452,8 +457,14 @@ export async function finishFailure(env: Env, jobId: string, error: unknown) {
   )
     .bind(jobId)
     .first();
+  const stockPending = await env.DB.prepare(
+    "SELECT 1 AS n FROM reference_retrievals WHERE id=? AND provider='shutterstock' AND json_extract(metadata_json,'$.licensing.status')='claimed' AND (status='searching' OR failure_code='SHUTTERSTOCK_LICENSE_UNCERTAIN')",
+  )
+    .bind(jobId)
+    .first();
   const uncertain =
     Boolean(pending) ||
+    Boolean(stockPending) ||
     (error instanceof ProviderError && error.unknownOutcome);
   if (uncertain)
     await env.DB.prepare(
@@ -466,7 +477,11 @@ export async function finishFailure(env: Env, jobId: string, error: unknown) {
   )
     .bind(
       uncertain ? "outcome_unknown" : "failed",
-      uncertain ? "PROVIDER_OUTCOME_UNKNOWN" : code,
+      uncertain
+        ? stockPending || code === "SHUTTERSTOCK_LICENSE_UNCERTAIN"
+          ? "SHUTTERSTOCK_LICENSE_UNCERTAIN"
+          : "PROVIDER_OUTCOME_UNKNOWN"
+        : code,
       Date.now(),
       jobId,
     )
@@ -572,6 +587,10 @@ export async function runPlanStage(
             automatic.failureCode ?? "AUTO_REFERENCE_NOT_FOUND",
           );
         lookReferenceId = automatic.assetId;
+        if (automatic.provider === "shutterstock")
+          await assertStockReferenceUsage(env, job.userId, job.productId, [
+            automatic.id,
+          ]);
       }
       const selectedIds = [
         ...snapshot.sourceIds,
@@ -601,19 +620,27 @@ export async function runPlanStage(
             snapshot.analysisModel,
             analysis,
             snapshot.preset,
-            automatic
-              ? `${snapshot.description}\nAutomatic environment reference: use observed lighting, material response and focus cues only. Do not copy the architecture-only crop, absence of people, or a reference person's identity. Preserve the approved adult, garment evidence and requested framing/angle.`
-              : snapshot.description,
+            automatic?.provider === "shutterstock"
+              ? `${snapshot.description}\nLicensed model-worn fashion reference: observe pose, garment drape, folds, camera framing, light direction and contact shadows. Original garment structure and selected adult identity remain authoritative. Apply user framing/angle edits.`
+              : automatic
+                ? `${snapshot.description}\nAutomatic environment reference: use observed lighting, material response and focus cues only. Do not copy the architecture-only crop, absence of people, or a reference person's identity. Preserve the approved adult, garment evidence and requested framing/angle.`
+                : snapshot.description,
             {
               lookImage,
               personImage,
               ...(automatic
-                ? { lookReferenceKind: "automatic_environment" as const }
+                ? {
+                    lookReferenceKind:
+                      automatic.provider === "shutterstock"
+                        ? ("automatic_fashion" as const)
+                        : ("automatic_environment" as const),
+                  }
                 : {}),
             },
           ),
       );
-      if (automatic) plan.camera.referenceComposition = "inspire";
+      if (automatic && automatic.provider !== "shutterstock")
+        plan.camera.referenceComposition = "inspire";
       const versions = await env.DB.prepare(
         "SELECT coalesce(max(version),0)+1 n FROM shoot_plans WHERE product_id=? AND user_id=?",
       )
@@ -712,6 +739,27 @@ export function pipelineRoutes() {
     const userId = c.get("identity").userId,
       p = await ownedProduct(c.env, userId, c.req.param("id"));
     const input = planRequestSchema.parse(await c.req.json());
+    const source =
+      input.useAutomaticReference && !input.lookReferenceId
+        ? automaticReferenceProvider(c.env)
+        : undefined;
+    if (input.useAutomaticReference && !input.lookReferenceId) {
+      try {
+        validateAutomaticReferenceConfig(
+          c.env,
+          c.get("identity").isTest,
+          source,
+        );
+      } catch (error) {
+        throw new AppError(
+          error instanceof ProviderError
+            ? error.code
+            : "SHUTTERSTOCK_NOT_CONFIGURED",
+          "촬영 참조 공급자 설정을 확인해 주세요.",
+          503,
+        );
+      }
+    }
     if (input.reuseAnalysis && !p.analysisJson)
       throw new AppError(
         "ANALYSIS_MISSING",
@@ -778,6 +826,7 @@ export function pipelineRoutes() {
         : {}),
       sourceIds: await sourceSnapshot(c.env, userId, p.id),
       useAutomaticReference: input.useAutomaticReference,
+      automaticReferenceProvider: source,
       referenceSources,
       preset,
       description: input.description,

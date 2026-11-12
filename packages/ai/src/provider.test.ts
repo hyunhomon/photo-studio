@@ -7,6 +7,218 @@ import {
 } from "./provider";
 import { mockAnalysisFixture } from "./fixtures";
 import { presetInputSchema } from "@photo-studio/schemas";
+
+test("licensed fashion pixels reach planning and generation with supported non-training routing and original evidence priority", async () => {
+  const stages: string[] = [];
+  const stockPixels = "synthetic-licensed-fashion-pixels";
+  const observedPlan = {
+    ...mockPlan(mockAnalysisFixture),
+    referenceNotes:
+      "구도: 합성 앉은 자세. 빛: 왼쪽 광원. 초점: 소매와 받침. 표면: 팔꿈치 압축 주름. 한계: 정확한 렌즈 불명.",
+  };
+  const transport = Object.assign(
+    async (input: unknown, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body));
+      if (String(input).endsWith("/images")) {
+        stages.push("generation");
+        expect(body.model).toBe("openai/gpt-image-2");
+        expect(body.provider).toEqual({
+          only: ["openai"],
+          allow_fallbacks: false,
+        });
+        // These Chat/Responses fields are absent from Images provider preferences.
+        expect(body.provider.data_collection).toBeUndefined();
+        expect(body.provider.require_parameters).toBeUndefined();
+        expect(body.provider.zdr).toBeUndefined();
+        expect(body.n).toBe(1);
+        expect(
+          body.input_references.map(
+            (part: { image_url: { url: string } }) => part.image_url.url,
+          ),
+        ).toEqual([
+          "synthetic-garment-front",
+          "synthetic-garment-back",
+          "synthetic-consented-adult",
+          stockPixels,
+          "synthetic-previous",
+        ]);
+        expect(body.prompt).toContain(
+          "AUTOMATIC FASHION REFERENCE: Reference 4",
+        );
+        expect(body.prompt).toContain(observedPlan.referenceNotes);
+        expect(body.prompt).toContain("Synthetic user overhead angle");
+        expect(body.prompt).toContain(
+          "Synthetic preserve crop; repair cloth shadows",
+        );
+        expect(body.prompt).toContain(
+          "Reference 3 is the consented adult person reference",
+        );
+        expect(body.prompt).not.toContain("approximately f/");
+        return Response.json({
+          data: [
+            { b64_json: btoa("synthetic-image"), media_type: "image/png" },
+          ],
+        });
+      }
+      const stage = body.response_format.json_schema.name;
+      stages.push(stage);
+      expect(body.provider).toEqual({
+        data_collection: "deny",
+        require_parameters: true,
+        allow_fallbacks: false,
+      });
+      const content = body.messages[1].content;
+      const task = JSON.parse(content[0].text);
+      if (stage === "shoot_plan") {
+        expect(
+          content
+            .slice(1)
+            .map((part: { image_url: { url: string } }) => part.image_url.url),
+        ).toEqual(["synthetic-consented-adult", stockPixels]);
+        expect(task.referenceTask).toContain("licensed FASHION photograph");
+        expect(task.referenceTask).toContain(
+          "actual camera, model.pose, location, lighting and materialDirection",
+        );
+        expect(task.referenceTask).toContain(
+          "not the stock garment's cut, exact fold map",
+        );
+        expect(task.referenceTask).toContain(
+          "explicit user edits/presets take priority",
+        );
+        expect(task.referenceTask).not.toContain("empty-scene crop");
+      } else {
+        expect(
+          content
+            .slice(1)
+            .map((part: { image_url: { url: string } }) => part.image_url.url),
+        ).toEqual(["synthetic-garment-front", "synthetic-garment-back"]);
+      }
+      return Response.json({
+        choices: [
+          {
+            message: {
+              content: JSON.stringify(
+                stage === "shoot_plan" ? observedPlan : mockAnalysisFixture,
+              ),
+            },
+          },
+        ],
+      });
+    },
+    { preconnect: fetch.preconnect },
+  ) as typeof fetch;
+  const adapter = openRouterAdapter(
+    "synthetic-key",
+    "https://synthetic.invalid/fashion-policy",
+    transport,
+  );
+  const garment = await adapter.analyze(
+    "synthetic-vision",
+    ["synthetic-garment-front", "synthetic-garment-back"],
+    "Synthetic brief",
+  );
+  const plan = await adapter.plan(
+    "synthetic-vision",
+    garment.value,
+    null,
+    "Synthetic brief",
+    {
+      personImage: "synthetic-consented-adult",
+      lookImage: stockPixels,
+      lookReferenceKind: "automatic_fashion",
+    },
+  );
+  const result = await adapter.generate(
+    "openai/gpt-image-2",
+    ["synthetic-garment-front", "synthetic-garment-back"],
+    {
+      ...plan.value,
+      camera: { ...plan.value.camera, angle: "Synthetic user overhead angle" },
+    },
+    "medium",
+    {
+      personImage: "synthetic-consented-adult",
+      lookImage: stockPixels,
+      lookReferenceKind: "automatic_fashion",
+      previousImage: "synthetic-previous",
+      garmentAnalysis: garment.value,
+      adjustments: "Synthetic preserve crop; repair cloth shadows",
+    },
+  );
+  expect(stages).toEqual(["product_analysis", "shoot_plan", "generation"]);
+  expect(result.usage.actualCostUsd).toBeNull();
+});
+
+test("stock-derived revisions retain non-training routing without a selected stock image and reject unreviewed models before transport", async () => {
+  let calls = 0;
+  const transport = Object.assign(
+    async (_input: unknown, init?: RequestInit) => {
+      calls++;
+      const body = JSON.parse(String(init?.body));
+      expect(body.provider).toEqual({
+        only: ["openai"],
+        allow_fallbacks: false,
+      });
+      expect(
+        body.input_references.map(
+          (part: { image_url: { url: string } }) => part.image_url.url,
+        ),
+      ).toEqual(["synthetic-garment", "synthetic-stock-derived-previous"]);
+      return Response.json({
+        data: [{ b64_json: btoa("synthetic-image"), media_type: "image/png" }],
+      });
+    },
+    { preconnect: fetch.preconnect },
+  ) as typeof fetch;
+  const adapter = openRouterAdapter(
+    "synthetic-key",
+    "https://synthetic.invalid/fashion-derivative",
+    transport,
+  );
+  for (const direction of [
+    { requireNonTraining: true },
+    {
+      lookReferenceKind: "automatic_fashion" as const,
+      lookImage: "synthetic-stock",
+    },
+  ]) {
+    // Prefix matching is insufficient: future models need their own policy review.
+    for (const model of [
+      "other/image",
+      "openai/unreviewed-image",
+      "openai/gpt-image-2:variant",
+    ]) {
+      try {
+        await adapter.generate(
+          model,
+          ["synthetic-garment"],
+          mockPlan(mockAnalysisFixture),
+          "medium",
+          direction,
+        );
+        throw new Error("Expected privacy rejection");
+      } catch (error) {
+        expect(error).toBeInstanceOf(ProviderError);
+        expect((error as ProviderError).code).toBe(
+          "PROVIDER_PRIVACY_UNSUPPORTED",
+        );
+        expect((error as ProviderError).unknownOutcome).toBe(false);
+      }
+    }
+  }
+  expect(calls).toBe(0);
+  await adapter.generate(
+    "openai/gpt-image-2",
+    ["synthetic-garment"],
+    mockPlan(mockAnalysisFixture),
+    "medium",
+    {
+      requireNonTraining: true,
+      previousImage: "synthetic-stock-derived-previous",
+    },
+  );
+  expect(calls).toBe(1);
+});
 test("planning derives editable photographic choices from a selected visual reference in the existing single planning request", async () => {
   let calls = 0;
   const transport = Object.assign(

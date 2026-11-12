@@ -468,6 +468,19 @@ export function resourceRoutes(deps: ResourceDeps = {}) {
         c.get("identity").userId,
         c.req.param("id"),
       );
+      if (type === "download" && asset.kind === "auto_look_reference") {
+        const stock = await c.env.DB.prepare(
+          "SELECT 1 AS n FROM reference_retrievals WHERE asset_id=? AND user_id=? AND provider='shutterstock'",
+        )
+          .bind(asset.id, c.get("identity").userId)
+          .first();
+        if (stock)
+          throw new AppError(
+            "REFERENCE_DOWNLOAD_RESTRICTED",
+            "촬영 참조 원본은 다운로드할 수 없습니다.",
+            403,
+          );
+      }
       const object = await c.env.ASSETS.get(asset.r2Key);
       if (!object) throw notFound();
       return new Response(object.body, {

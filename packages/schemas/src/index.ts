@@ -164,7 +164,7 @@ export interface AutomaticReferenceDto {
   jobId: string;
   assetId: string | null;
   status: "searching" | "selected" | "failed";
-  provider: "wikimedia_commons" | "mock";
+  provider: "wikimedia_commons" | "shutterstock" | "mock";
   query: string;
   sourcePage: string | null;
   creator: string | null;

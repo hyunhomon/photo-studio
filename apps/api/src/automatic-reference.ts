@@ -9,8 +9,67 @@ import type { JobRow } from "./pipeline";
 import { normalizeImage } from "./images";
 import { queueObject, clearObjectQueue, deleteObject } from "./storage";
 import { hash } from "./crypto";
+import {
+  readShutterstockSettings,
+  shutterstockReference,
+  type ShutterstockLicenseIntent,
+  type ShutterstockLicenseGrant,
+} from "./shutterstock-reference";
 
 export const REFERENCE_POLICY_VERSION = "commons-cc0-environment-v1";
+export type AutomaticReferenceProvider = "wikimedia_commons" | "shutterstock";
+export function automaticReferenceProvider(
+  env: Env,
+): AutomaticReferenceProvider {
+  if (!env.REFERENCE_SOURCE || env.REFERENCE_SOURCE === "wikimedia_commons")
+    return "wikimedia_commons";
+  if (env.REFERENCE_SOURCE === "shutterstock") return "shutterstock";
+  throw new ProviderError("AUTO_REFERENCE_SOURCE_UNAVAILABLE");
+}
+export function validateAutomaticReferenceConfig(
+  env: Env,
+  isTest: boolean,
+  provider = automaticReferenceProvider(env),
+) {
+  if (!isTest && provider === "shutterstock") readShutterstockSettings(env);
+}
+/** The current contract must still authorize both new work and paid revisions. */
+export async function assertStockReferenceUsage(
+  env: Env,
+  userId: string,
+  productId: string,
+  referenceIds: string[],
+) {
+  for (const id of [...new Set(referenceIds)]) {
+    const row = await createDb(env.DB)
+      .select()
+      .from(referenceRetrievals)
+      .where(
+        and(
+          eq(referenceRetrievals.id, id),
+          eq(referenceRetrievals.userId, userId),
+          eq(referenceRetrievals.productId, productId),
+        ),
+      )
+      .get();
+    const metadata = row ? JSON.parse(row.metadataJson) : null;
+    if (
+      row?.provider !== "shutterstock" ||
+      row.status !== "selected" ||
+      metadata?.licensing?.status !== "licensed" ||
+      !metadata.licensing.grant?.licenseId
+    )
+      throw new ProviderError("SHUTTERSTOCK_POLICY_CHANGED");
+    const grant = metadata.licensing.grant as ShutterstockLicenseGrant;
+    if (
+      env.SHUTTERSTOCK_AI_REFERENCE_APPROVED !== "true" ||
+      !env.SHUTTERSTOCK_AGREEMENT_VERSION ||
+      grant.agreementVersion !== env.SHUTTERSTOCK_AGREEMENT_VERSION ||
+      (grant.expiresAt !== null && grant.expiresAt <= Date.now())
+    )
+      throw new ProviderError("SHUTTERSTOCK_POLICY_CHANGED");
+  }
+}
 const userAgent =
   "PhotoStudioReferenceBot/1.0 (+https://photo-studio.cloby.co)";
 const cc0 = "https://creativecommons.org/publicdomain/zero/1.0/";
@@ -328,6 +387,7 @@ export async function ensureAutomaticReference(
     if (before.status === "failed")
       throw new ProviderError(
         before.failureCode ?? "AUTO_REFERENCE_SOURCE_UNAVAILABLE",
+        before.failureCode === "SHUTTERSTOCK_LICENSE_UNCERTAIN",
       );
     if (before.status === "searching")
       throw new ProviderError("AUTO_REFERENCE_IN_PROGRESS");
@@ -338,22 +398,62 @@ export async function ensureAutomaticReference(
   const request = JSON.parse(job.requestJson) as {
     preset?: { location?: string };
   };
+  const requestedProvider = (
+    JSON.parse(job.requestJson) as {
+      automaticReferenceProvider?: AutomaticReferenceProvider;
+    }
+  ).automaticReferenceProvider;
+  // This administrator-only egress probe may never spend a stock subscription.
+  const provider = options.forceLive
+    ? "wikimedia_commons"
+    : (requestedProvider ?? automaticReferenceProvider(env));
+  validateAutomaticReferenceConfig(env, isMock, provider);
   const queries = referenceQueries(analysis, request.preset?.location);
   const claim = await env.DB.prepare(
     "INSERT OR IGNORE INTO reference_retrievals(id,user_id,product_id,status,provider,query,metadata_json,duration_ms,created_at) SELECT j.id,j.user_id,j.product_id,'searching',?,?,'{}',0,? FROM generation_jobs j JOIN products p ON p.id=j.product_id AND p.user_id=j.user_id JOIN users u ON u.id=j.user_id WHERE j.id=? AND j.user_id=? AND j.status IN ('queued','running') AND p.status='ready' AND u.status='active'",
   )
-    .bind(
-      isMock ? "mock" : "wikimedia_commons",
-      queries[0],
-      started,
-      job.id,
-      job.userId,
-    )
+    .bind(isMock ? "mock" : provider, queries[0], started, job.id, job.userId)
     .run();
   if (!claim.meta.changes)
     throw new ProviderError("AUTO_REFERENCE_IN_PROGRESS");
   let key: string | undefined;
+  let licensing:
+    | {
+        status: "claimed" | "licensed";
+        intent: ShutterstockLicenseIntent;
+        grant?: ShutterstockLicenseGrant;
+        actualCostUsd: null;
+      }
+    | undefined;
   const expectedKey = `${job.userId}/${job.productId}/${job.id}-reference.png`;
+  async function beforeLicense(intent: ShutterstockLicenseIntent) {
+    licensing = { status: "claimed", intent, actualCostUsd: null };
+    const claim = await env.DB.prepare(
+      "UPDATE reference_retrievals SET query=?,metadata_json=? WHERE id=? AND user_id=? AND product_id=? AND provider='shutterstock' AND status='searching' AND json_extract(metadata_json,'$.licensing') IS NULL AND EXISTS(SELECT 1 FROM generation_jobs j JOIN products p ON p.id=j.product_id JOIN users u ON u.id=j.user_id WHERE j.id=reference_retrievals.id AND j.user_id=reference_retrievals.user_id AND j.status IN ('queued','running') AND p.status='ready' AND u.status='active')",
+    )
+      .bind(
+        intent.query,
+        JSON.stringify({ licensing }),
+        job.id,
+        job.userId,
+        job.productId,
+      )
+      .run();
+    if (!claim.meta.changes)
+      throw new ProviderError("SHUTTERSTOCK_LICENSE_UNCERTAIN");
+  }
+  async function onLicensed(grant: ShutterstockLicenseGrant) {
+    if (!licensing || licensing.intent.mediaId !== grant.mediaId)
+      throw new ProviderError("SHUTTERSTOCK_LICENSE_UNCERTAIN");
+    licensing = { ...licensing, status: "licensed", grant };
+    const saved = await env.DB.prepare(
+      "UPDATE reference_retrievals SET metadata_json=? WHERE id=? AND user_id=? AND product_id=? AND provider='shutterstock' AND status='searching' AND json_extract(metadata_json,'$.licensing.status')='claimed'",
+    )
+      .bind(JSON.stringify({ licensing }), job.id, job.userId, job.productId)
+      .run();
+    if (!saved.meta.changes)
+      throw new ProviderError("SHUTTERSTOCK_LICENSE_UNCERTAIN");
+  }
   async function storedState() {
     const row = await db
       .select()
@@ -424,10 +524,21 @@ export async function ensureAutomaticReference(
         query: queries[0],
       };
     } else {
-      const candidate = await searchCommonsReference(queries, options.fetch);
+      const candidate =
+        provider === "shutterstock"
+          ? await shutterstockReference(analysis, env, {
+              fetch: options.fetch,
+              beforeLicense,
+              onLicensed,
+              customerRef: await hash(
+                `${env.APP_ENCRYPTION_KEY_B64}:shutterstock-customer:v1:${job.userId}`,
+              ),
+            })
+          : await searchCommonsReference(queries, options.fetch);
       image = await (options.normalize ?? normalizeImage)(
         candidate.bytes,
         candidate.declaredMime,
+        ...(provider === "shutterstock" ? ([1024] as const) : []),
       );
       if (
         image.width < 300 ||
@@ -443,12 +554,26 @@ export async function ensureAutomaticReference(
         license: candidate.license,
         licenseUrl: candidate.licenseUrl,
         query: candidate.query,
-        sourceMedia: candidate.mediaUrl,
+        ...(provider === "wikimedia_commons"
+          ? { sourceMedia: candidate.mediaUrl }
+          : {}),
+        ...(provider === "shutterstock"
+          ? {
+              modelRelease: true,
+              adultAgeFilter: "20s",
+              commercial: true,
+              actualCostUsd: null,
+            }
+          : {}),
+        ...(licensing ? { licensing } : {}),
       };
     }
     if (image.bytes.length > 6 * 1024 * 1024)
       throw new ProviderError("AUTO_REFERENCE_IMAGE_TOO_LARGE");
-    metadata.policyVersion = REFERENCE_POLICY_VERSION;
+    metadata.policyVersion =
+      provider === "shutterstock"
+        ? "shutterstock-licensed-fashion-v1"
+        : REFERENCE_POLICY_VERSION;
     metadata.contentHash = [
       ...new Uint8Array(
         await crypto.subtle.digest(
@@ -482,7 +607,7 @@ export async function ensureAutomaticReference(
       env.DB.prepare(
         "UPDATE reference_retrievals SET asset_id=id,status='selected',provider=?,query=?,metadata_json=?,duration_ms=? WHERE id=? AND user_id=? AND status='searching' AND EXISTS(SELECT 1 FROM assets a JOIN generation_jobs j ON j.id=a.id WHERE a.id=reference_retrievals.id AND a.user_id=reference_retrievals.user_id AND a.product_id=reference_retrievals.product_id AND a.kind='auto_look_reference' AND j.user_id=a.user_id AND j.product_id=a.product_id AND j.status IN ('queued','running'))",
       ).bind(
-        isMock ? "mock" : "wikimedia_commons",
+        isMock ? "mock" : provider,
         String(metadata.query),
         JSON.stringify(metadata),
         Date.now() - started,
@@ -496,10 +621,15 @@ export async function ensureAutomaticReference(
       throw new ProviderError("AUTO_REFERENCE_STORAGE_UNCERTAIN");
     return keepSelected(persisted.selected);
   } catch (error) {
-    const code =
+    const rawCode =
       error instanceof ProviderError
         ? error.code
         : "AUTO_REFERENCE_SOURCE_UNAVAILABLE";
+    const code =
+      licensing?.status === "licensed" &&
+      !["JOB_CANCELLED", "SHUTTERSTOCK_LICENSE_UNCERTAIN"].includes(rawCode)
+        ? "SHUTTERSTOCK_LICENSED_REFERENCE_UNAVAILABLE"
+        : rawCode;
     // A lost D1 response does not prove rollback. Confirm ownership and commit
     // before compensating; unreadable state leaves both object and GC intent.
     let persisted: Awaited<ReturnType<typeof storedState>>;
@@ -540,6 +670,6 @@ export async function ensureAutomaticReference(
         /* Known orphan metadata is gone; the private GC intent remains. */
       }
     }
-    throw new ProviderError(code);
+    throw new ProviderError(code, code === "SHUTTERSTOCK_LICENSE_UNCERTAIN");
   }
 }

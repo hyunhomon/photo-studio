@@ -80,3 +80,5 @@ tests/e2e         같은 시나리오의 local·production Mock 브라우저 검
 기본 흐름은 상품 분석 → Commons 공식 API의 CC0 환경 사진 자동 검색 → 사진을 전달한 기획 → 같은 사진을 사용하는 생성입니다(ADR-034). 수동 검색/업로드는 필요 없으며 직접 사진이나 참조 없음으로 대체할 수 있습니다. 개별 CC0 선언·카메라 metadata·크기/호스트를 검사하고 출처·작성자·라이선스를 표시합니다. 검색 실패 시 분석을 보존하고 유료 기획 전에 멈춥니다. 자동 참조는 얼굴 신원이 아닌 장소·빛·소재·초점 기준입니다. 별도 API 키는 없으며 실제 품질은 사용자 비교 전 미검증입니다. [자동 검색 조사](docs/18-AUTOMATIC-REFERENCE-RESEARCH.md).
 
 운영 배포/테스트는 인증 보존 guard를 실행하며, 별도 합성 인증 canary를 `bun run scripts/production-auth-canary.ts create` → 배포/테스트 → `verify` → `cleanup` 순서로 확인할 수 있습니다. 실제 계정 키로 inference하지 않습니다. 인증 해제는 명시적 로그아웃이며 lifecycle 원인을 가명 진단으로 최대30일 보관합니다.
+
+계약된 모델 착용컷 자동 검색은 Shutterstock 커넥터를 사용합니다(ADR-035). 승인된 Access Token·API Subscription ID·계약 버전/AI 참조 사용 범위를 서버 설정에 넣으면 분석→실사/모델 릴리즈 검색→라이선스 1회→같은 사진을 이용한 기획·생성이 이어집니다. 설정 전 기본 Commons 환경 경로는 유지합니다. 설정 도구는 `bun run setup:shutterstock`이며 실제 계약을 승인받은 운영자가 로컬 터미널에서 실행합니다. 키만으로 이용권이 생기지는 않습니다. [발급·무료 한도·견적·계약·설정 가이드](docs/20-SHUTTERSTOCK-SETUP.md)를 따릅니다. 현재 `studio-v12-licensed-fashion` / `photo-v8-licensed-fashion`와 이전 snapshot 호환, 유료 라이선스 무재시도 원장·원본 다운로드 차단·비학습 제공자 제한을 구현했습니다. 실제 Shutterstock 인증/라이선스와 생성 품질은 계약/키를 설정한 뒤 별도 사람 실행 전 미검증입니다.

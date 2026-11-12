@@ -41,7 +41,10 @@ import { clearObjectQueue, deleteObject, queueObject } from "./storage";
 import { normalizeImage } from "./images";
 import { rateLimit } from "./auth";
 import { referenceSource, type ReferenceSource } from "./reference-source";
-import { getAutomaticReferences } from "./automatic-reference";
+import {
+  getAutomaticReferences,
+  assertStockReferenceUsage,
+} from "./automatic-reference";
 
 export interface GenerationSnapshot extends PlanSnapshot {
   planId: string;
@@ -55,7 +58,9 @@ export interface GenerationSnapshot extends PlanSnapshot {
   personReferenceId?: string | null;
   lookReferenceId?: string | null;
   referenceConsent?: boolean;
-  lookReferenceKind?: "automatic_environment";
+  lookReferenceKind?: "automatic_environment" | "automatic_fashion";
+  stockReferenceIds?: string[];
+  requireNonTraining?: boolean;
 }
 export const generatedKey = (job: JobRow) =>
   `${job.userId}/${job.productId}/generated/${job.id}.png`;
@@ -90,6 +95,13 @@ export async function runGenerationStage(
   try {
     await jobActive(env, job);
     const input = JSON.parse(job.requestJson) as GenerationSnapshot;
+    if (input.stockReferenceIds?.length)
+      await assertStockReferenceUsage(
+        env,
+        job.userId,
+        job.productId,
+        input.stockReferenceIds,
+      );
     if (
       (input.personReferenceId || input.lookReferenceId) &&
       !input.referenceConsent
@@ -136,6 +148,9 @@ export async function runGenerationStage(
             personImage,
             lookImage,
             lookReferenceKind: input.lookReferenceKind,
+            requireNonTraining:
+              input.requireNonTraining ||
+              Boolean(input.stockReferenceIds?.length),
           },
         );
         await recordUsage(env, job, stage, result.usage);
@@ -241,9 +256,46 @@ export function generationRoutes() {
         "자동 참조를 사용하지 않도록 선택했습니다.",
         400,
       );
+    let inheritedStockIds: string[] = [];
     if (input.regenerationOf) {
       const asset = await ownedGenerated(c.env, userId, input.regenerationOf);
       if (asset.productId !== p.id) throw notFound();
+      const prior =
+        asset.jobId &&
+        (await createDb(c.env.DB)
+          .select()
+          .from(jobs)
+          .where(
+            and(
+              eq(jobs.id, asset.jobId),
+              eq(jobs.userId, userId),
+              eq(jobs.productId, p.id),
+            ),
+          )
+          .get());
+      if (prior)
+        inheritedStockIds =
+          (JSON.parse(prior.requestJson) as GenerationSnapshot)
+            .stockReferenceIds ?? [];
+    }
+    const stockReferenceIds = [
+      ...new Set([
+        ...inheritedStockIds,
+        ...(usingAutomatic && automatic?.provider === "shutterstock"
+          ? [automatic.id]
+          : []),
+      ]),
+    ];
+    if (stockReferenceIds.length) {
+      try {
+        await assertStockReferenceUsage(c.env, userId, p.id, stockReferenceIds);
+      } catch {
+        throw new AppError(
+          "SHUTTERSTOCK_POLICY_CHANGED",
+          "촬영 참조 사용 계약을 확인해 주세요.",
+          409,
+        );
+      }
     }
     const referenceSources: ReferenceSource[] = [];
     for (const [id, kind] of [
@@ -283,7 +335,7 @@ export function generationRoutes() {
           discovery:
             automatic.provider === "mock"
               ? "mock_automatic"
-              : "wikimedia_commons",
+              : automatic.provider,
           sourceUrl: automatic.sourcePage,
           creator: automatic.creator,
           license: automatic.license,
@@ -322,7 +374,7 @@ export function generationRoutes() {
     // available for later use with the original planning image.
     const generationSpec = {
       ...spec,
-      ...(usingAutomatic
+      ...(usingAutomatic && automatic?.provider !== "shutterstock"
         ? {
             camera: {
               ...spec.camera,
@@ -353,8 +405,16 @@ export function generationRoutes() {
       lookReferenceId,
       referenceConsent: input.referenceConsent || usingAutomatic,
       useAutomaticReference: usingAutomatic,
+      ...(stockReferenceIds.length
+        ? { stockReferenceIds, requireNonTraining: true }
+        : {}),
       ...(usingAutomatic
-        ? { lookReferenceKind: "automatic_environment" as const }
+        ? {
+            lookReferenceKind:
+              automatic?.provider === "shutterstock"
+                ? ("automatic_fashion" as const)
+                : ("automatic_environment" as const),
+          }
         : {}),
       analysisModel: c.env.OPENROUTER_ANALYSIS_MODEL,
       imageModel: identity.isTest

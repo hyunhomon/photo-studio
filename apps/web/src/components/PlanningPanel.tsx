@@ -15,7 +15,9 @@ import type {
   StudioDraft,
 } from "@photo-studio/schemas";
 import { errorMessage, type Me, request } from "../lib/api";
-import AutomaticReferencePreview from "./AutomaticReferencePreview";
+import AutomaticReferencePreview, {
+  referenceFailureLabels,
+} from "./AutomaticReferencePreview";
 
 export const jobLabels: Record<string, string> = {
   queued: "작업 대기",
@@ -38,6 +40,7 @@ const stageLabels: Record<string, string> = {
   review: "결과 검수",
 };
 const failureLabels: Record<string, string> = {
+  ...referenceFailureLabels,
   AUTO_REFERENCE_STORAGE_UNCERTAIN:
     "참조 저장 상태를 확인하지 못해 AI 기획을 시작하지 않았습니다. 작업 상태를 확인한 뒤 다시 실행해 주세요.",
   AUTO_REFERENCE_NO_MATCH:
@@ -101,6 +104,7 @@ export function JobStatus({
         </p>
       )}
       {job.status === "failed" &&
+        !(job.errorCode && job.errorCode in referenceFailureLabels) &&
         ["planning", "reference_search"].includes(job.stage) && (
           <p className="mt-2 text-xs leading-6 text-muted">
             완료된 상품 분석은 보존했습니다. ‘기획만 재생성’로 이어갈 수
