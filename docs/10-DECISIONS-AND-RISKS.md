@@ -213,3 +213,13 @@ ADR-032에서 이전 원인 미확인 보고를 바로잡는다. 07:34:30 KST의
 ## 2026-11-12 — 실제 모델 착용컷 소스 조사
 
 사용자가 요구한 증거는 사람이 옷을 입은 자세·구도·피부·직물·그림자가 함께 있는 실제 사진이다. 현재 환경 사진은 보조 역할만 하며 목표 전체를 대체하지 않는다. Shutterstock의 비학습 AI 편집 예외/모델 릴리즈 필터, Getty Creative의 허용 편집 예외를 확인해 계약 후보로 추렸다. 개인 구독이나 검색 API 접근만으로 다중 고객의 외부 이미지 참조 생성까지 허가됐다고 보지 않는다. 무료 소스/패션 연구 데이터는 모델 권리나 상업/API 사용 범위가 완결되지 않으며 단건 추론 금지 여부와 구분한다. `19-MODEL-SHOT-REFERENCE-SOURCES.md`의 조건부 추천/연동 설계를 기록했고 코드·배포·사용자 자료는 바꾸지 않았다. 계약/키 확보·실제 API 검색과 유료 출력 품질은 미검증이다. stock 연동 전 planning/generation 양쪽의 비학습 처리 강제와 고객별 라이선스 ledger도 필요하다.
+
+## 2026-11-12 — Shutterstock 커넥터와 설정 도구 준비
+
+사용자 선택을 ADR-035로 반영해 `a067246`을 commit/push하고 API/Workflow→웹에 배포했다. 실제 vendor 계약/키는 아직 없으며 source를 임의 활성화하지 않았다. 서버의 Access Token·고정 구독·platform 권한·계약 승인을 확인해 실사/성인/모델 릴리즈 검색, 라이선스 직전 durable claim과 다운로드 전 grant 저장, private 동일 픽셀의 기획/생성 연결을 구현했다. 사진/권한 문제를 환경 참조로 숨겨 대체하지 않는다. 공식 예제에 없는 optional boolean/medium metadata를 필수로 가정하던 초기 조건을 바로잡았고 실제 스키마 생략 응답 회귀를 추가했다. 전체 검색/발급/다운로드 fetch를70초로 제한해3분 planning step의 시간을 확보한다.
+
+기획은 비학습 data policy를 강제하고 Images는 지원되는 OpenAI 고정 라우팅을 사용한다. 미지원 data_collection/ZDR 필드로 비학습을 보증하지 않는다. stock 파생 결과 개선도 원래 계약/비학습 제약을 상속한다. 라이선스 응답 유실은 stock 전용 outcome_unknown으로 보존하고, 발급 후 디코딩/저장 실패는 grant/미확인 비용을 남겨 불필요한 재발급을 막는다. root failure/reconciliation도 미완료 stock claim을 확인한다. 참조 원본 다운로드는403이며 고객 생성물 다운로드는 유지한다. 별도 결제 기능이나 운영자 공용 AI 키를 만들지 않는다.
+
+`bun run setup:shutterstock`는 운영 대상/기존 master secret을 확인하고 계약 버전·구독ID·native Wrangler 숨김 token 입력과5개 정책값의 atomic secret bulk를 제공한다. 실제 설정 도구는 계약 미확보 상태에서 실행하지 않았고 --help/도구 타입 검사만 수행했다. 무료 공개 한도와 유료 견적·일반 구독/API 차이, vendor에 보낼 미전송 문의 초안은 `20-SHUTTERSTOCK-SETUP.md`에 기록했다. 설정이 외부 승인을 취득하는 것은 아니다. 실제 API/라이선스/출력 품질은 사람의 승인된 계정 실행 전 미검증이다.
+
+최종 format/lint/typecheck/unit/build117/117(진단0), local/production desktop/mobile Mock 각10/10, native workerd OAuth/합성 provider HTTP와 공개 운영 smoke가 통과했다. 운영 E2E wrapper exit0, 기존 실제 인증/untouched sentinel 불변 및 standalone canary 원문 보존→자기 정리를 확인했다. 마지막 읽기 집계는 합성 계정0, 실제 계정1/연결1/세션2다. Wrangler secret 이름 검사에서 Shutterstock 설정이 아직 없음을 확인했다. 새 DB migration·고객 자료 초기화·master secret 교체·실제 stock/유료 AI 호출은 없다. 최신 운영 UI는 현재 기본 경로와 Mock 브라우저를 검증한 것이며, 실제 Shutterstock 인증/사진/발급/출력 검증으로 계산하지 않는다.

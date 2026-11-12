@@ -342,5 +342,6 @@ production desktop/mobile 전체 Mock E2E **4/4 통과**: 저장된 분석 재�
 - [x] 공식 API 발급·무료 제한 컬렉션/월500건·시간100요청·유료 견적·개인/플랫폼 라이선스 차이 조사, 계약 문의 초안과 서버 설정 가이드 작성. 실제 문의/구매는 수행하지 않았다.
 - [x] 서버-only Token/구독/계약 설정, 성인·실사·모델 릴리즈 검색/구독 확인→라이선스 durable claim/grant→비공개 동일 사진 기획·생성. 명시적 Shutterstock 모드 실패 시 숨은 환경 사진 대체 없음.
 - [x] 원단 처짐·주름·접촉 그림자·피부 명암/구도 관찰과 원본·인물·사용자 편집 우선, stock 파생 개선의 비학습/계약 승계·다운로드 제한·제공자 검토·이전 버전 호환.
-- [ ] 최종 format/lint/typecheck/unit/build·local/production Mock·인증 보존·배포/정리.
+- [x] 최종 format/lint/typecheck/unit/build 통과(117/117, 타입 진단0), local/production desktop/mobile Mock 각각10/10, native workerd OAuth/합성 provider HTTP, 공개 HTTPS/CORS/OAuth/폰트/반응형 smoke 통과. adapter13개·파이프라인7개에서 공식 응답 optional 필드·구독/권리·동일 픽셀·라이선스 응답 유실·발급 후 실패·재요청0·타 계정 격리·계약 철회·파생 개선 비학습 승계·raw403을 검사했다. 참조 전용 축소와 일반 의류 원본 해상도 보존도 검증했다.
+- [x] a067246 commit/push 및 API/Workflow→웹 배포, 기존 실제 인증 및 배포 전후 non-empty canary 원문 불변 확인. 운영 전체 검사 중 untouched sentinel 불변, 최종 standalone canary verify/cleanup 완료. 읽기 집계는 합성 계정0, 실제 계정1/연결1/세션2. 운영 secret 이름 확인에서 Shutterstock 설정은 없었고 비활성 Commons 기본 상태임을 확인했다. 새 DB migration/고객 자료 초기화/master secret 교체·실제 Shutterstock/유료 AI 호출 없음. 설정 도구는 --help/타입 검사만 검증했으며 실제 secret 입력/적용을 실행한 것처럼 표시하지 않는다.
 - [ ] 승인된 실제 계약/키/구독으로 읽기 검색과 정식 라이선스, 사용자 실행 유료 비교. 현재 커넥터 준비/합성 검증과 실제 연동 성공을 구분한다.

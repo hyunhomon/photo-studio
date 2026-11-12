@@ -95,6 +95,12 @@ bun run setup:shutterstock
 
 계약/토큰/구독/허용 모델이 없으면 활성화하지 않는다. 검색 실패·모델 release 누락·라이선스 실패·허용 범위 불명확 시 분석을 남기고 유료 기획 전에 중단한다. Shutterstock 모드에서 Commons 환경 사진으로 조용히 대체해 착용컷 검색 성공처럼 보이게 하지 않는다.
 
+## 구현·검증 기록
+
+`a067246`을 commit/push하고 API/Workflow·웹에 배포했다. 최종 타입/린트/포맷/빌드와 단위117/117, local/production desktop/mobile Mock 각10/10, native workerd 합성 OAuth/provider와 공개 운영 smoke가 통과했다. Shutterstock 가짜 API 검사에는 adapter13개와 파이프라인7개가 포함된다. 발급 전 claim/다운로드 전 grant, 동일 참조 픽셀, 알려진 발급 후 실패와 불명확 응답의 구분, 자동 재발급0, 소유권·파생 개선·계약 철회·raw 다운로드 차단을 검증했다.
+
+설정 도구는 --help/도구 타입 검사를 통과했다. 실제 token 입력/secret 설정·Shutterstock 검색/라이선스·유료 AI 생성은 수행하지 않았다. 운영 secret 이름 검사에서 Shutterstock 설정이 없는 상태를 확인했고 현재 Commons 기본을 유지한다. 운영 배포/테스트 전후 실제 인증과 별도 canary가 보존됐으며, 테스트 자료 정리 후 합성 계정0·실제 계정1/연결1/세션2를 확인했다. 기존 CF 리소스·master secret과 고객 사진/작업은 유지했다.
+
 ## 영문 문의 초안 — 작성만 했으며 전송하지 않음
 
 To: Shutterstock API partnerships / assigned account manager  
