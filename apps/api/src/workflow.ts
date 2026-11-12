@@ -6,6 +6,7 @@ import {
 import { createMockAnalyzer } from "@photo-studio/ai";
 import type { Env } from "./env";
 import { finishFailure, runPlanStage } from "./pipeline";
+import { parseWorkflowParams } from "./workflow-params";
 import { runGenerationStage } from "./generation";
 import { createDb, jobs, eq } from "@photo-studio/db";
 import { productAnalysisSchema } from "@photo-studio/schemas";
@@ -16,7 +17,8 @@ export class StudioWorkflow extends WorkflowEntrypoint<
   StudioWorkflowParams
 > {
   async run(event: WorkflowEvent<StudioWorkflowParams>, step: WorkflowStep) {
-    if (event.payload.kind === "scaffold-smoke")
+    const payload = parseWorkflowParams(event.payload);
+    if (payload.kind === "scaffold-smoke")
       return step.do(
         "mock adapter probe",
         { retries: { limit: 0, delay: "1 second" } },
@@ -32,9 +34,9 @@ export class StudioWorkflow extends WorkflowEntrypoint<
           };
         },
       );
-    const id = event.payload.jobId;
+    const id = payload.jobId;
     if (!id) throw new Error("Missing operation");
-    if (event.payload.kind === "reference-search-smoke")
+    if (payload.kind === "reference-search-smoke")
       return step.do(
         "automatic reference source probe",
         { retries: { limit: 0, delay: "1 second" }, timeout: "3 minutes" },
@@ -72,7 +74,7 @@ export class StudioWorkflow extends WorkflowEntrypoint<
         },
       );
     try {
-      if (event.payload.kind === "generate")
+      if (payload.kind === "generate")
         for (const stage of ["generation"] as const) {
           await step.do(
             stage,
@@ -83,7 +85,7 @@ export class StudioWorkflow extends WorkflowEntrypoint<
             },
           );
         }
-      if (event.payload.kind === "plan")
+      if (payload.kind === "plan")
         for (const stage of ["analysis", "planning"] as const) {
           await step.do(
             stage,
