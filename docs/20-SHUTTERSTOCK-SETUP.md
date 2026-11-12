@@ -180,3 +180,19 @@ bun run setup:shutterstock --free
 이 결과는 source-only 연결/발급/다운로드 검증이다. 운영 source/secret을 변경하거나 외부 AI 사용 승인값을 만들지 않았으며 실제 기획·생성·출력 권리 검증은 별개다. 실제 비용 필드는 provider가 제공하지 않아 null을 유지하고, 확인된 무료 상품/할당 차감 근거와 구분한다.
 
 최종 format/lint/typecheck/unit/build140/140(진단/경고0) 통과. 공식 무료 응답·유료/모호한 상품 차단·최초 URL 사용·claim/grant 순서 회귀가 포함된다. 이번 코드는 commit/push하며 production 재배포/소스 활성화는 수행하지 않는다.
+
+## 운영 전환 조건 재검토 — 2026-11-12
+
+사용자는 외부 AI 조건을 확인하고 문제가 없을 때만 운영 소스를 전환하도록 요청했다. 공식 문서와 현재 구현을 대조한 결과 **현재 구성의 운영 전환 조건은 미충족**이다. 무료 라이선스/다운로드 성공을 고객별 AI 처리 승인으로 확장하지 않는다.
+
+| 확인 항목 | 공식 근거와 현재 판단 |
+| --- | --- |
+| 무료 API의 앱 내 사용 | [Platform License 설명](https://www.shutterstock.com/help/en/articles/10617007-what-is-the-shutterstock-api-platform-license)은 무료 계정으로 초기 앱의 테스트·배포와 앱 내 라이선스를 지원한다고 안내한다. 무료라는 이유만으로 배포 불가나 유료 계약 필수라고 판단하지 않는다. |
+| 비학습 AI 편집 | [2026-10-05 일반 라이선스 Part I.2.10](https://www.shutterstock.com/license)은 콘텐츠·파생물을 학습하지 않는 소프트웨어의 AI 편집/파생물 게시를 허용한다. 모든 외부 AI 추론이 금지됐다는 뜻이 아니다. 다만 이 일반 조항이 무료 API의 자동 참조·외부 처리·고객 출력 범위까지 그대로 승인했다는 연결 근거는 확인하지 못했다. 해당 범위를 공급자에게 확인할 필요가 있다는 판단은 문서 대조에 따른 해석이다. |
+| 고객별 계약 | [API TOS §2/Schedule A](https://www.shutterstock.com/developers/api-terms)는 각 사용자가 수정/중요 부분 생략 없는 Platform User License에 구속력 있게 동의할 것을 요구한다. 현재 처리 consent snapshot과 privacy 안내는 이 계약이 아니다. 가입/기획 UI와 DB에 해당 약관 동의 원장이 없다. |
+| 사용자 식별·연락 정보 | 같은 §2는 라이선스를 부여할 사용자 식별에 필요한 개인정보 보유와 필요한 경우 Shutterstock에 신원·연락 정보를 제공할 권한 확보를 요구한다. 현재 users는 OpenRouter 외부 ID와 내부 ID만 저장하며, 해당 연락 정보/제공 권한을 확보하지 않는다. opaque customer_id는 이 의무를 충족했다는 증거가 아니다. |
+| 원본 제한·후속 처리 | 원본 파일 외부 다운로드 차단·사용자별 자산 격리·출처/사용권 원장·기획/생성 동일 픽셀·비학습 라우팅·개선의 계약 승계는 구현됐다. 이는 위 미충족 조건을 대신하지 않는다. |
+
+따라서 SHUTTERSTOCK_AI_REFERENCE_APPROVED=true를 임의 설정하거나 production source/secret을 바꾸지 않았다. 운영은 Commons 기본이며 재배포도 수행하지 않았다. 활성화하려면 공급자로부터 이 무료 API 이용 범위와 사용자 식별/계약 요건 적용 방식을 확인하고, 요구되는 사용자별 계약·연락 정보/제공 권한 흐름을 구현·검증해야 한다. 사용자 조건인 ‘문제 없으면’이 아직 성립하지 않아 이를 완료로 표시하지 않는다. 공급자 문의 초안은 위에 준비돼 있으며 실제 문의·계약·결제는 전송/수행하지 않았다.
+
+검증: 관련 adapter/파이프라인/preflight/provider 합성 테스트43/43 통과. 미승인 설정 차단·권리 철회·같은 참조 픽셀의 기획/생성 전달을 가짜 provider로 확인했다. 읽기 전용 Cloudflare 설정 확인은 Commons 기본·Shutterstock token/source 미설치·기존 암호화 binding 존재, 집계는 실제 계정1/연결1/세션2·합성0이었다. 실제 Shutterstock 추가 발급·AI·유료 결제·운영 변경0회다.

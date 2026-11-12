@@ -245,3 +245,7 @@ preflight는 빈 구독을 subscription_required로 분리하고, source-only �
 사용자가 무료 구독을 직접 저장한 뒤 subscriptions200/1개·정확한 공식 무료 상품명·integrated_media·잔여500건·미래 만료·medium JPG를 확인했다. 공식 튜토리얼도 이 상품/코드/가격 생략을 명시하므로 ADR-037에서 ADR-036의 가격 필수 조건을 정확한 상품에만 한정해 보완했다. 미확인 상품의 가격 생략이나 명시 유료 가격은 여전히 차단한다. API의 integrated_media와 내부 Platform 사용권 분류를 구분한다.
 
 source-only 실행에서 검색/상세/구독5GET·라이선스1POST·미디어1GET로417457바이트 JPEG를 받고667×1000 실제 디코딩을 통과했다. 추가2GET으로 발급 이력의 license/image/subscription/medium 일치와 무료 잔여499건을 대조했고 원본·정규화 파일의 SHA-256도 private 증거에 보관했다. 최초 응답 링크를 사용해 redownload0회, 재발급0회다. 실제 모델 착용컷 육안 확인을 실사 생성 품질 개선으로 해석하지 않는다. AI/유료 플랜 호출·운영 설정/배포/고객 자료 변경0회이며 Commons 기본과 외부 AI 사용 범위 guard는 유지한다.
+
+## 2026-11-12 — Shutterstock 운영 전환 조건 미충족
+
+사용자는 ‘외부 AI 조건 확인 후 문제 없으면’ 운영 전환을 허용했다. 공식 일반 비학습 AI 편집 조항·무료 API의 테스트/배포 허용을 재확인했으나, API TOS §2의 사용자별 계약·식별/연락 정보·제공 권한이 현재 가명 OpenRouter 계정/처리 consent 구조에 없다. 일반 조항과 무료 API의 외부 참조 처리 범위 연결도 확인 대상으로 남긴다. 무료의 일괄 AI 금지나 유료 계약 필수로 단정하지 않는다. 근거와 실제 구현 대조는 `20-SHUTTERSTOCK-SETUP.md`에 기록했다. ADR-035/036의 사용 범위 guard를 유지하며 무근거 승인값/추가 개인정보 수집/사용자 계약 체결을 대신하지 않았다. 관련 합성43/43 통과, 운영 설정 읽기에서 Commons/기존 인증 binding과 연결 집계 유지 확인. 배포·source/secret 변경·추가 라이선스·유료 결제·실제 AI 호출0회.

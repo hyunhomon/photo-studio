@@ -375,3 +375,9 @@ production desktop/mobile 전체 Mock E2E **4/4 통과**: 저장된 분석 재�
 - [x] format/lint/typecheck/unit/build138/138 통과. source-only CLI --help의 무외부 호출 확인. 코드/문서 검증을 commit/push하며 무료 구독 저장 전이라 실제 license/download 및 운영 설정/배포는 수행하지 않았다.
 
 이번 후속 source-only 검증 결과와 초기 미검증 기록을 구별한다. 실제 라이선스/파일과 private 원장·서명 URL은 ignored .tmp에만 보관했다. 공식 무료 응답 호환과 명시 유료/다른 상품 거부 회귀를 추가했으며 최종 format/lint/typecheck/unit/build140/140(진단/경고0)이 통과했다. verified receipt 재실행도 외부 요청0회였다. 코드/문서를 commit/push하고 운영 설정/재배포는 수행하지 않는다. 운영 Shutterstock 활성화·외부 AI 사용 범위 승인·기획/생성의 실제 품질은 이번 무료 소스 검증에 포함하지 않는다.
+
+### Shutterstock 운영 전환 조건 재검토 — 2026-11-12
+
+- [x] 공식 일반 AI 편집 허용과 무료 API 배포 가능 범위를 재확인하고, API 사용자별 계약·식별/연락 정보 요구를 현재 계정/동의 구조와 대조했다. 구체 근거/조건은 `20-SHUTTERSTOCK-SETUP.md`의 운영 전환 조건 재검토에 기록했다.
+- [x] 관련 합성43/43 및 운영 설정 읽기로 미승인 차단·기획/생성 참조 전달과 Commons 유지 상태를 확인했다. 실제 AI/추가 stock 발급/유료 결제/운영 변경0회.
+- [ ] 사용자별 Platform User License·식별/연락 정보·제공 권한 및 해당 외부 AI 사용 범위 충족 후 Shutterstock 운영 활성화·배포·실소스 smoke. 사용자 요청의 ‘문제 없으면’ 조건 미충족으로 이번 전환은 수행하지 않았다.
