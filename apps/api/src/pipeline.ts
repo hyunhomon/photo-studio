@@ -8,6 +8,7 @@ import {
   desc,
   eq,
   isNull,
+  sql,
   jobs,
   presets,
   products,
@@ -73,6 +74,8 @@ export interface PipelineDeps {
   automaticReference?: typeof ensureAutomaticReference;
 }
 export const activeSql = "status IN ('queued','running')";
+const activeJobSql =
+  "SELECT j.id FROM generation_jobs j JOIN products p ON p.id=j.product_id AND p.user_id=j.user_id JOIN users u ON u.id=j.user_id WHERE j.id=? AND j.user_id=? AND j.status IN ('queued','running') AND p.status='ready' AND u.status='active'";
 export async function assertIdle(env: Env, userId: string, productId: string) {
   const active = await env.DB.prepare(
     `SELECT id FROM generation_jobs WHERE user_id=? AND product_id=? AND ${activeSql}`,
@@ -361,12 +364,24 @@ export async function imageData(env: Env, job: JobRow, ids: string[]) {
   return urls;
 }
 export async function jobActive(env: Env, job: JobRow) {
-  const found = await env.DB.prepare(
-    `SELECT j.id FROM generation_jobs j JOIN products p ON p.id=j.product_id AND p.user_id=j.user_id JOIN users u ON u.id=j.user_id WHERE j.id=? AND j.user_id=? AND j.status IN ('queued','running') AND p.status='ready' AND u.status='active'`,
-  )
+  const found = await env.DB.prepare(activeJobSql)
     .bind(job.id, job.userId)
     .first();
   if (!found) throw new ProviderError("JOB_CANCELLED");
+}
+/** Terminal state may only be published while the job and its owner are active. */
+export async function completeActiveJob(
+  env: Env,
+  job: JobRow,
+  status: "completed" | "needs_review",
+  stage: string,
+) {
+  const result = await env.DB.prepare(
+    `UPDATE generation_jobs SET status=?,stage=?,finished_at=? WHERE id IN (${activeJobSql})`,
+  )
+    .bind(status, stage, Date.now(), job.id, job.userId)
+    .run();
+  if (!result.meta.changes) throw new ProviderError("JOB_CANCELLED");
 }
 // Atomic stage claim is the final guard against Workflow replay, response loss and concurrent delivery.
 export async function paidStage<T>(
@@ -380,10 +395,12 @@ export async function paidStage<T>(
   const db = createDb(env.DB),
     id = crypto.randomUUID(),
     started = Date.now();
-  const claim = await env.DB.prepare(
-    "INSERT OR IGNORE INTO generation_attempts(id,user_id,job_id,stage,model,status,request_hash,prompt_version,created_at) VALUES(?,?,?,?,?,'started',?,?,?)",
-  )
-    .bind(
+  // Recheck cancellation in the same DB transaction as the claim. A separate
+  // earlier read must never resurrect a job cancelled while its claim waits.
+  const claimed = await env.DB.batch([
+    env.DB.prepare(
+      `INSERT OR IGNORE INTO generation_attempts(id,user_id,job_id,stage,model,status,request_hash,prompt_version,created_at) SELECT ?,?,?,?,?,'started',?,?,? WHERE EXISTS (${activeJobSql})`,
+    ).bind(
       id,
       job.userId,
       job.id,
@@ -392,9 +409,15 @@ export async function paidStage<T>(
       job.requestHash,
       PROMPT_VERSION,
       started,
-    )
-    .run();
-  if (!claim.meta.changes) {
+      job.id,
+      job.userId,
+    ),
+    env.DB.prepare(
+      `UPDATE generation_jobs SET status='running',stage=?,error_code=NULL WHERE id IN (${activeJobSql}) AND EXISTS(SELECT 1 FROM generation_attempts a WHERE a.id=? AND a.job_id=generation_jobs.id AND a.user_id=generation_jobs.user_id AND a.status='started')`,
+    ).bind(stage, job.id, job.userId, id),
+  ]);
+  if (!claimed[0]?.meta.changes) {
+    await jobActive(env, job);
     const old = await db
       .select()
       .from(attempts)
@@ -410,11 +433,10 @@ export async function paidStage<T>(
       return JSON.parse(old.outputJson) as T;
     throw new ProviderError("PROVIDER_OUTCOME_UNKNOWN", true);
   }
-  await db
-    .update(jobs)
-    .set({ status: "running", stage, errorCode: null })
-    .where(and(eq(jobs.id, job.id), eq(jobs.userId, job.userId)));
+  let invoked = false;
   try {
+    await jobActive(env, job);
+    invoked = true;
     const result = await invoke();
     await db
       .update(attempts)
@@ -431,7 +453,7 @@ export async function paidStage<T>(
     const unknown =
       !(error instanceof ProviderError) ||
       error.unknownOutcome ||
-      error.code === "JOB_CANCELLED";
+      (error.code === "JOB_CANCELLED" && invoked);
     await db
       .update(attempts)
       .set({
@@ -444,7 +466,15 @@ export async function paidStage<T>(
             }
           : {}),
       })
-      .where(and(eq(attempts.id, id), eq(attempts.userId, job.userId)));
+      .where(
+        and(
+          eq(attempts.id, id),
+          eq(attempts.userId, job.userId),
+          invoked
+            ? eq(attempts.status, "started")
+            : sql`${attempts.status} IN ('started','outcome_unknown')`,
+        ),
+      );
     throw error instanceof ProviderError
       ? error
       : new ProviderError("PROVIDER_OUTCOME_UNKNOWN", true);
@@ -545,22 +575,31 @@ export async function runPlanStage(
         () =>
           adapter.analyze(snapshot.analysisModel, images, snapshot.description),
       );
-      await createDb(env.DB)
-        .update(products)
-        .set({
-          analysisJson: JSON.stringify(productAnalysisSchema.parse(analysis)),
-          analysisVersion: PROMPT_VERSION,
-        })
-        .where(
-          and(eq(products.id, job.productId), eq(products.userId, job.userId)),
-        );
+      await env.DB.prepare(
+        `UPDATE products SET analysis_json=?,analysis_version=? WHERE id=? AND user_id=? AND EXISTS (${activeJobSql})`,
+      )
+        .bind(
+          JSON.stringify(productAnalysisSchema.parse(analysis)),
+          PROMPT_VERSION,
+          job.productId,
+          job.userId,
+          job.id,
+          job.userId,
+        )
+        .run();
       const title =
         analysis.suggestedTitle ||
         [analysis.colors[0], analysis.garmentType].filter(Boolean).join(" ");
       await env.DB.prepare(
-        "UPDATE products SET name=? WHERE id=? AND user_id=? AND name_source='auto' AND status='ready'",
+        `UPDATE products SET name=? WHERE id=? AND user_id=? AND name_source='auto' AND status='ready' AND EXISTS (${activeJobSql})`,
       )
-        .bind(title.slice(0, 120), job.productId, job.userId)
+        .bind(
+          title.slice(0, 120),
+          job.productId,
+          job.userId,
+          job.id,
+          job.userId,
+        )
         .run();
     } else {
       const p = await ownedProduct(env, job.userId, job.productId);
@@ -646,28 +685,20 @@ export async function runPlanStage(
       )
         .bind(job.productId, job.userId)
         .first<{ n: number }>();
-      await createDb(env.DB)
-        .insert(shootPlans)
-        .values({
-          id: job.id,
-          userId: job.userId,
-          productId: job.productId,
-          version: versions?.n ?? 1,
-          status: "draft",
-          specJson: JSON.stringify(shootPlanSchema.parse(plan)),
-          sourceIdsJson: JSON.stringify(snapshot.sourceIds),
-          lookReferenceId: lookReferenceId ?? null,
-          createdAt: Date.now(),
-        })
-        .onConflictDoNothing();
-      await createDb(env.DB)
-        .update(jobs)
-        .set({
-          status: "completed",
-          stage: "review_plan",
-          finishedAt: Date.now(),
-        })
-        .where(and(eq(jobs.id, job.id), eq(jobs.userId, job.userId)));
+      await env.DB.prepare(
+        `INSERT OR IGNORE INTO shoot_plans(id,user_id,product_id,version,status,spec_json,source_ids_json,look_reference_id,created_at) SELECT j.id,j.user_id,j.product_id,?,'draft',?,?,?,? FROM generation_jobs j WHERE j.id IN (${activeJobSql})`,
+      )
+        .bind(
+          versions?.n ?? 1,
+          JSON.stringify(shootPlanSchema.parse(plan)),
+          JSON.stringify(snapshot.sourceIds),
+          lookReferenceId ?? null,
+          Date.now(),
+          job.id,
+          job.userId,
+        )
+        .run();
+      await completeActiveJob(env, job, "completed", "review_plan");
     }
   } catch (e) {
     await finishFailure(env, job.id, e);

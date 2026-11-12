@@ -1,11 +1,12 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Button } from "@photo-studio/ui";
 import type {
   ProductDto,
   PipelineDto,
   StudioDraft,
 } from "@photo-studio/schemas";
 import { useAccount } from "../lib/account";
-import { errorMessage, request } from "../lib/api";
+import { ApiError, errorMessage, request } from "../lib/api";
 import WorkspaceShell from "./WorkspaceShell";
 import WorkspaceSkeleton from "./WorkspaceSkeleton";
 import PlanningPanel from "./PlanningPanel";
@@ -14,19 +15,39 @@ import PhotoReferences from "./PhotoReferences";
 import UploadDialog from "./UploadDialog";
 
 export default function ProductWorkbench({ id }: { id: string }) {
-  const { me, error, setError, state, retry } = useAccount();
+  const { me, error, state, retry } = useAccount();
   const [product, setProduct] = useState<ProductDto | null>(null),
     [pipeline, setPipeline] = useState<PipelineDto>({ plans: [], jobs: [] }),
     [upload, setUpload] = useState(false);
   const [draft, setDraft] = useState<StudioDraft>({});
   const [requestBusy, setRequestBusy] = useState(false);
+  const [loadError, setLoadError] = useState<{
+    message: string;
+    notFound: boolean;
+  } | null>(null);
+  const refreshSequence = useRef(0);
   const refresh = useCallback(() => {
-    if (me)
-      void request<ProductDto>(`/api/v1/products/${id}`)
-        .then(setProduct)
-        .catch((e) => setError(errorMessage(e)));
-  }, [me, id, setError]);
-  useEffect(refresh, [refresh]);
+    if (!me) return;
+    const sequence = ++refreshSequence.current;
+    setLoadError(null);
+    void request<ProductDto>(`/api/v1/products/${id}`)
+      .then((data) => {
+        if (sequence === refreshSequence.current) setProduct(data);
+      })
+      .catch((e) => {
+        if (sequence === refreshSequence.current)
+          setLoadError({
+            message: errorMessage(e),
+            notFound: e instanceof ApiError && e.status === 404,
+          });
+      });
+  }, [me, id]);
+  useEffect(() => {
+    refresh();
+    return () => {
+      refreshSequence.current++;
+    };
+  }, [refresh]);
   const active =
     requestBusy ||
     pipeline.jobs.some((j) => ["queued", "running"].includes(j.status));
@@ -45,7 +66,7 @@ export default function ProductWorkbench({ id }: { id: string }) {
   return (
     <WorkspaceShell
       me={me}
-      error={error}
+      error={error || (product ? loadError?.message : "")}
       accountState={state}
       onRetry={retry}
       activeProductId={id}
@@ -98,11 +119,35 @@ export default function ProductWorkbench({ id }: { id: string }) {
             remaining={3 - inputs.length}
             csrf={me.csrf}
             onDone={(p) => {
+              // A read started before this upload cannot remove its new photo.
+              refreshSequence.current++;
               setProduct(p);
+              setLoadError(null);
               setUpload(false);
             }}
           />
         </div>
+      ) : loadError ? (
+        <section className="mx-auto flex min-h-[55dvh] max-w-lg flex-col items-center justify-center px-5 text-center">
+          <h1 className="text-xl">
+            {loadError.notFound
+              ? "상품을 찾을 수 없어요."
+              : "상품을 불러오지 못했어요."}
+          </h1>
+          <p role="alert" className="mt-3 text-sm leading-7 text-muted">
+            {loadError.notFound
+              ? "삭제되었거나 접근할 수 없는 상품입니다."
+              : "연결을 확인하고 다시 불러와 주세요."}
+          </p>
+          <div className="mt-6 flex items-center gap-5">
+            <Button variant="secondary" onClick={refresh}>
+              다시 불러오기
+            </Button>
+            <a href="/studio" className="text-sm text-muted hover:text-ink">
+              새 상품
+            </a>
+          </div>
+        </section>
       ) : (
         <WorkspaceSkeleton label="상품을 불러오고 있습니다" />
       )}

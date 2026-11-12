@@ -504,29 +504,42 @@ export function resourceRoutes(deps: ResourceDeps = {}) {
       asset.kind === "person_reference" ||
       asset.kind === "look_reference" ||
       asset.kind === "auto_look_reference"
-    ) {
+    )
       await (
         await import("./pipeline")
       ).assertIdle(c.env, owner, asset.productId);
-      const deleted = await c.env.DB.prepare(
-        "DELETE FROM assets WHERE id=? AND user_id=? AND NOT EXISTS(SELECT 1 FROM generation_jobs j WHERE j.product_id=? AND j.user_id=? AND j.status IN ('queued','running'))",
-      )
-        .bind(asset.id, owner, asset.productId, owner)
-        .run();
-      if (!deleted.meta.changes)
-        throw new AppError(
-          "JOB_CONFLICT",
-          "작업이 진행 중입니다. 완료된 뒤 참조 사진을 삭제해 주세요.",
-          409,
-        );
+    else if (asset.kind !== "input")
+      await deps.beforeDelete?.(c.env, owner, [asset.productId]);
+    // Commit logical removal and its durable R2 deletion intent together. An
+    // R2 outage must not leave a live row which GC mistakes for a committed
+    // upload and consequently discards the deletion intent.
+    const removable =
+      "id=? AND user_id=? AND EXISTS(SELECT 1 FROM products p JOIN users u ON u.id=p.user_id WHERE p.id=assets.product_id AND p.user_id=assets.user_id AND p.status='ready' AND u.status='active') AND NOT EXISTS(SELECT 1 FROM generation_jobs j WHERE j.product_id=assets.product_id AND j.user_id=assets.user_id" +
+      (asset.kind === "input" ? ")" : " AND j.status IN ('queued','running'))");
+    const deleted = await c.env.DB.batch([
+      c.env.DB.prepare(
+        `INSERT INTO storage_cleanup(key,expires_at) SELECT r2_key,? FROM assets WHERE ${removable} ON CONFLICT(key) DO UPDATE SET expires_at=excluded.expires_at`,
+      ).bind(Date.now() + 600000, asset.id, owner),
+      c.env.DB.prepare(`DELETE FROM assets WHERE ${removable}`).bind(
+        asset.id,
+        owner,
+      ),
+    ]);
+    if (!deleted[1]?.meta.changes)
+      throw new AppError(
+        asset.kind === "input" ? "SOURCES_LOCKED" : "JOB_CONFLICT",
+        asset.kind === "input"
+          ? "분석에 사용한 원본은 고정됩니다. 사진을 바꾸려면 새 상품으로 등록해 주세요."
+          : "작업이 진행 중입니다. 완료된 뒤 사진을 삭제해 주세요.",
+        409,
+      );
+    try {
       await deleteObject(c.env, asset.r2Key);
-      return c.json({ data: { deleted: true } });
+    } catch {
+      // The file is no longer accessible through the app. The committed intent
+      // remains for scheduled cleanup, so the client need not repeat deletion.
+      return c.json({ data: { deleted: true, cleanupPending: true } }, 202);
     }
-    await deps.beforeDelete?.(c.env, owner, [asset.productId]);
-    await deleteObject(c.env, asset.r2Key);
-    await createDb(c.env.DB)
-      .delete(assets)
-      .where(and(eq(assets.id, asset.id), eq(assets.userId, owner)));
     return c.json({ data: { deleted: true } });
   });
   api.get("/presets", async (c) => {

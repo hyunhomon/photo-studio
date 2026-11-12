@@ -249,3 +249,13 @@ source-only 실행에서 검색/상세/구독5GET·라이선스1POST·미디어1
 ## 2026-11-12 — Shutterstock 운영 전환 조건 미충족
 
 사용자는 ‘외부 AI 조건 확인 후 문제 없으면’ 운영 전환을 허용했다. 공식 일반 비학습 AI 편집 조항·무료 API의 테스트/배포 허용을 재확인했으나, API TOS §2의 사용자별 계약·식별/연락 정보·제공 권한이 현재 가명 OpenRouter 계정/처리 consent 구조에 없다. 일반 조항과 무료 API의 외부 참조 처리 범위 연결도 확인 대상으로 남긴다. 무료의 일괄 AI 금지나 유료 계약 필수로 단정하지 않는다. 근거와 실제 구현 대조는 `20-SHUTTERSTOCK-SETUP.md`에 기록했다. ADR-035/036의 사용 범위 guard를 유지하며 무근거 승인값/추가 개인정보 수집/사용자 계약 체결을 대신하지 않았다. 관련 합성43/43 통과, 운영 설정 읽기에서 Commons/기존 인증 binding과 연결 집계 유지 확인. 배포·source/secret 변경·추가 라이선스·유료 결제·실제 AI 호출0회.
+
+## 2026-11-12 — 회신 대기 중 전역 안정성 점검 (ADR-038)
+
+사용자는 Shutterstock 문의를 직접 전송했고 회신 대기 중 전역 개선/검증을 요청했다. 외부 사용권이 확보됐다고 해석하지 않으며 Commons와 기존 master secret/실사용 자료를 유지한다. 실제 AI/stock 추가 발급·유료 결제는 실행하지 않는다.
+
+재현한 문제는 (1) 활성 상태 읽기와 유료 claim 사이 취소 후 running 복구·호출, (2) R2 단일 사진 삭제 실패 후 live asset 때문에 GC가 예약을 버림, (3) 상품 GET 실패의 무한 skeleton과 조회 순서 역전, (4) 업로드 POST 중 dialog 닫힘, (5) raw fetch/parser 오류 및 proxy HTML401과 실제 앱 인증 오류의 구분이다. 조건부 원자 claim/완료·삭제 intent commit·최신 응답 guard·업로드 중 닫기 차단·고정 네트워크 오류/실제 UNAUTHENTICATED envelope 검사로 보완했다. 이미 전송된 외부 요청 취소/환불이나 사진 현실감 개선을 보장하지 않는다.
+
+의존성 audit에서 Drizzle Kit→폐기된 esm-loader→esbuild0.18.20의 개발 서버 CORS 취약점을 확인했다([GHSA-67mh-4wv8-2f99](https://github.com/advisories/GHSA-67mh-4wv8-2f99)). [관리자의 tsx 이관 안내](https://github.com/esbuild-kit/esm-loader)에 따라 해당 loader 하나만 npm:tsx4.23.15로 override했다. 기존 Drizzle/번들러 esbuild 버전은 유지한다. frozen install·audit0건과 실제 schema를 읽는 격리된 Drizzle generate/check·20테이블 SQL 적용을 검증했다. 운영 migration을 새로 만들거나 바꾸지 않았다. Drizzle이 후속 의존성을 정리하면 override를 재검토한다.
+
+관련 새 단위16개를 포함해 전체156/156, format/lint/typecheck/build(진단/경고0), workerd binding·native OAuth/합성 provider HTTP 및 촬영6종을 통과했다. 첫 local 브라우저 검사는18/20이었으며, 새 업로드 검사의 같은 이름 버튼2개 strict locator 충돌이었다. submit으로 좁혀 전체 재검증한다. 최종 브라우저/운영 배포·인증 보존 결과는 구현 계획에 기록한다. 개발 전용 Bun 테스트는 웹 번들 타입 범위와 분리한 tests/unit에 두고 공통 test 명령에 포함한다.

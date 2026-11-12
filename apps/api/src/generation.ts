@@ -34,6 +34,7 @@ import {
   jobActive,
   jobDto,
   paidStage,
+  completeActiveJob,
   resolveAdapter,
   sourceSnapshot,
 } from "./pipeline";
@@ -191,10 +192,7 @@ export async function runGenerationStage(
         };
       });
     }
-    await db
-      .update(jobs)
-      .set({ status: "needs_review", stage: "review", finishedAt: Date.now() })
-      .where(and(eq(jobs.id, job.id), eq(jobs.userId, job.userId)));
+    await completeActiveJob(env, job, "needs_review", "review");
   } catch (e) {
     await finishFailure(env, job.id, e);
   }

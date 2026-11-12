@@ -1,5 +1,11 @@
 import { useEffect, useState } from "react";
-import { apiBase, ApiError, errorMessage, type Me, request } from "./api";
+import {
+  apiBase,
+  isUnauthenticated,
+  errorMessage,
+  type Me,
+  request,
+} from "./api";
 import { oauthMessages } from "@photo-studio/schemas";
 export type AccountState =
   "pending" | "ready" | "unauthenticated" | "redirecting" | "error";
@@ -39,7 +45,7 @@ export function useAccount() {
       })
       .catch((e) => {
         if (controller.signal.aborted) return;
-        if (e instanceof ApiError && e.status === 401) {
+        if (isUnauthenticated(e)) {
           if (authError) {
             setState("unauthenticated");
             return;

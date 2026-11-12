@@ -15,7 +15,7 @@ Base path: `/api/v1` (auth callback routes are `/auth/*`). JSON envelope: `{ dat
 | PATCH | `/api/v1/products/:id` | 상품 이름 수정 | owner |
 | DELETE | `/api/v1/products/:id` | 상품/모든 미디어·기획·작업 삭제 | owner |
 | GET | `/api/v1/products/:id` | 상품/분석 상태 | owner |
-| POST | `/api/v1/products/:id/assets` | 첫 AI 작업 전 의류 원본 추가, 총 3장 | owner, Origin/CSRF |
+| POST | `/api/v1/products/:id/assets` | 작업 중이 아닐 때 의류 원본 추가, 총 3장(ADR-031) | owner, Origin/CSRF |
 | DELETE | `/api/v1/assets/:id` | 원본/참조/결과 삭제; 입력 불변/진행 중 제약 적용 | owner, Origin/CSRF |
 | GET | `/api/v1/products/:id/pipeline` | 기획 목록과 실제 작업/호출 상태 | owner |
 | POST | `/api/v1/products/:id/plan` | 상품 분석 + 콘셉트 추천 작업 시작 | owner |
@@ -114,6 +114,8 @@ ADR-019로 종료했다. 인증·owner 검사 후 HTTP 410 `FEATURE_RETIRED`, �
 - GET image는 권한 검사/`Cache-Control: private, no-store`와 적절한 다운로드 헤더 적용.
 - 세션 쿠키 기반 write route는 Origin/CSRF 검증.
 - 앱/CORS는 credential 포함 요청 시 특정 origin만 허용.
+
+ADR-038: 단일 `DELETE /assets/:id`는 논리 삭제와 cleanup intent를 원자적으로 저장한 뒤 R2를 정리한다. 정상200 `{data:{deleted:true}}`, R2 정리 지연202 `{data:{deleted:true,cleanupPending:true}}`이다. 202에서도 content/download는 즉시404이며 cron이 파일 삭제를 재시도한다. 원본은 모든 작업 이력의 부재를 다시 확인하며, 다른 asset은 active 작업과 경합하지 않도록 검사한다. 타인 asset은404, 잠긴 원본/진행 중 작업은409다.
 
 
 ADR-023: POST /products의 name은 생략/빈 문자열일 수 있다. 이때 새 상품으로 등록하고 기존 분석 실행에서 제목을 생성한다. PATCH /products/:id의 name은 1–120자이며 수동 이름으로 고정한다. 업로드나 제목 수정은 AI를 호출하지 않는다. suggestedTitle은 분석 응답의 선택적 짧은 제목이다.

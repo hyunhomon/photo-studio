@@ -434,6 +434,7 @@ export default function PlanningPanel({
   onDraft: (value: StudioDraft) => void;
 }) {
   const requestId = useRef(crypto.randomUUID());
+  const refreshSequence = useRef(0);
   const scroll = useRef<HTMLDivElement>(null);
   const [tab, setTab] = useState(0);
   const [referenceMode, setReferenceMode] = useState<
@@ -451,15 +452,24 @@ export default function PlanningPanel({
   const [busy, setBusy] = useState(false),
     [error, setError] = useState("");
   const refresh = useCallback(async () => {
-    const d = await request<PipelineDto>(
-      `/api/v1/products/${product.id}/pipeline`,
-    );
-    setData(d);
-    onPipeline?.(d);
+    const sequence = ++refreshSequence.current;
+    try {
+      const d = await request<PipelineDto>(
+        `/api/v1/products/${product.id}/pipeline`,
+      );
+      if (sequence !== refreshSequence.current) return;
+      setData(d);
+      onPipeline?.(d);
+    } catch (e) {
+      if (sequence === refreshSequence.current) throw e;
+    }
   }, [product.id, onPipeline]);
   // biome-ignore lint/correctness/useExhaustiveDependencies: parent refresh signals a mutation made in the separate generation panel.
   useEffect(() => {
     void refresh().catch((e) => setError(errorMessage(e)));
+    return () => {
+      refreshSequence.current++;
+    };
   }, [refresh, product]);
   useEffect(() => {
     request<PresetDto[]>("/api/v1/presets")

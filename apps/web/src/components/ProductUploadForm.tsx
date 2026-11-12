@@ -219,11 +219,13 @@ export default function ProductUploadForm({
   onDone,
   productId,
   remaining = 3,
+  onBusy,
 }: {
   csrf: string;
   onDone: (product: ProductDto) => void;
   productId?: string;
   remaining?: number;
+  onBusy?: (busy: boolean) => void;
 }) {
   const [files, setFiles] = useState<File[]>([]),
     [look, setLook] = useState<File[]>([]),
@@ -232,7 +234,9 @@ export default function ProductUploadForm({
     [error, setError] = useState("");
   const hasReference = look.length > 0 || person.length > 0;
   async function submit() {
+    if (busy || files.length === 0) return;
     setBusy(true);
+    onBusy?.(true);
     setError("");
     try {
       if (
@@ -257,6 +261,7 @@ export default function ProductUploadForm({
       setError(errorMessage(e));
     } finally {
       setBusy(false);
+      onBusy?.(false);
     }
   }
   return (

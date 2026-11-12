@@ -26,7 +26,7 @@
     "lint": "biome lint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "test": "bun test apps/api/src packages scripts/shutterstock-search-probe.test.ts scripts/shutterstock-preflight.test.ts",
+    "test": "bun test apps/api/src tests/unit packages scripts/shutterstock-search-probe.test.ts scripts/shutterstock-preflight.test.ts",
     "test:local": "bun run scripts/local-smoke.ts",
     "test:oauth": "bun run scripts/oauth-local-smoke.ts",
     "test:photography": "bun run scripts/photography-benchmark.ts",
@@ -48,5 +48,8 @@
     "prettier": "3.9.10",
     "prettier-plugin-astro": "1.1.2",
     "typescript": "6.0.3"
+  },
+  "overrides": {
+    "@esbuild-kit/esm-loader": "npm:tsx@4.23.15"
   }
 }

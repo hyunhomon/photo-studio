@@ -381,3 +381,14 @@ production desktop/mobile 전체 Mock E2E **4/4 통과**: 저장된 분석 재�
 - [x] 공식 일반 AI 편집 허용과 무료 API 배포 가능 범위를 재확인하고, API 사용자별 계약·식별/연락 정보 요구를 현재 계정/동의 구조와 대조했다. 구체 근거/조건은 `20-SHUTTERSTOCK-SETUP.md`의 운영 전환 조건 재검토에 기록했다.
 - [x] 관련 합성43/43 및 운영 설정 읽기로 미승인 차단·기획/생성 참조 전달과 Commons 유지 상태를 확인했다. 실제 AI/추가 stock 발급/유료 결제/운영 변경0회.
 - [ ] 사용자별 Platform User License·식별/연락 정보·제공 권한 및 해당 외부 AI 사용 범위 충족 후 Shutterstock 운영 활성화·배포·실소스 smoke. 사용자 요청의 ‘문제 없으면’ 조건 미충족으로 이번 전환은 수행하지 않았다.
+
+### 회신 대기 중 전역 점검 — 2026-11-12 (ADR-038)
+
+- [x] 취소된 작업의 유료 claim/running 재진입과 최종 완료 상태 복구를 재현·수정. 활성 job/product/user 조건과 실제/미호출 비용 분류, 무재시도 회귀5개.
+- [x] 단일 사진 삭제 실패 때 GC 예약이 사라지는 문제를 재현·수정. 논리 삭제+cleanup intent 원자 commit, 202/즉시404·cron 회복·업로드 보존·owner/작업 경합 회귀7개.
+- [x] 상품 조회 실패/순서 역전·파이프라인 역전·업로드 dialog 보호 및 proxy HTML401/네트워크 오류 복구. client 단위4개·브라우저5개(두 viewport) 추가.
+- [x] 개발 loader의 취약 esbuild 경로 제거, audit0건·frozen install·실제 스키마 Drizzle generate/check 및 격리20테이블 SQL 검증.
+- [x] 최종 format/lint/typecheck/unit/build156/156(진단/경고0), workerd binding·native OAuth/합성 provider HTTP·촬영6종 통과. 신규 브라우저 검사 locator 충돌을 수정한 최종 local desktop/mobile 전체20/20 통과. 비교/콘셉트 스크롤·사진 입력 화면 캡처도 확인했다.
+- [ ] 최종 local/production desktop/mobile 전체 브라우저, API/Workflow→웹 배포와 인증 canary 보존·합성 자료 정리 확인.
+
+이번 작업은 실제 AI/stock 발급·유료 결제0회를 유지한다. Shutterstock는 공급자 회신 전 미활성, Commons 기본과 기존 사용자 자료/master secret은 보존한다. 새 DB migration/초기화는 없다.

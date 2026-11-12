@@ -306,3 +306,9 @@
 - 사용자가 무료 구독 설정을 직접 저장했다. 실제 GET 응답은 `description="PS Core Free Product - Image"`, `license="integrated_media"`, 이미지 월500건/잔여500건, medium JPG, 미래 만료, portfolio=false이며 가격 필드가 없다. [공식 무료 cURL 튜토리얼](https://www.shutterstock.com/de/developers/documentation/tutorial/curl)의 무료 구독 예시도 정확히 같은 상품명/라이선스 코드와 가격 생략을 사용하며 해당 구독을 Platform License라고 설명한다. 따라서 ADR-036의 명시0원 가격 조건에는 이 정확한 공식 무료 상품에만 예외를 추가한다. 일반 상품/알 수 없는 무료 명칭/계약 구독에는 예외를 적용하지 않는다.
 - 실제 응답에 가격이 있으면 유효한 통화·명시0원·추가 가격 tier 없음이 여전히 필수다. 비영 가격·null/잘못된 가격·portfolio·500건 초과·잔여가 한도보다 큼은 차단한다. 할당 tier가 있으면 standard_images 하나이고 전체 할당/잔여와 일치해야 한다. `integrated_media`를 임의 유료 라이선스의 alias로 인정하지 않으며 내부 사용권 분류는 기존 platform으로 보존한다.
 - 무료 source-only 라이선스1건/다운로드/실파일 검증은 AI 사용 범위 승인과 별개다. 사용자 요청에 따라 유료 결제·AI 호출·운영 source/secret 변경은 하지 않는다. 토큰/응답 원문/라이선스·구독 ID/서명 URL은 ignored 로컬 증거에만 저장하며 불확실한 발급은 재요청하지 않는다.
+
+## ADR-038: 취소·삭제·조회 실패의 일관된 복구 — Accepted (2026-11-12)
+
+- 전역 점검에서 취소/삭제와 유료 단계 claim 사이 경합을 재현했다. 활성 job/product/user를 같은 D1 batch의 조건부 claim/running 전환에 적용하고 실제 호출 직전에 다시 확인한다. 분석/기획 저장과 최종 완료 전환도 같은 활성 조건을 검사한다. 취소를 running/completed로 되살리지 않는다. 이미 외부로 전송된 요청의 과금 취소를 보장하는 것은 아니며, 수신한 성공/비용은 보존하고 호출하지 않은 취소와 응답 미확인을 구별한다. 자동 유료 재시도는 계속 금지한다.
+- 단일 asset 삭제는 owner/작업/원본 이력 조건을 원자적으로 재확인하고 DB 행 제거와 R2 cleanup intent를 함께 commit한다. 이후 R2 삭제가 실패하면 202 `{deleted:true,cleanupPending:true}`를 반환한다. 앱에서 즉시 접근 불가이며 cron이 비공개 파일을 정리한다. 정상 업로드의 지연 cleanup이 유효 asset을 삭제하지 않는 기존 보호는 유지한다. 새 migration/사용자 자료 초기화는 없다.
+- 상품 조회 실패는 무한 skeleton 대신 재시도 가능한 오류로 끝낸다. 상품/기획 조회의 늦은 응답은 최신 상태나 새 업로드 결과를 덮어쓰지 않는다. 업로드 POST 중에는 dialog를 닫지 않는다. 네트워크/timeout/잘못된 응답은 고정 문구로 표시하고 mutation을 재전송하지 않는다. 실제 API의 UNAUTHENTICATED/401 envelope만 OAuth로 연결하며 proxy HTML401은 복구 가능한 서버 오류다.
