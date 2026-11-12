@@ -41,6 +41,12 @@ export class StudioWorkflow extends WorkflowEntrypoint<
         "automatic reference source probe",
         { retries: { limit: 0, delay: "1 second" }, timeout: "3 minutes" },
         async () => {
+          const allowed = await this.env.DB.prepare(
+            "SELECT 1 AS allowed FROM generation_jobs j JOIN users u ON u.id=j.user_id WHERE j.id=? AND j.kind='plan' AND u.is_test=1 AND u.status='active' AND json_extract(j.request_json,'$.referenceOnlyProbe')=1",
+          )
+            .bind(id)
+            .first();
+          if (!allowed) throw new Error("Invalid reference probe operation");
           const job = await createDb(this.env.DB)
             .select()
             .from(jobs)

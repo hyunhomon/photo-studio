@@ -170,6 +170,9 @@ test("retrieval is claimed once, reused durably and stays owner-scoped without a
   expect(await ensureAutomaticReference(s.env, jobRow, analysis)).toEqual(
     selected,
   );
+  await expect(
+    ensureAutomaticReference(s.env, jobRow, analysis, { forceLive: true }),
+  ).rejects.toMatchObject({ code: "FORBIDDEN" });
   expect(calls).toBe(1);
   expect(s.objects.size).toBe(2);
   expect((await s.call(`/assets/${selected.assetId}`, "DELETE")).status).toBe(

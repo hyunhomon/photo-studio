@@ -309,6 +309,17 @@ export async function ensureAutomaticReference(
     normalize?: typeof normalizeImage;
   } = {},
 ): Promise<AutomaticReferenceDto> {
+  const owner = await env.DB.prepare(
+    "SELECT is_test FROM users WHERE id=? AND status='active'",
+  )
+    .bind(job.userId)
+    .first<{ is_test: number }>();
+  if (!owner) throw new ProviderError("JOB_CANCELLED");
+  if (
+    options.forceLive &&
+    (!owner.is_test || JSON.parse(job.requestJson).referenceOnlyProbe !== true)
+  )
+    throw new ProviderError("FORBIDDEN");
   const db = createDb(env.DB),
     before = (
       await getAutomaticReferences(env, job.userId, job.productId)
@@ -322,20 +333,8 @@ export async function ensureAutomaticReference(
       throw new ProviderError("AUTO_REFERENCE_IN_PROGRESS");
     return before;
   }
-  const started = Date.now(),
-    owner = await env.DB.prepare(
-      "SELECT is_test FROM users WHERE id=? AND status='active'",
-    )
-      .bind(job.userId)
-      .first<{ is_test: number }>();
-  if (!owner) throw new ProviderError("JOB_CANCELLED");
+  const started = Date.now();
   const isMock = Boolean(owner.is_test) && !options.forceLive;
-  // Force-live exists only for an admin-created reference-only Workflow probe.
-  if (
-    options.forceLive &&
-    (!owner.is_test || JSON.parse(job.requestJson).referenceOnlyProbe !== true)
-  )
-    throw new ProviderError("FORBIDDEN");
   const request = JSON.parse(job.requestJson) as {
     preset?: { location?: string };
   };
