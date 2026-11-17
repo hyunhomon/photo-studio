@@ -455,6 +455,10 @@ production desktop/mobile 전체 Mock E2E **4/4 통과**: 저장된 분석 재�
 - [x] native 원본 단일 decode·160/960px JPEG82 사전 생성·동시 cold 공유·preview 실패와 유효 결과 분리. workerd1792×2400 검증/두 파생물 준비 통과.
 - [x] 인증 후304·다른 owner/삭제/비로그인 거부·R2 읽기 생략·신구 파생물 삭제 회귀.
 - [x] 동일 pipeline 갱신/조회 연쇄와 중첩 polling 제거. 모달 preview 우선·원본 크기 클릭 시 원본 지연 로드.
-- [ ] 최종 전체 check·local/운영 브라우저·운영 합성 큰 이미지/조건부 캐시·배포/인증 보존 확인.
+- [x] 전체 check170/170(진단·린트 경고0)·local26/26·native workerd/OAuth·공개 smoke·66e35b8 API/Workflow→웹 배포·최종 운영26/26(wrapper exit0)·인증 보존·합성 정리 확인.
 
 실제 외부 AI 추론/새 카메라 지시의 품질 효과는 이번 최적화로 검증하지 않는다. 고객 사진 대신 합성 이미지와 Mock만 사용하며 과거 원본·키·세션과 해상도 이력을 보존한다.
+
+운영1792×2400 합성 PNG95,249bytes에서160px742bytes/cold1,399ms(두 크기 준비),960px5,116bytes/첫 warm410ms·다음 warm272ms, 인증 후304는body0bytes/238ms였다. 같은 요청으로 native content/download bytes 일치와 삭제 후 조건부 요청404를 확인했다. 압축이 잘 되는 단일 합성 표본의 왕복 측정이며 실제 사진의 용량/속도 비율이나 AI 추론 단축으로 일반화하지 않는다. 단위 검사에서304의R2 get0회·동일 isolate 동시 miss의source read1회·삭제 경합의파생물0개도 확인했다.
+
+최초 운영25/26의 실패는 썸네일이 보이면 durable job도 완료됐다고 가정한 quick-shoot 검사의 경합이었다. asset 저장 후 미리보기/완료 commit 사이에는 running일 수 있다. job 완료를 기다리도록 보강한 뒤 local 해당2/2와 새 운영 전체26/26·후속 정리/인증 guard exit0을 통과했다(검사 commit698b4ec, 앱 runtime은66e35b8과 동일). 마지막 합성 계정0·실제 계정1/연결1/세션2, 기존 암호화 secret/Commons 기본/stock 미활성을 확인했다. 실제 AI 호출·새 migration·자료 초기화·키 교체는 없다.

@@ -294,4 +294,6 @@ Nano의 모델별1K/참조 capability와 현재 Images routing을 확인했다. 
 
 원인은 외부 추론과 별개로 세 경로에서 확인했다. 고정2K 보정은 실제8MB native 파일을 만들었고 확대 모달은 즉시 전체 파일을 요청했다.2초마다 pipeline→product→pipeline→results로 조회가 이어졌으며 동일 상태도 새 객체로 렌더링했다. cold thumbnail/본문은 별도로 전체 원본을 decode했다. 새 기본 Nano1K·고화질2K 선택, preview 우선 확대, 동일 snapshot 생략/중첩 방지,160/960px JPEG82·단일 decode/사전 생성·인증 후304로 수정한다. 보정 목적과 원본 근거는 유지하며 성능을 위해 인위적 흐림을 덧씌우지 않는다.
 
-검사 중 상품 삭제가 기존 preview 파생물을 누락하는 경로도 재현해 신구 suffix 삭제를 포함했다. 파생물 실패는 유효한 유료 결과를 버리거나 AI를 다시 호출하는 사유가 아니다. 요청한1K는 미세 디테일 손실 가능성이 있으며 고화질2K를 선택할 수 있다. 원본 다운로드/과거2K 파일과 인증·키는 유지한다. 합성 성능 수치는 일반 운영 지연이나 실사 품질 개선의 보장이 아니다. 최종 배포/검증 결과는 완료 후 기록한다.
+검사 중 상품 삭제가 기존 preview 파생물을 누락하는 경로도 재현해 신구 suffix 삭제를 포함했다. 파생물 실패는 유효한 유료 결과를 버리거나 AI를 다시 호출하는 사유가 아니다. 요청한1K는 미세 디테일 손실 가능성이 있으며 고화질2K를 선택할 수 있다. 원본 다운로드/과거2K 파일과 인증·키는 유지한다. 합성 성능 수치는 일반 운영 지연이나 실사 품질 개선의 보장이 아니다. in-flight decode 공유는 동일 Worker isolate 안의 최적화이며 분산 락을 새로 추가하지 않았다.
+
+runtime66e35b8 배포·check170/170·local26/26·native workerd/OAuth·공개 smoke·최종 운영26/26(wrapper exit0)을 확인했다. 최초 운영의25/26 실패는 asset 표시를 durable 완료로 간주한 검사 경합으로, 완료 조건을 보강한 해당 local2/2·운영 전체 재실행으로 해소했다. 테스트/로그 문구 commit698b4ec은 runtime을 바꾸지 않는다. 운영4.3MP 단일 합성 표본에서960px5,116bytes·조건부 재조회body0bytes를 확인했고 원본 content/download는 byte-identical이다. 작은 합성 전송량을 실제 고객 사진의 일반 성능으로 확대하지 않는다. canary/untouched sentinel/실제 인증 원문 불변·합성 계정0·실제 계정1/연결1/세션2와 기존 secret/Commons 기본을 확인했다. 실제 AI 추가 호출과 사용자 자료/secret 초기화는 없다.
