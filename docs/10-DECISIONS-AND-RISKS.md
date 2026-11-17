@@ -267,3 +267,5 @@ c04225b commit/push 및 API/Workflow→웹 배포를 완료했다. 공개 HTTPS/
 사용자는 생성 오류 대신 오랜 대기라고 정정했고 Shutterstock 제거와 필요할 때 기존 결과를 Nano Banana로 추가 보정하도록 선택했다. 운영에서 Shutterstock가 비활성이었으므로 해당 소스를 지연 원인으로 단정하지 않는다. 저장된 성공 단계의38–56초와 전체 PNG 썸네일 전송을 분리한다. 미리보기 파생물은 private/owner 검사를 유지하며 원본과 혼합하지 않는다. 별도 소스 파일의 용량 benchmark는 실제 고객 속도 개선이나 생성 성공 재현으로 계산하지 않는다.
 
 Nano의 모델별1K/참조 capability와 현재 Images routing을 확인했다. 선택·실행한 추가 보정만 한 건이며 자동 두 번째 유료 호출이나 Pinterest 검색은 없다. 역사적 stock 권리 guard는 유지하고 새 production Shutterstock 선택은 거절한다. 실제 AI·stock 발급·결제·고객 자료 초기화·master secret 변경 없이 합성 검증과 배포를 수행하며 실사 품질 개선은 이후 실제 비교까지 미검증이다.
+
+최종 check160/160(진단/린트 경고0), workerd/OAuth 합성 HTTP, local/production desktop/mobile Mock 각각20/20과 공개 smoke가 통과했다. 06d470a를 API/Workflow→웹으로 배포했고 운영3.84MP 합성 파일의 미리보기 cold/warm·전체 PNG 유지·삭제404를 확인했다. 실제 사용자 인증과 non-empty canary/untouched sentinel 원문 불변 및 합성 자료 정리를 검증했다. 마지막 집계는 합성0·실제 계정1/연결1/세션2이며 Commons 기본·Shutterstock 설정 없음·기존 master secret을 유지했다. 실제 Nano 출력 품질/속도나 운영 outage 제거를 이 검증으로 주장하지 않는다.
