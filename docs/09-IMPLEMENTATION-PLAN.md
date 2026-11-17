@@ -430,7 +430,7 @@ production desktop/mobile 전체 Mock E2E **4/4 통과**: 저장된 분석 재�
 - [x] 사용자1회 실행 승인과 교정 목적을 기록. 같은 이전 원본 결과를 사용하며1K 결과의 연쇄 보정을 피한다.
 - [x] 공개 model catalog의 Nano2K 지원, 해상도 snapshot/preflight/요청 일치,1K 이력 호환과 교정 프롬프트 버전14 추가.
 - [x] 업로드4MP 유지·생성 전용6MP/native bytes 저장·미리보기 전용 축소·이전/2K보다 작은 출력 거부·비용 보존/무재시도 회귀. native workerd의1792×2400 합성 decode/보존/1024 JPEG 미리보기 통과.
-- [ ] 최종 전체 검사·운영 배포·인증 보존·실제2K1회와 출력 해상도·원단/로고/지퍼/얼굴/빛의 전후 비교.
+- [x] 전체 검사/2K 저장 경로 배포·인증 보존·실제2K1회/원본 크기·확대 비교 완료. 실제 표본의 조건 차이와 남은 피부/로고 한계는 아래 기록을 따른다.
 
 실제2K는 테스트가 통과한 저장 경로를 배포한 뒤 기존 owner의 BYOK Workflow로1건만 실행한다. 같은 기준 이미지와 private receipt로 중복 실행을 막고 운영 키/세션을 새로 만들지 않는다. 결과 개선은 실행 후 확대 비교 전까지 미검증이다.
 
@@ -444,5 +444,7 @@ production desktop/mobile 전체 Mock E2E **4/4 통과**: 저장된 분석 재�
 
 - [x] 이전 컷 비교 토글 제거, 원본 프레임은 input asset으로만 유지. 오른쪽 결과 선택과 보정의 이전 결과/lineage는 보존한다.
 - [x] 새 초점면/같은 깊이/완만한 배경 falloff와 주광 방향·크기·접촉 그림자 지시. 자유 촬영 gentle50mm/f5.6, 미지정 조명만40도/20도·약한bounce 기본값. 명시한 조명/구도·상품 디테일 우선과 과거 capture 호환 회귀.
-- [ ] 최종 format/lint/typecheck/unit/build·local/운영 Mock·API/Workflow/웹 배포·인증 보존·합성 정리.
+- [x] 최종 format/lint/typecheck/unit167/167/build·local/운영 Mock 각각22/22·27599e3 API/Workflow/웹 배포·인증 보존·합성 정리.
 - [ ] v15/photo-v9의 실제 이미지 효과.2K 실제1건과 구별하며 추가 호출 없이 미검증으로 남긴다.
+
+최종 source27599e3와 전체check167/167(진단/린트 경고0), local22/22, 공개 HTTPS/CORS/PKCE/반응형 smoke 및 fresh production22/22(wrapper exit0)을 확인했다. 원본 고정/토글 부재·결과 선택·수정/보정·권한 격리·삭제를 포함한다. 앞선2K 릴리스의 관리 API 후검사 실패 후 남은 빈 합성 sentinel을 정리했고 새 전체 실행의 untouched sentinel/canary·실제 계정 인증 원문 불변 및 정리도 통과했다. 마지막 읽기는 합성0·실제 계정1/연결1/세션2, 기존 암호화 secret/Commons 기본/stock 미활성이다. 추가 실제 AI·키 교체·고객 초기화·DB migration은 없다. 비교를 위해 명시적으로 재등록한 private 상품/결과는 같은 실제 owner에게 보존한다.
