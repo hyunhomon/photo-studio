@@ -866,18 +866,18 @@ test("Mock: direct multi-photo upload, reference planning, compare, revise, expo
     regenerationOf: firstResults[0]?.asset.id,
     regenerationReason: "human_naturalness",
   });
-  await page
-    .getByRole("button", { name: "이전 컷과 비교", exact: true })
-    .click();
+  await expect(
+    page.getByRole("button", { name: "이전 컷과 비교", exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole("group", { name: "비교 기준", exact: true }),
+  ).toHaveCount(0);
   await expect(
     page.getByRole("img", {
-      name: "Synthetic shirt 이전 컷 비교",
+      name: "Synthetic shirt 원본 비교",
       exact: true,
     }),
   ).toHaveJSProperty("naturalWidth", 64);
-  await page
-    .getByRole("button", { name: "원본 의류와 비교", exact: true })
-    .click();
   await page.locator("#results").screenshot({
     path: `.tmp/product-review-${test.info().project.name}.png`,
   });

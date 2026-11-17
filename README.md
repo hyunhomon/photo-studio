@@ -1,6 +1,6 @@
 # Photo Studio
 
-의류 사진 선택 → 촬영 시작 한 번 → 상품 분석·촬영 기획·이미지 생성 → 원본/이전 컷 비교 → 필요한 기획 수정·컷 개선·다운로드를 연결하는 웹 MVP입니다. 초대 코드 없이 OpenRouter OAuth로 시작합니다. 빛과 초점의 일관성, 자연스러운 성인 인물, 의류와 주변 소재 표현을 우선합니다(ADR-019/040).
+의류 사진 선택 → 촬영 시작 한 번 → 상품 분석·촬영 기획·이미지 생성 → 의류 원본/결과 비교 → 필요한 기획 수정·컷 개선·다운로드를 연결하는 웹 MVP입니다. 초대 코드 없이 OpenRouter OAuth로 시작합니다. 빛과 초점의 일관성, 자연스러운 성인 인물, 의류와 주변 소재 표현을 우선합니다(ADR-019/040).
 
 Astro + React Islands, Tailwind CSS v4, Headless UI로 직접 제작한 스튜디오 UI에 Pretendard와 Paperlogy를 자체 호스팅합니다. Hono API Worker, Drizzle/D1, private R2, Cloudflare Workflows를 사용합니다. 서비스 자체 결제·구독·크레딧, 팀·배치·모델 학습 기능은 없습니다.
 
@@ -32,7 +32,7 @@ bunx playwright install chromium
 bun run test:e2e
 ```
 
-`check`는 format/lint/typecheck/unit/build를 실행합니다. `test:local`은 격리된 workerd에서 D1/R2/Workflow binding을 확인합니다. `test:oauth`는 실제 workerd native HTTP와 로컬 합성 provider로 초대 없는 OAuth 콜백·키 상태·모델 목록·AI 어댑터·암호화·세션·재사용 거부·redirect 차단을 확인합니다. `test:photography`는 합성 촬영 지시/참조 역할 6종과 버전·해시·근사 심도를 ignored `.tmp/photography-benchmark/manifest.json`으로 생성하며 AI 호출/품질 평가는 하지 않습니다. `test:e2e`는 desktop/mobile에서 의류/인물/촬영감 업로드·사용 선택·분석·생성·원본/이전 컷 비교·개선 지시·다운로드·내보내기·삭제까지 실제 Mock Workflow를 검증합니다. 유료 테스트는 자동 실행하지 않습니다.
+`check`는 format/lint/typecheck/unit/build를 실행합니다. `test:local`은 격리된 workerd에서 D1/R2/Workflow binding을 확인합니다. `test:oauth`는 실제 workerd native HTTP와 로컬 합성 provider로 초대 없는 OAuth 콜백·키 상태·모델 목록·AI 어댑터·암호화·세션·재사용 거부·redirect 차단을 확인합니다. `test:photography`는 합성 촬영 지시/참조 역할 6종과 버전·해시·근사 심도를 ignored `.tmp/photography-benchmark/manifest.json`으로 생성하며 AI 호출/품질 평가는 하지 않습니다. `test:e2e`는 desktop/mobile에서 의류/인물/촬영감 업로드·사용 선택·분석·생성·의류 원본/결과 비교·개선 지시·다운로드·내보내기·삭제까지 실제 Mock Workflow를 검증합니다. 유료 테스트는 자동 실행하지 않습니다.
 
 ## production
 
@@ -83,7 +83,7 @@ tests/e2e         같은 시나리오의 local·production Mock 브라우저 검
 
 Shutterstock 운영 활성화와 설정 명령은 사용자 요청으로 종료했습니다(ADR-039). 과거 라이선스 이력과 파생물의 사용권 guard는 보존합니다. 기존 무료 라이선스 검증 기록은 [역사적 설정 가이드](docs/20-SHUTTERSTOCK-SETUP.md)에 남기며, 운영 소스는 Commons입니다.
 
-기존 결과의 ‘이 컷 개선’에서 보정 모델을 ‘Nano Banana 2 · 2K 보정’으로 선택할 수 있습니다. 실행 클릭 한 번에 원본 의류·선택 참조·이전 결과를 전달하는 2K 교정 보정 한 건만 요청합니다. 기본 생성은 기존 모델이며 자동 두 번째 호출은 없습니다. `studio-v14-corrective-refinement`로 구분하고 모델·단계·지시·이전 결과·비용을 기록합니다. 실제 Nano Banana 품질/속도는 합성 검증과 구별하며 자동 Pinterest 검색은 없습니다.
+기존 결과의 ‘이 컷 개선’에서 보정 모델을 ‘Nano Banana 2 · 2K 보정’으로 선택할 수 있습니다. 실행 클릭 한 번에 원본 의류·선택 참조·이전 결과를 전달하는 2K 교정 보정 한 건만 요청합니다. 기본 생성은 기존 모델이며 자동 두 번째 호출은 없습니다. `studio-v15-subtle-camera`로 구분하고 모델·단계·지시·이전 결과·비용을 기록합니다. 실제 Nano Banana 품질/속도는 합성 검증과 구별하며 자동 Pinterest 검색은 없습니다.
 
 화면은 소유권을 확인한 private R2 미리보기(썸네일160px, 본문1024px)를 사용합니다. 불투명 사진은 JPEG, 투명 사진은 PNG로 제공하며 확대·다운로드·AI 근거에는 저장된 전체 원본을 사용합니다. 상품/계정/사진 삭제 시 파생 파일도 정리합니다. 미리보기 최적화는 외부 AI 생성 시간을 줄였다는 의미가 아닙니다.
 

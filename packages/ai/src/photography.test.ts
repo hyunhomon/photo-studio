@@ -243,6 +243,7 @@ test("existing capture snapshots remain readable while new material-light correc
     "photo-v5-material-light",
     "photo-v6-reference-evidence",
     "photo-v7-automatic-environment",
+    "photo-v8-licensed-fashion",
     CAPTURE_PROTOCOL_VERSION,
   ]) {
     const prompt = compilePhotographicPrompt(plan, 1, {
@@ -372,4 +373,26 @@ test("licensed fashion evidence transfers worn-cloth physics and composition wit
   expect(inspired).toContain("without imposing its pose or crop");
   expect(inspired).not.toContain("REFERENCE FRAMING:");
   expect(inspired).not.toContain("approximately f/");
+});
+
+test("subtle camera cues require a protected garment focus plane and one coherent key while preserving explicit shot choices", () => {
+  const plan = mockPlan(mockAnalysisFixture);
+  plan.lighting = "Synthetic right-side hard sunlight";
+  plan.camera.angle = "Synthetic overhead";
+  const prompt = compilePhotographicPrompt(plan, 1, {
+    lookImage: "synthetic",
+    captureVersion: "photo-v8-licensed-fashion",
+  });
+  expect(prompt).toContain("FOCUS PLANE IS REQUIRED");
+  expect(prompt).toContain("same-depth hands");
+  expect(prompt).toContain(
+    "Do not blur, invent or oversharpen product details",
+  );
+  expect(prompt).toContain("EXPLICIT LIGHTING SETUP");
+  expect(prompt).toContain("Only when the direction is unspecified");
+  expect(prompt).toContain("40 degrees camera-left");
+  expect(prompt).toContain("1.5 stops");
+  expect(prompt).toContain(plan.lighting);
+  expect(prompt).toContain(plan.camera.angle);
+  expect(prompt).toContain("Respect an explicitly selected right-side");
 });

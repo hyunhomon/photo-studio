@@ -39,10 +39,18 @@ async function query<T>(sql: string, params: unknown[] = []): Promise<T[]> {
   );
   const b = (await r.json()) as {
     success: boolean;
+    errors?: { code?: number }[];
     result: { results: T[]; success: boolean }[];
   };
   if (!r.ok || !b.success || b.result.some((v) => !v.success))
-    throw new Error("Production test database operation failed");
+    throw new Error(
+      `Production test database operation failed (HTTP ${r.status}; codes ${
+        (b.errors ?? [])
+          .map((e) => e.code)
+          .filter(Number.isInteger)
+          .join(",") || "unknown"
+      })`,
+    );
   return b.result.flatMap((v) => v.results);
 }
 async function hash(value: string) {

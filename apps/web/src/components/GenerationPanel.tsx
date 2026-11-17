@@ -57,7 +57,6 @@ export default function GenerationPanel({
     [error, setError] = useState("");
   const requestId = useRef(crypto.randomUUID());
   const [submission, setSubmission] = useState<StudioDraft>({});
-  const [comparePrevious, setComparePrevious] = useState(false);
   const [usePerson, setUsePerson] = useState(false),
     [useLook, setUseLook] = useState(false);
   const plan = pipeline.plans[0];
@@ -98,7 +97,6 @@ export default function GenerationPanel({
     if (d[0] && latestResult.current !== d[0].asset.id) {
       latestResult.current = d[0].asset.id;
       setSelected(d[0].asset.id);
-      setComparePrevious(false);
     }
   }, [product.id]);
   // biome-ignore lint/correctness/useExhaustiveDependencies: each durable pipeline snapshot can add a result in D1.
@@ -274,26 +272,6 @@ export default function GenerationPanel({
           />
         </div>
       )}
-      {result?.regenerationOf && (
-        <fieldset className="my-3 flex flex-wrap gap-2" aria-label="비교 기준">
-          <button
-            type="button"
-            aria-pressed={!comparePrevious}
-            onClick={() => setComparePrevious(false)}
-            className={`rounded-lg px-3 py-2 text-xs ${!comparePrevious ? "bg-elevated text-ink" : "text-muted"}`}
-          >
-            원본 의류와 비교
-          </button>
-          <button
-            type="button"
-            aria-pressed={comparePrevious}
-            onClick={() => setComparePrevious(true)}
-            className={`rounded-lg px-3 py-2 text-xs ${comparePrevious ? "bg-elevated text-ink" : "text-muted"}`}
-          >
-            이전 컷과 비교
-          </button>
-        </fieldset>
-      )}
       <div className="comparison-stage">
         <div className="comparison-grid">
           <PhotoFrame
@@ -307,27 +285,17 @@ export default function GenerationPanel({
                   ? "작업 완료 후 원본 추가"
                   : "원본 사진 추가"
             }
-            images={
-              comparePrevious && result?.regenerationOf
-                ? [{ id: result.regenerationOf }]
-                : inputs
-            }
-            selectedId={
-              (comparePrevious ? result?.regenerationOf : source?.id) ??
-              undefined
-            }
+            images={inputs}
+            selectedId={source?.id}
             onSelect={setSourceId}
             onZoom={setZoom}
-            alt={`${product.name} ${comparePrevious ? "이전 컷" : "원본"} 비교`}
+            alt={`${product.name} 원본 비교`}
           />
           <PhotoFrame
             side="result"
             images={results.map((r) => r.asset)}
             selectedId={result?.asset.id}
-            onSelect={(id) => {
-              setSelected(id);
-              setComparePrevious(false);
-            }}
+            onSelect={setSelected}
             onZoom={setZoom}
             alt={`${product.name} 결과 비교`}
             mock={result?.mock}
