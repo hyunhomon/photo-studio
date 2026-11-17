@@ -261,3 +261,9 @@ source-only 실행에서 검색/상세/구독5GET·라이선스1POST·미디어1
 관련 새 단위16개를 포함해 전체156/156, format/lint/typecheck/build(진단/경고0), workerd binding·native OAuth/합성 provider HTTP 및 촬영6종을 통과했다. 첫 local 브라우저 검사는18/20이었으며, 새 업로드 검사의 같은 이름 버튼2개 strict locator 충돌이었다. submit으로 좁힌 최종 local20/20과 production20/20(wrapper exit0)이 통과했다. 개발 전용 Bun 테스트는 웹 번들 타입 범위와 분리한 tests/unit에 두고 공통 test 명령에 포함한다.
 
 c04225b commit/push 및 API/Workflow→웹 배포를 완료했다. 공개 HTTPS/보안/OAuth/반응형 smoke와 실제 Commons source-only 검색/다운로드/private R2·출처/AI attempts0도 통과했다. 실제 계정 인증과 별도 canary·untouched sentinel의 연결/세션 불변 확인 후 자기 합성 자료만 정리했다. 마지막 읽기에서 합성0·실제 계정1/연결1/세션2, Commons 기본·Shutterstock secret 미설치와 기존 암호화 secret 존재를 확인했다. 새 migration/고객 자료 초기화/secret 교체·실제 AI·stock 추가 발급·결제는 없다. 운영 outage와 이미 전송된 유료 호출을 없애거나 실제 이미지 품질이 개선됐다고 보장하는 변경은 아니다.
+
+## 2026-11-17 — 생성 지연과 선택적 보정 (ADR-039)
+
+사용자는 생성 오류 대신 오랜 대기라고 정정했고 Shutterstock 제거와 필요할 때 기존 결과를 Nano Banana로 추가 보정하도록 선택했다. 운영에서 Shutterstock가 비활성이었으므로 해당 소스를 지연 원인으로 단정하지 않는다. 저장된 성공 단계의38–56초와 전체 PNG 썸네일 전송을 분리한다. 미리보기 파생물은 private/owner 검사를 유지하며 원본과 혼합하지 않는다. 별도 소스 파일의 용량 benchmark는 실제 고객 속도 개선이나 생성 성공 재현으로 계산하지 않는다.
+
+Nano의 모델별1K/참조 capability와 현재 Images routing을 확인했다. 선택·실행한 추가 보정만 한 건이며 자동 두 번째 유료 호출이나 Pinterest 검색은 없다. 역사적 stock 권리 guard는 유지하고 새 production Shutterstock 선택은 거절한다. 실제 AI·stock 발급·결제·고객 자료 초기화·master secret 변경 없이 합성 검증과 배포를 수행하며 실사 품질 개선은 이후 실제 비교까지 미검증이다.

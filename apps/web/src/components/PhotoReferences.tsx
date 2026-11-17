@@ -108,7 +108,7 @@ export default function PhotoReferences({
               {asset ? (
                 <div className="group relative mt-4 w-fit">
                   <img
-                    src={`${apiBase}/api/v1/assets/${asset.id}/content`}
+                    src={`${apiBase}/api/v1/assets/${asset.id}/preview?size=160`}
                     alt={`${r.title} 사진`}
                     className="h-28 w-24 rounded-lg object-contain"
                   />

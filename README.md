@@ -81,6 +81,8 @@ tests/e2e         같은 시나리오의 local·production Mock 브라우저 검
 
 운영 배포/테스트는 인증 보존 guard를 실행하며, 별도 합성 인증 canary를 `bun run scripts/production-auth-canary.ts create` → 배포/테스트 → `verify` → `cleanup` 순서로 확인할 수 있습니다. 실제 계정 키로 inference하지 않습니다. 인증 해제는 명시적 로그아웃이며 lifecycle 원인을 가명 진단으로 최대30일 보관합니다.
 
-계약된 모델 착용컷 자동 검색은 Shutterstock 커넥터를 사용합니다(ADR-035). 승인된 Access Token·API Subscription ID·계약 버전/AI 참조 사용 범위를 서버 설정에 넣으면 분석→실사/모델 릴리즈 검색→라이선스 1회→같은 사진을 이용한 기획·생성이 이어집니다. 설정 도구는 `bun run setup:shutterstock`이며 해당 사용 범위를 확인한 운영자가 실행합니다. 키만으로 이용권이 생기지는 않습니다. [발급·계약·설정 가이드](docs/20-SHUTTERSTOCK-SETUP.md)를 따릅니다. 현재 `studio-v12-licensed-fashion` / `photo-v8-licensed-fashion`와 이전 snapshot 호환, 라이선스 무재시도 원장·원본 다운로드 차단·비학습 제공자 제한을 구현했습니다.
+Shutterstock 운영 활성화와 설정 명령은 사용자 요청으로 종료했습니다(ADR-039). 과거 라이선스 이력과 파생물의 사용권 guard는 보존합니다. 기존 무료 라이선스 검증 기록은 [역사적 설정 가이드](docs/20-SHUTTERSTOCK-SETUP.md)에 남기며, 운영 소스는 Commons입니다.
 
-무료 컬렉션 파일럿은 ADR-036/037을 따릅니다. 실제 무료 구독의 인증·라이선스1건·JPEG 다운로드/디코딩·이력/할당량 대조까지 검증했습니다. 정확한 공식 무료 상품만 optional 가격 생략을 허용하고 유료/모호한 구독은 차단합니다. `bun run shutterstock:preflight`는 GET 전용이며 `bun run shutterstock:license:verify --execute-free-license`는 별도 source-only 실행 도구입니다. 현재는 사용자별 API 약관/식별·연락 정보와 외부 AI 사용 범위에 대한 공급자 회신을 기다리며 Shutterstock 운영 활성화를 보류합니다. 운영 소스는 Commons를 유지하고 실제 Shutterstock 사진을 이용한 AI 기획·생성 품질은 미검증입니다.
+기존 결과의 ‘이 컷 개선’에서 보정 모델을 ‘Nano Banana 2 · 추가 보정’으로 선택할 수 있습니다. 실행 클릭 한 번에 원본 의류·선택 참조·이전 결과를 전달하는 1K 보정 한 건만 요청합니다. 기본 생성은 기존 모델이며 자동 두 번째 호출은 없습니다. `studio-v13-optional-refinement`로 구분하고 모델·단계·지시·이전 결과·비용을 기록합니다. 실제 Nano Banana 품질/속도는 합성 검증과 구별하며 자동 Pinterest 검색은 없습니다.
+
+화면은 소유권을 확인한 private R2 미리보기(썸네일160px, 본문1024px)를 사용합니다. 불투명 사진은 JPEG, 투명 사진은 PNG로 제공하며 확대·다운로드·AI 근거에는 저장된 전체 PNG를 사용합니다. 상품/계정/사진 삭제 시 파생 파일도 정리합니다. 미리보기 최적화는 외부 AI 생성 시간을 줄였다는 의미가 아닙니다.

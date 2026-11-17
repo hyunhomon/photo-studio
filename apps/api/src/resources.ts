@@ -19,7 +19,7 @@ import { z } from "zod";
 import { rateLimit } from "./auth";
 import type { AppContext, Env } from "./env";
 import { AppError, notFound } from "./errors";
-import { normalizeImage } from "./images";
+import { normalizeImage, previewImage } from "./images";
 import {
   clearObjectQueue,
   deleteObject,
@@ -461,6 +461,49 @@ export function resourceRoutes(deps: ResourceDeps = {}) {
     await ownedProduct(env, owner, asset.productId);
     return asset;
   }
+  api.get("/assets/:id/preview", async (c) => {
+    const asset = await assetOwned(
+      c.env,
+      c.get("identity").userId,
+      c.req.param("id"),
+    );
+    const size = c.req.query("size") === "160" ? 160 : 1024;
+    const key = `${asset.r2Key}.preview-v1-${size}`;
+    const cached = await c.env.ASSETS.get(key);
+    const headers = {
+      "Cache-Control": "private, no-store",
+      "X-Content-Type-Options": "nosniff",
+      "Content-Security-Policy": "default-src 'none'; sandbox",
+    };
+    if (cached)
+      return new Response(cached.body, {
+        headers: {
+          ...headers,
+          "Content-Type": cached.httpMetadata?.contentType ?? "image/png",
+        },
+      });
+    const original = await c.env.ASSETS.get(asset.r2Key);
+    if (!original) throw notFound();
+    const image = await previewImage(
+      new Uint8Array(await original.arrayBuffer()),
+      asset.mimeType,
+      size,
+    );
+    await queueObject(c.env, key);
+    await c.env.ASSETS.put(key, image.bytes, {
+      httpMetadata: { contentType: image.mimeType },
+    });
+    try {
+      await assetOwned(c.env, c.get("identity").userId, asset.id);
+      await clearObjectQueue(c.env, key);
+    } catch (error) {
+      await deleteObject(c.env, key);
+      throw error;
+    }
+    return new Response(image.bytes, {
+      headers: { ...headers, "Content-Type": image.mimeType },
+    });
+  });
   for (const type of ["content", "download"] as const)
     api.get(`/assets/:id/${type}`, async (c) => {
       const asset = await assetOwned(
@@ -517,6 +560,11 @@ export function resourceRoutes(deps: ResourceDeps = {}) {
       "id=? AND user_id=? AND EXISTS(SELECT 1 FROM products p JOIN users u ON u.id=p.user_id WHERE p.id=assets.product_id AND p.user_id=assets.user_id AND p.status='ready' AND u.status='active') AND NOT EXISTS(SELECT 1 FROM generation_jobs j WHERE j.product_id=assets.product_id AND j.user_id=assets.user_id" +
       (asset.kind === "input" ? ")" : " AND j.status IN ('queued','running'))");
     const deleted = await c.env.DB.batch([
+      ...[160, 1024].map((size) =>
+        c.env.DB.prepare(
+          `INSERT INTO storage_cleanup(key,expires_at) SELECT r2_key || ?,? FROM assets WHERE ${removable} ON CONFLICT(key) DO UPDATE SET expires_at=excluded.expires_at`,
+        ).bind(`.preview-v1-${size}`, Date.now() + 600000, asset.id, owner),
+      ),
       c.env.DB.prepare(
         `INSERT INTO storage_cleanup(key,expires_at) SELECT r2_key,? FROM assets WHERE ${removable} ON CONFLICT(key) DO UPDATE SET expires_at=excluded.expires_at`,
       ).bind(Date.now() + 600000, asset.id, owner),
@@ -525,7 +573,7 @@ export function resourceRoutes(deps: ResourceDeps = {}) {
         owner,
       ),
     ]);
-    if (!deleted[1]?.meta.changes)
+    if (!deleted[3]?.meta.changes)
       throw new AppError(
         asset.kind === "input" ? "SOURCES_LOCKED" : "JOB_CONFLICT",
         asset.kind === "input"
@@ -534,6 +582,8 @@ export function resourceRoutes(deps: ResourceDeps = {}) {
         409,
       );
     try {
+      for (const size of [160, 1024])
+        await deleteObject(c.env, `${asset.r2Key}.preview-v1-${size}`);
       await deleteObject(c.env, asset.r2Key);
     } catch {
       // The file is no longer accessible through the app. The committed intent

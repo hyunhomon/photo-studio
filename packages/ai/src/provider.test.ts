@@ -8,6 +8,68 @@ import {
 import { mockAnalysisFixture } from "./fixtures";
 import { presetInputSchema } from "@photo-studio/schemas";
 
+test("Nano Banana optional second pass uses its supported 1K parameters, original and previous pixels, with one call and no fallback", async () => {
+  let calls = 0;
+  const model = "google/gemini-3.1-flash-image";
+  const transport = Object.assign(
+    async (_url: unknown, init?: RequestInit) => {
+      if (!init?.body)
+        return Response.json({
+          data: [
+            {
+              id: model,
+              architecture: {
+                input_modalities: ["image"],
+                output_modalities: ["image"],
+              },
+              supported_parameters: {
+                aspect_ratio: { values: ["3:4"] },
+                resolution: { values: ["1K"] },
+                n: { min: 1, max: 1 },
+                input_references: { max: 14 },
+              },
+            },
+          ],
+        });
+      calls++;
+      const body = JSON.parse(String(init.body));
+      expect(body.resolution).toBe("1K");
+      expect(body.quality).toBeUndefined();
+      expect(body.output_format).toBeUndefined();
+      expect(body.provider).toMatchObject({
+        allow_fallbacks: false,
+        data_collection: "deny",
+      });
+      expect(
+        body.input_references.map(
+          (x: { image_url: { url: string } }) => x.image_url.url,
+        ),
+      ).toEqual(["original", "previous"]);
+      expect(body.prompt).toContain("SECOND PASS");
+      return Response.json({
+        data: [{ b64_json: btoa("synthetic-png"), media_type: "image/png" }],
+        usage: { cost: 0.01 },
+      });
+    },
+    { preconnect: fetch.preconnect },
+  ) as typeof fetch;
+  const adapter = openRouterAdapter(
+    "synthetic-key",
+    "https://synthetic.invalid",
+    transport,
+  );
+  await adapter.preflight(model, "generation", "medium", 2);
+  const result = await adapter.generate(
+    model,
+    ["original"],
+    mockPlan(mockAnalysisFixture),
+    "medium",
+    { previousImage: "previous", reason: "material_rendering" },
+  );
+  expect(calls).toBe(1);
+  expect(result.usage.actualCostUsd).toBe(0.01);
+});
+
 test("licensed fashion pixels reach planning and generation with supported non-training routing and original evidence priority", async () => {
   const stages: string[] = [];
   const stockPixels = "synthetic-licensed-fashion-pixels";

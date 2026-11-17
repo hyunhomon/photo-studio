@@ -147,6 +147,7 @@ export default function GenerationPanel({
     setOpen(true);
   }
   const submitting = useRef(false);
+  const [refinement, setRefinement] = useState(false);
   async function submit(id: string | null, fromRevision = false) {
     if (busy || active || submitting.current || !plan) return;
     submitting.current = true;
@@ -175,6 +176,7 @@ export default function GenerationPanel({
               quality,
               adjustments: fromRevision ? note : "",
               count: 1,
+              refinement: fromRevision && refinement,
               regenerationOf: id,
               regenerationReason: id ? reason : null,
               personReferenceId: person ? (personReference?.id ?? null) : null,
@@ -348,6 +350,15 @@ export default function GenerationPanel({
           </p>
         )}
         <div className="mt-5 space-y-4">
+          <Select
+            label="보정 모델"
+            value={refinement ? "nano" : "standard"}
+            onChange={(v) => setRefinement(v === "nano")}
+            options={[
+              { value: "standard", label: "기본 모델" },
+              { value: "nano", label: "Nano Banana 2 · 추가 보정" },
+            ]}
+          />
           <Select
             label="개선할 항목"
             value={reason}

@@ -29,7 +29,7 @@ for (const kind of ["input", "generated", "person_reference"] as const) {
     expect(response.status).toBe(202);
     expect(response.data).toEqual({ deleted: true, cleanupPending: true });
     expect(count(s, "assets")).toBe(0);
-    expect(count(s, "storage_cleanup")).toBe(1);
+    expect(count(s, "storage_cleanup")).toBe(3);
     expect(s.objects.size).toBe(1);
     const content = await s.app.request(
       `/api/v1/assets/${asset.id}/content`,
@@ -39,7 +39,7 @@ for (const kind of ["input", "generated", "person_reference"] as const) {
     expect(content.status).toBe(404);
     s.sqlite.exec("UPDATE storage_cleanup SET expires_at=0");
     await cleanupStorage(s.env);
-    expect(count(s, "storage_cleanup")).toBe(1);
+    expect(count(s, "storage_cleanup")).toBe(3);
     s.env.ASSETS.delete = remove;
     await cleanupStorage(s.env);
     expect(count(s, "storage_cleanup")).toBe(0);

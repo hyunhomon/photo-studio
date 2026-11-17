@@ -103,7 +103,7 @@ async function mockApi(
       return json(route, { plans: [], jobs: [] });
     if (path === `${productPath}/results` || path === "/api/v1/presets")
       return json(route, []);
-    if (/^\/api\/v1\/assets\/[^/]+\/content$/.test(path))
+    if (/^\/api\/v1\/assets\/[^/]+\/(content|preview)$/.test(path))
       return route.fulfill({
         contentType: "image/png",
         body: Buffer.from(syntheticPng(64, 80)),

@@ -51,6 +51,7 @@ export interface GenerationSnapshot extends PlanSnapshot {
   planId: string;
   plan: ShootPlan;
   quality: "medium" | "high";
+  refinement?: boolean;
   regenerationOf: string | null;
   regenerationReason: string | null;
   adjustments?: string;
@@ -394,6 +395,7 @@ export function generationRoutes() {
       planId: plan.id,
       plan: generationSpec,
       quality: input.quality,
+      refinement: input.refinement,
       regenerationOf: input.regenerationOf,
       regenerationReason: input.regenerationReason,
       adjustments: input.adjustments,
@@ -417,7 +419,9 @@ export function generationRoutes() {
       analysisModel: c.env.OPENROUTER_ANALYSIS_MODEL,
       imageModel: identity.isTest
         ? "mock/reference-copy-v1"
-        : c.env.OPENROUTER_IMAGE_MODEL,
+        : input.refinement
+          ? "google/gemini-3.1-flash-image"
+          : c.env.OPENROUTER_IMAGE_MODEL,
     };
     // consent is recorded by job.createdAt; the hashed snapshot stays deterministic for retries.
     const job = await insertJob(

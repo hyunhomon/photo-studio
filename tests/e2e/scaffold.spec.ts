@@ -796,6 +796,10 @@ test("Mock: direct multi-photo upload, reference planning, compare, revise, expo
     .getByRole("option", { name: "로우 앵글 · 아래에서 위로", exact: true })
     .click();
   await page.getByRole("button", { name: "이 컷 개선", exact: true }).click();
+  await page.getByRole("button", { name: "보정 모델", exact: true }).click();
+  await page
+    .getByRole("option", { name: "Nano Banana 2 · 추가 보정", exact: true })
+    .click();
   await page.getByRole("button", { name: "개선할 항목", exact: true }).click();
   await page
     .getByRole("option", {
@@ -807,9 +811,15 @@ test("Mock: direct multi-photo upload, reference planning, compare, revise, expo
     .getByLabel("이번 컷에 반영할 요청 (선택)")
     .fill("Synthetic relaxed expression revision");
   await expect(page.getByRole("checkbox")).toHaveCount(0);
+  const refinementRequest = page.waitForRequest(
+    (request) =>
+      request.method() === "POST" &&
+      request.url().endsWith(`/products/${productId}/generate`),
+  );
   await page
     .getByRole("button", { name: "수정해서 생성", exact: true })
     .click();
+  expect((await refinementRequest).postDataJSON().refinement).toBe(true);
   await waitForWorkflow(
     page,
     page.getByRole("button", { name: "결과 2 선택", exact: true }),

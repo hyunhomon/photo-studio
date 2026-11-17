@@ -1,10 +1,12 @@
 import decodePng, { init as initPng } from "@jsquash/png/decode.js";
 import encodePng, { init as initPngEncode } from "@jsquash/png/encode.js";
 import decodeJpeg, { init as initJpeg } from "@jsquash/jpeg/decode.js";
+import encodeJpeg, { init as initJpegEncode } from "@jsquash/jpeg/encode.js";
 import decodeWebp, { init as initWebp } from "@jsquash/webp/decode.js";
 // @ts-expect-error wasm-bindgen declares named exports; Wrangler imports the precompiled module as default.
 import PNG from "@jsquash/png/codec/pkg/squoosh_png_bg.wasm";
 import JPEG from "@jsquash/jpeg/codec/dec/mozjpeg_dec.wasm";
+import JPEG_ENCODE from "@jsquash/jpeg/codec/enc/mozjpeg_enc.wasm";
 import WEBP from "@jsquash/webp/codec/dec/webp_dec.wasm";
 import { inspectImage, maxImageBytes } from "./image-meta";
 import { AppError } from "./errors";
@@ -18,8 +20,29 @@ async function wasm(value: WebAssembly.Module) {
   throw new Error("Image codec unavailable");
 }
 let pngReady: Promise<unknown> | undefined,
+  jpegEncodeReady: Promise<unknown> | undefined,
   jpegReady: Promise<unknown> | undefined,
   webpReady: Promise<unknown> | undefined;
+/** Display derivatives only: AI evidence and downloads retain the full PNG. */
+export async function previewImage(
+  input: Uint8Array,
+  declared: string,
+  size: number,
+) {
+  const normalized = await normalizeImage(input, declared, size);
+  const decoded = await decodePng(new Uint8Array(normalized.bytes).buffer);
+  for (let i = 3; i < decoded.data.length; i += 4)
+    if (decoded.data[i] !== 255) return normalized;
+  jpegEncodeReady ??= wasm(JPEG_ENCODE).then((module) =>
+    initJpegEncode(module),
+  );
+  await jpegEncodeReady;
+  return {
+    ...normalized,
+    bytes: new Uint8Array(await encodeJpeg(decoded, { quality: 88 })),
+    mimeType: "image/jpeg",
+  };
+}
 export async function normalizeImage(
   input: Uint8Array,
   declared = "",
@@ -59,8 +82,8 @@ export async function normalizeImage(
       const width = Math.max(1, Math.round(decoded.width * ratio));
       const height = Math.max(1, Math.round(decoded.height * ratio));
       const data = new Uint8ClampedArray(width * height * 4);
-      // Bounded bilinear downsampling for licensed reference inputs only. Full
-      // garment evidence and generated images retain their original dimensions.
+      // Bounded downsampling for references/display derivatives only. Stored
+      // garment evidence and generated originals retain their dimensions.
       for (let y = 0; y < height; y++) {
         const sy = Math.max(0, (y + 0.5) / ratio - 0.5);
         const y0 = Math.min(decoded.height - 1, Math.floor(sy));

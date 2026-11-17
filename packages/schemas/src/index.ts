@@ -253,6 +253,7 @@ export const generateRequestSchema = z
     useAutomaticReference: z.boolean().default(true),
     quality: z.enum(["medium", "high"]),
     count: z.literal(1),
+    refinement: z.boolean().default(false),
     regenerationOf: z.uuid().nullable().default(null),
     regenerationReason: rejectionReasonSchema.nullable().default(null),
     adjustments: z.string().trim().max(1000).default(""),
@@ -261,6 +262,9 @@ export const generateRequestSchema = z
     referenceConsent: z.boolean().default(false),
   })
   .strict()
+  .refine((v) => !v.refinement || Boolean(v.regenerationOf), {
+    message: "Refinement requires a previous generated image",
+  })
   .refine((v) => Boolean(v.regenerationOf) === Boolean(v.regenerationReason), {
     message: "Regeneration requires a source and reason",
   })

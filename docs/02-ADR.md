@@ -312,3 +312,11 @@
 - 전역 점검에서 취소/삭제와 유료 단계 claim 사이 경합을 재현했다. 활성 job/product/user를 같은 D1 batch의 조건부 claim/running 전환에 적용하고 실제 호출 직전에 다시 확인한다. 분석/기획 저장과 최종 완료 전환도 같은 활성 조건을 검사한다. 취소를 running/completed로 되살리지 않는다. 이미 외부로 전송된 요청의 과금 취소를 보장하는 것은 아니며, 수신한 성공/비용은 보존하고 호출하지 않은 취소와 응답 미확인을 구별한다. 자동 유료 재시도는 계속 금지한다.
 - 단일 asset 삭제는 owner/작업/원본 이력 조건을 원자적으로 재확인하고 DB 행 제거와 R2 cleanup intent를 함께 commit한다. 이후 R2 삭제가 실패하면 202 `{deleted:true,cleanupPending:true}`를 반환한다. 앱에서 즉시 접근 불가이며 cron이 비공개 파일을 정리한다. 정상 업로드의 지연 cleanup이 유효 asset을 삭제하지 않는 기존 보호는 유지한다. 새 migration/사용자 자료 초기화는 없다.
 - 상품 조회 실패는 무한 skeleton 대신 재시도 가능한 오류로 끝낸다. 상품/기획 조회의 늦은 응답은 최신 상태나 새 업로드 결과를 덮어쓰지 않는다. 업로드 POST 중에는 dialog를 닫지 않는다. 네트워크/timeout/잘못된 응답은 고정 문구로 표시하고 mutation을 재전송하지 않는다. 실제 API의 UNAUTHENTICATED/401 envelope만 OAuth로 연결하며 proxy HTML401은 복구 가능한 서버 오류다.
+
+## ADR-039: Shutterstock 종료·경량 미리보기·선택적 Nano Banana 보정 — Accepted (사용자 지정, 2026-11-17)
+
+- 사용자는 오류 없이 생성/로딩이 오래 걸린다고 정정하고 Shutterstock 제거 및 기존 결과를 필요할 때 Nano Banana로 추가 보정하는 흐름을 선택했다. 운영 Shutterstock는 애초 미활성으로 지연의 원인으로 확인되지 않았다. 설정 명령을 제거하고 production source 선택을 차단한다. 역사적 원장/계약/파생물 guard는 보존하며 Commons와 사용자 참조는 유지한다.
+- 최근 저장된 성공 생성4건의 외부 단계는 약38–56초, 생성 파일6건 평균 약4.5MB였다. 썸네일까지 전체 PNG를 요청하던 전송 경로를 개선한다. owner 확인 후 private R2에160/1024px 파생물을 저장하고 불투명 JPEG88/투명 PNG를 제공한다. 매 요청 인증·소유권/no-store를 유지한다. 사진 삭제와 cleanup intent에 두 파생물을 포함한다. 전체 근거·확대·다운로드는 변경하지 않는다. 이 개선을 모델 추론 시간 단축으로 주장하지 않는다.
+- 기본 생성은 기존 gpt-image-2 설정을 따른다. ‘이 컷 개선’의 명시적 모델 선택/실행으로만 google/gemini-3.1-flash-image(Nano Banana 2)를1K로 호출한다. 기존 결과/소유권과 개선 축이 필수이며 원본·참조·이전 결과 순서를 유지한다. 이전 인물/포즈/구도를 보존하며 요청한 축과 원단·국소 조명·접촉 그림자를 수정하도록 지시한다. prompt studio-v13, 기존 capture protocol과 lineage/비용/무재시도 원장을 유지한다. Mock 계정은 계속 Mock만 실행한다.
+- [OpenRouter Images 공식 문서](https://openrouter.ai/docs/guides/overview/multimodal/image-generation)와 공개 모델 목록에서 image input/output·3:4·1K·참조 수를 확인했다. Nano가 지원하지 않는 quality/output_format은 보내지 않고 실제 PNG/JPEG/WebP를 검증·PNG 정규화한다. data_collection deny/no fallback을 설정하며 stock 파생물의 기존 OpenAI 한정 정책은 확대하지 않는다. 사전 capability 확인 외 AI 호출은 실행 클릭에만 발생한다.
+- [Google 공식 설명](https://deepmind.google/models/gemini-image/flash/)의 웹/이미지 검색 기능은 Pinterest 자동 사용의 근거가 아니다. 이번 OpenRouter 참조 픽셀 요청에 검색 도구나 웹 grounding을 연결했다고 주장하지 않는다. 실제 Nano 품질·속도·얼굴 보존은 사용자 실행 비교 전 미검증이다. 검증에는 합성 provider와 Mock만 사용하며 유료 AI·라이선스 발급·결제는 하지 않는다.

@@ -34,6 +34,8 @@ export type AutomaticReferenceProvider = "wikimedia_commons" | "shutterstock";
 export function automaticReferenceProvider(
   env: Env,
 ): AutomaticReferenceProvider {
+  if (env.APP_ENV === "production" && env.REFERENCE_SOURCE === "shutterstock")
+    throw new ProviderError("SHUTTERSTOCK_RETIRED");
   if (!env.REFERENCE_SOURCE || env.REFERENCE_SOURCE === "wikimedia_commons")
     return "wikimedia_commons";
   if (env.REFERENCE_SOURCE === "shutterstock") return "shutterstock";
@@ -44,6 +46,8 @@ export function validateAutomaticReferenceConfig(
   isTest: boolean,
   provider = automaticReferenceProvider(env),
 ) {
+  if (env.APP_ENV === "production" && provider === "shutterstock")
+    throw new ProviderError("SHUTTERSTOCK_RETIRED");
   if (!isTest && provider === "shutterstock") readShutterstockSettings(env);
 }
 /** The current contract must still authorize both new work and paid revisions. */

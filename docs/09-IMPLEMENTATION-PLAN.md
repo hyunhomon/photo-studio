@@ -394,3 +394,14 @@ production desktop/mobile 전체 Mock E2E **4/4 통과**: 저장된 분석 재�
 이번 작업은 실제 AI/stock 발급·유료 결제0회를 유지한다. Shutterstock는 공급자 회신 전 미활성, Commons 기본과 기존 사용자 자료/master secret은 보존한다. 새 DB migration/초기화는 없다.
 
 마지막 read-only 설정/집계는 Shutterstock token/source 미설치·기존 암호화 secret 존재, 합성 계정0·실제 계정1/연결1/세션2였다. 코드 commit/push c04225b와 운영 검증 기록 commit을 구별한다. 진단/린트 경고0이며 Playwright 실행기의 NO_COLOR/FORCE_COLOR 환경 경고는 검사 실패가 아니다. 실제 키 회전/운영 복구 리허설이나 실사 품질 합격을 이번 회귀 성공으로 표시하지 않는다.
+
+### 생성 지연·표시 전송·선택적 보정 — 2026-11-17 (ADR-039)
+
+- [x] 최근 저장된 성공 생성의 단계 시간/파일 크기를 비식별 집계로 확인. 최근 성공4건38–56초, 생성6건 평균4.5MB. 현 시점 새 실패는 재현하지 않았고 사용자는 ‘오류 없이 오래 걸림’으로 정정했다. 운영 Shutterstock 미활성으로 원인 오인 방지.
+- [x] owner 인증 미리보기160/1024px·private R2 cache·JPEG/투명 PNG와 파생물 삭제/권한 회귀 구현. AI/확대/다운로드 원본 보존. 별도 로컬 소스 표본873,924bytes→160px4,224bytes/1024px51,122bytes이며 실제 고객 사진이나 전체 운영 지연의 측정값이 아니다.
+- [x] 사용자 선택 Nano Banana 2 보정1K·기존 결과 필수·명시적 실행·원본 우선·무재시도/비용/lineage 유지. 실제 모델 공개 metadata를 읽었고 생성은 합성 응답으로만 검증한다.
+- [x] Shutterstock 활성화 명령 제거/production 차단. 기존 자료/원장/권리 guard, Commons/암호화 키 유지.
+- [ ] 최종 check·로컬/운영 브라우저·workerd·배포·기존 인증 보존 검증.
+- [ ] 실제 Nano Banana 보정의 자연스러움/원단·그림자/동일인물 보존과 속도 비교. 실제 AI 호출 없이 완료로 표시하지 않는다.
+
+배포 전 검증은 format/lint/typecheck/unit160/160/build(진단·린트 경고0), native workerd binding과 OAuth/합성 provider HTTP, local desktop/mobile Mock20/20을 통과했다. 기존 결과에서 Nano 선택 요청값도 브라우저로 확인했고 실제 계정으로 AI를 실행하지 않았다. 합성 화면 캡처를 확인했으며 실제 사진 보정 효과로 계산하지 않는다.

@@ -140,6 +140,44 @@ test("generation consent, nullable costs, retired feedback and directed regenera
     s.sqlite.query("SELECT count(*) n FROM generation_attempts").get(),
   ).toEqual({ n: 0 });
 });
+test("explicit second pass snapshots Nano and owned previous image without invoking inference", async () => {
+  const s = await ready();
+  const first = (await s.generate()).data;
+  await runGenerationStage(s.env, first.id, "generation");
+  const result = (
+    await s.call<ResultDto[]>(`/products/${s.product.id}/results`)
+  ).data[0];
+  if (!result) throw new Error("Missing synthetic result");
+  // Only the in-memory fixture changes identity. The workflow binding records
+  // submissions and never executes a real provider request.
+  s.sqlite.run("UPDATE users SET is_test=0");
+  const second = await s.call<JobDto>(
+    `/products/${s.product.id}/generate`,
+    "POST",
+    {
+      ...s.input,
+      idempotencyKey: crypto.randomUUID(),
+      refinement: true,
+      regenerationOf: result.asset.id,
+      regenerationReason: "material_rendering",
+    },
+  );
+  expect(second.status).toBe(202);
+  const row = s.sqlite
+    .query("SELECT request_json FROM generation_jobs WHERE id=?")
+    .get(second.data.id) as { request_json: string };
+  expect(JSON.parse(row.request_json)).toMatchObject({
+    imageModel: "google/gemini-3.1-flash-image",
+    refinement: true,
+    regenerationOf: result.asset.id,
+  });
+  expect(
+    s.sqlite
+      .query("SELECT count(*) AS n FROM generation_attempts WHERE job_id=?")
+      .get(second.data.id),
+  ).toEqual({ n: 0 });
+});
+
 test("R2 failure after paid response retains reported cost and never repeats generation", async () => {
   const s = await ready();
   await s.approve();

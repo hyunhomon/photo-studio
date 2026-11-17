@@ -83,7 +83,7 @@ export default function AutomaticReferencePreview({
         </span>
       </div>
       <img
-        src={`${apiBase}/api/v1/assets/${reference.assetId}/content`}
+        src={`${apiBase}/api/v1/assets/${reference.assetId}/preview?size=160`}
         alt="자동으로 찾은 촬영 레퍼런스"
         className="max-h-64 w-full rounded-lg object-contain"
       />
