@@ -356,7 +356,7 @@ describe("private standalone products and uploads", () => {
     });
     expect(
       sqlite.query("SELECT count(*) n FROM storage_cleanup").get(),
-    ).toEqual({ n: 1 });
+    ).toEqual({ n: 5 });
     failure.mockRestore();
     expect(
       (

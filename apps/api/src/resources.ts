@@ -19,7 +19,13 @@ import { z } from "zod";
 import { rateLimit } from "./auth";
 import type { AppContext, Env } from "./env";
 import { AppError, notFound } from "./errors";
-import { normalizeImage, previewImage } from "./images";
+import { normalizeImage } from "./images";
+import { ensurePreviews } from "./media-preview";
+import {
+  previewSuffix,
+  previewDeletionSuffixes,
+  previewCacheControl,
+} from "./preview-policy";
 import {
   clearObjectQueue,
   deleteObject,
@@ -169,7 +175,12 @@ export function resourceRoutes(deps: ResourceDeps = {}) {
       .bind(`${userId}/%`)
       .all<{ key: string }>();
     await deleteObjects(env, [
-      ...rows.filter((a) => owned.has(a.productId)).map((a) => a.key),
+      ...rows
+        .filter((a) => owned.has(a.productId))
+        .flatMap((a) => [
+          a.key,
+          ...previewDeletionSuffixes.map((suffix) => a.key + suffix),
+        ]),
       ...pending.results
         .filter((a) => owned.has(a.key.split("/")[1] ?? ""))
         .map((a) => a.key),
@@ -492,14 +503,28 @@ export function resourceRoutes(deps: ResourceDeps = {}) {
     return c.json({ data: (await productDto(c.env, product)).assets });
   });
   async function assetOwned(env: Env, owner: string, id: string) {
-    const asset = await createDb(env.DB)
-      .select()
+    const row = await createDb(env.DB)
+      .select({ asset: assets, status: products.status })
       .from(assets)
+      .innerJoin(
+        products,
+        and(
+          eq(products.id, assets.productId),
+          eq(products.userId, assets.userId),
+        ),
+      )
       .where(and(eq(assets.id, id), eq(assets.userId, owner)))
       .get();
-    if (!asset) throw notFound();
-    await ownedProduct(env, owner, asset.productId);
-    return asset;
+    if (!row) throw notFound();
+    if (row.status !== "ready")
+      throw new AppError(
+        row.status === "deleting" ? "PRODUCT_DELETING" : "PRODUCT_NOT_READY",
+        row.status === "deleting"
+          ? "삭제 중인 상품입니다."
+          : "사진 저장이 끝난 뒤 다시 실행해 주세요.",
+        409,
+      );
+    return row.asset;
   }
   api.get("/assets/:id/preview", async (c) => {
     const asset = await assetOwned(
@@ -507,40 +532,41 @@ export function resourceRoutes(deps: ResourceDeps = {}) {
       c.get("identity").userId,
       c.req.param("id"),
     );
-    const size = c.req.query("size") === "160" ? 160 : 1024;
-    const key = `${asset.r2Key}.preview-v1-${size}`;
-    const cached = await c.env.ASSETS.get(key);
+    const size = c.req.query("size") === "160" ? 160 : 960;
+    const key = asset.r2Key + previewSuffix(size);
+    const etag = `"${previewSuffix(size)}:${asset.id}"`;
     const headers = {
-      "Cache-Control": "private, no-store",
+      "Cache-Control": previewCacheControl,
+      ETag: etag,
+      Vary: "Cookie, Origin",
       "X-Content-Type-Options": "nosniff",
       "Content-Security-Policy": "default-src 'none'; sandbox",
     };
-    if (cached)
+    // Revalidate ownership on every request, including conditional cache hits.
+    if (
+      c.req
+        .header("If-None-Match")
+        ?.split(",")
+        .some((value) => value.trim().replace(/^W\//, "") === etag)
+    ) {
+      c.header("Cache-Control", previewCacheControl);
+      return new Response(null, { status: 304, headers });
+    }
+    const cached = await c.env.ASSETS.get(key);
+    if (cached) {
+      c.header("Cache-Control", previewCacheControl);
       return new Response(cached.body, {
         headers: {
           ...headers,
           "Content-Type": cached.httpMetadata?.contentType ?? "image/png",
         },
       });
-    const original = await c.env.ASSETS.get(asset.r2Key);
-    if (!original) throw notFound();
-    const image = await previewImage(
-      new Uint8Array(await original.arrayBuffer()),
-      asset.mimeType,
-      size,
-      asset.kind === "generated",
-    );
-    await queueObject(c.env, key);
-    await c.env.ASSETS.put(key, image.bytes, {
-      httpMetadata: { contentType: image.mimeType },
-    });
-    try {
-      await assetOwned(c.env, c.get("identity").userId, asset.id);
-      await clearObjectQueue(c.env, key);
-    } catch (error) {
-      await deleteObject(c.env, key);
-      throw error;
     }
+    const image = (await ensurePreviews(c.env, asset)).find(
+      (p) => p.size === size,
+    );
+    if (!image) throw notFound();
+    c.header("Cache-Control", previewCacheControl);
     return new Response(image.bytes, {
       headers: { ...headers, "Content-Type": image.mimeType },
     });
@@ -601,10 +627,10 @@ export function resourceRoutes(deps: ResourceDeps = {}) {
       "id=? AND user_id=? AND EXISTS(SELECT 1 FROM products p JOIN users u ON u.id=p.user_id WHERE p.id=assets.product_id AND p.user_id=assets.user_id AND p.status='ready' AND u.status='active') AND NOT EXISTS(SELECT 1 FROM generation_jobs j WHERE j.product_id=assets.product_id AND j.user_id=assets.user_id" +
       (asset.kind === "input" ? ")" : " AND j.status IN ('queued','running'))");
     const deleted = await c.env.DB.batch([
-      ...[160, 1024].map((size) =>
+      ...previewDeletionSuffixes.map((suffix) =>
         c.env.DB.prepare(
           `INSERT INTO storage_cleanup(key,expires_at) SELECT r2_key || ?,? FROM assets WHERE ${removable} ON CONFLICT(key) DO UPDATE SET expires_at=excluded.expires_at`,
-        ).bind(`.preview-v1-${size}`, Date.now() + 600000, asset.id, owner),
+        ).bind(suffix, Date.now() + 600000, asset.id, owner),
       ),
       c.env.DB.prepare(
         `INSERT INTO storage_cleanup(key,expires_at) SELECT r2_key,? FROM assets WHERE ${removable} ON CONFLICT(key) DO UPDATE SET expires_at=excluded.expires_at`,
@@ -614,7 +640,7 @@ export function resourceRoutes(deps: ResourceDeps = {}) {
         owner,
       ),
     ]);
-    if (!deleted[3]?.meta.changes)
+    if (!deleted[previewDeletionSuffixes.length + 1]?.meta.changes)
       throw new AppError(
         asset.kind === "input" ? "SOURCES_LOCKED" : "JOB_CONFLICT",
         asset.kind === "input"
@@ -623,8 +649,8 @@ export function resourceRoutes(deps: ResourceDeps = {}) {
         409,
       );
     try {
-      for (const size of [160, 1024])
-        await deleteObject(c.env, `${asset.r2Key}.preview-v1-${size}`);
+      for (const suffix of previewDeletionSuffixes)
+        await deleteObject(c.env, asset.r2Key + suffix);
       await deleteObject(c.env, asset.r2Key);
     } catch {
       // The file is no longer accessible through the app. The committed intent

@@ -28,8 +28,8 @@ export default function PhotoFrame({
   addTitle?: string;
 }) {
   const selected = images.find((a) => a.id === selectedId) ?? images[0];
-  const url = (id: string, size = 1024) =>
-    `${apiBase}/api/v1/assets/${id}/preview?size=${size}`;
+  const url = (id: string, size?: number) =>
+    `${apiBase}/api/v1/assets/${id}/preview${size ? `?size=${size}` : ""}`;
   return (
     <figure
       className={`photo-frame ${side === "result" ? "result-frame" : ""}`}
@@ -37,7 +37,7 @@ export default function PhotoFrame({
     >
       <div className="photo-display">
         {selected ? (
-          <img src={url(selected.id)} alt={alt} />
+          <img src={url(selected.id)} alt={alt} decoding="async" />
         ) : (
           <Image
             size={28}

@@ -435,6 +435,7 @@ export default function PlanningPanel({
 }) {
   const requestId = useRef(crypto.randomUUID());
   const refreshSequence = useRef(0);
+  const lastSnapshot = useRef("");
   const scroll = useRef<HTMLDivElement>(null);
   const [tab, setTab] = useState(0);
   const [referenceMode, setReferenceMode] = useState<
@@ -457,20 +458,29 @@ export default function PlanningPanel({
       const d = await request<PipelineDto>(
         `/api/v1/products/${product.id}/pipeline`,
       );
-      if (sequence !== refreshSequence.current) return;
+      if (sequence !== refreshSequence.current) return false;
+      const snapshot = JSON.stringify(d);
+      if (lastSnapshot.current === snapshot) return false;
+      lastSnapshot.current = snapshot;
       setData(d);
       onPipeline?.(d);
+      return true;
     } catch (e) {
       if (sequence === refreshSequence.current) throw e;
     }
   }, [product.id, onPipeline]);
-  // biome-ignore lint/correctness/useExhaustiveDependencies: parent refresh signals a mutation made in the separate generation panel.
+  const productVersion = JSON.stringify([
+    product.id,
+    product.analysis,
+    product.assets.map((a) => a.id),
+  ]);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: refresh only when product evidence changes, not every parent object replacement.
   useEffect(() => {
     void refresh().catch((e) => setError(errorMessage(e)));
     return () => {
       refreshSequence.current++;
     };
-  }, [refresh, product]);
+  }, [refresh, productVersion]);
   useEffect(() => {
     request<PresetDto[]>("/api/v1/presets")
       .then(setPresets)
@@ -481,10 +491,18 @@ export default function PlanningPanel({
     data.jobs.some((j) => ["queued", "running"].includes(j.status));
   useEffect(() => {
     if (!active) return;
+    let polling = false;
     const timer = setInterval(() => {
+      if (polling) return;
+      polling = true;
       void refresh()
-        .then(onRefresh)
-        .catch((e) => setError(errorMessage(e)));
+        .then((changed) => {
+          if (changed) onRefresh();
+        })
+        .catch((e) => setError(errorMessage(e)))
+        .finally(() => {
+          polling = false;
+        });
     }, 2000);
     return () => clearInterval(timer);
   }, [active, refresh, onRefresh]);

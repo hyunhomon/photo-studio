@@ -63,6 +63,9 @@ test("generation consent, nullable costs, retired feedback and directed regenera
   await runGenerationStage(s.env, job.id, "generation", deps);
   await runGenerationStage(s.env, job.id, "generation", deps);
   expect(calls).toBe(1);
+  expect(
+    [...s.objects.keys()].filter((k) => k.includes(".preview-v2-")),
+  ).toHaveLength(2);
   await runGenerationStage(s.env, job.id, "evaluation", deps);
   const results = (
     await s.call<ResultDto[]>(`/products/${s.product.id}/results`)
@@ -169,7 +172,7 @@ test("explicit second pass snapshots Nano and owned previous image without invok
   expect(JSON.parse(row.request_json)).toMatchObject({
     imageModel: "google/gemini-3.1-flash-image",
     refinement: true,
-    resolution: "2K",
+    resolution: "1K",
     regenerationOf: result.asset.id,
   });
   expect(
@@ -191,6 +194,7 @@ test("a requested 2K correction never silently upscales undersized provider outp
   const second = (
     await s.call<JobDto>(`/products/${s.product.id}/generate`, "POST", {
       ...s.input,
+      quality: "high",
       idempotencyKey: crypto.randomUUID(),
       refinement: true,
       regenerationOf: result.asset.id,
@@ -218,6 +222,38 @@ test("a requested 2K correction never silently upscales undersized provider outp
   expect(
     (await s.call<ResultDto[]>(`/products/${s.product.id}/results`)).data,
   ).toHaveLength(1);
+});
+
+test("a failed display derivative does not invalidate a valid generated original or repeat inference", async () => {
+  const s = await ready();
+  const job = (await s.generate()).data;
+  const put = s.env.ASSETS.put.bind(s.env.ASSETS);
+  s.env.ASSETS.put = async (...args) => {
+    if (args[0].includes(".preview-v2-"))
+      throw Error("Synthetic derivative outage");
+    return put(...args);
+  };
+  await runGenerationStage(s.env, job.id, "generation");
+  await runGenerationStage(s.env, job.id, "generation");
+  const final = (await s.call<JobDto>(`/jobs/${job.id}`)).data;
+  expect(final.status).toBe("needs_review");
+  expect(final.attempts.filter((a) => a.stage === "generation")).toHaveLength(
+    1,
+  );
+  const results = (
+    await s.call<ResultDto[]>(`/products/${s.product.id}/results`)
+  ).data;
+  expect(results).toHaveLength(1);
+  expect([...s.objects.keys()].some((k) => k.includes(".preview-v2-"))).toBe(
+    false,
+  );
+  s.env.ASSETS.put = put;
+  const response = await s.app.request(
+    `/api/v1/assets/${results[0]?.asset.id}/preview`,
+    { headers: s.headers },
+    s.env,
+  );
+  expect(response.status).toBe(200);
 });
 
 test("R2 failure after paid response retains reported cost and never repeats generation", async () => {

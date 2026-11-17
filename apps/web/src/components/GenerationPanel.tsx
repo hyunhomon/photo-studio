@@ -99,10 +99,23 @@ export default function GenerationPanel({
       setSelected(d[0].asset.id);
     }
   }, [product.id]);
-  // biome-ignore lint/correctness/useExhaustiveDependencies: each durable pipeline snapshot can add a result in D1.
+  const resultVersion =
+    pipeline.jobs
+      .filter(
+        (j) =>
+          (j.kind === "generate" || j.kind === "shoot") &&
+          !["queued", "running"].includes(j.status),
+      )
+      .map((j) => `${j.id}:${j.status}`)
+      .join(",") +
+    product.assets
+      .filter((a) => a.kind === "generated")
+      .map((a) => a.id)
+      .join(",");
+  // biome-ignore lint/correctness/useExhaustiveDependencies: only a finished generation or an asset mutation can change the result list.
   useEffect(() => {
     void refresh().catch((e) => setError(errorMessage(e)));
-  }, [refresh, pipeline]);
+  }, [refresh, resultVersion]);
   const [sourceId, setSourceId] = useState("");
   const inputs = product.assets.filter((a) => a.kind === "input");
   const activeJob = pipeline.jobs.find((j) =>
@@ -330,7 +343,10 @@ export default function GenerationPanel({
             onChange={(v) => setRefinement(v === "nano")}
             options={[
               { value: "standard", label: "기본 모델" },
-              { value: "nano", label: "Nano Banana 2 · 2K 보정" },
+              {
+                value: "nano",
+                label: `Nano Banana 2 · ${quality === "high" ? "2K" : "1K"} 보정`,
+              },
             ]}
           />
           <Select
@@ -385,6 +401,7 @@ export default function GenerationPanel({
         </div>
       </Modal>
       <ImageViewer
+        previewSrc={zoom ? `${apiBase}/api/v1/assets/${zoom}/preview` : null}
         key={zoom}
         src={zoom ? imageUrl(zoom) : null}
         onClose={() => setZoom(null)}

@@ -39,7 +39,8 @@ import {
   sourceSnapshot,
 } from "./pipeline";
 import { clearObjectQueue, deleteObject, queueObject } from "./storage";
-import { normalizeImage, preserveGeneratedImage } from "./images";
+import { preserveGeneratedImage } from "./images";
+import { storePreviews } from "./media-preview";
 import { rateLimit } from "./auth";
 import { referenceSource, type ReferenceSource } from "./reference-source";
 import {
@@ -196,13 +197,11 @@ export async function runGenerationStage(
         );
         await recordUsage(env, job, stage, result.usage);
         await jobActive(env, job);
-        const image =
-          input.resolution === "2K"
-            ? await preserveGeneratedImage(
-                result.value.bytes,
-                result.value.mimeType,
-              )
-            : await normalizeImage(result.value.bytes, result.value.mimeType);
+        const image = await preserveGeneratedImage(
+          result.value.bytes,
+          result.value.mimeType,
+          true,
+        );
         if (
           input.resolution === "2K" &&
           input.imageModel === "google/gemini-3.1-flash-image" &&
@@ -254,6 +253,24 @@ export async function runGenerationStage(
           throw new ProviderError("JOB_CANCELLED");
         }
         await clearObjectQueue(env, key);
+        if (image.previews) {
+          try {
+            await storePreviews(
+              env,
+              {
+                id: job.id,
+                userId: job.userId,
+                productId: job.productId,
+                r2Key: key,
+                mimeType: image.mimeType,
+                kind: "generated",
+              },
+              image.previews,
+            );
+          } catch {
+            /* Lazy authenticated preview creation remains available. */
+          }
+        }
         return {
           value: {
             assetId: job.id,
@@ -474,7 +491,12 @@ export function generationRoutes() {
       plan: generationSpec,
       quality: input.quality,
       refinement: input.refinement,
-      ...(input.refinement ? { resolution: "2K" as const } : {}),
+      ...(input.refinement
+        ? {
+            resolution:
+              input.quality === "high" ? ("2K" as const) : ("1K" as const),
+          }
+        : {}),
       regenerationOf: input.regenerationOf,
       regenerationReason: input.regenerationReason,
       adjustments: input.adjustments,

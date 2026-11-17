@@ -2,7 +2,7 @@
 // cannot expose these infrastructure probes to app users.
 import { createDb, sql } from "@photo-studio/db";
 import { app } from "../src/app";
-import { preserveGeneratedImage, previewImage } from "../src/images";
+import { preserveGeneratedImage } from "../src/images";
 
 export { StudioWorkflow } from "../src/workflow";
 
@@ -11,12 +11,14 @@ export default {
     const path = new URL(request.url).pathname;
     if (path === "/__test/generated-codec" && request.method === "POST") {
       const bytes = new Uint8Array(await request.arrayBuffer());
-      const full = await preserveGeneratedImage(bytes, "image/png");
-      const preview = await previewImage(full.bytes, full.mimeType, 1024, true);
+      const full = await preserveGeneratedImage(bytes, "image/png", true);
+      const preview = full.previews?.find((p) => p.size === 960);
+      if (!preview) throw Error("Missing prepared preview");
       return Response.json({
         width: full.width,
         height: full.height,
         bytesPreserved: full.bytes === bytes,
+        previewCount: full.previews?.length,
         previewWidth: preview.width,
         previewHeight: preview.height,
         previewMime: preview.mimeType,

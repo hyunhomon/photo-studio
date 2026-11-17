@@ -3,6 +3,7 @@ import { studioFixture } from "../test/studio";
 import { previewImage, preserveGeneratedImage } from "./images";
 import { syntheticPng } from "../test/png";
 import { inspectImage } from "./image-meta";
+import { previewCacheControl } from "./preview-policy";
 import {
   automaticReferenceProvider,
   validateAutomaticReferenceConfig,
@@ -68,18 +69,93 @@ test("display derivatives are bounded JPEGs; private cached previews cannot bypa
   const path = `/api/v1/assets/${id}/preview?size=160`;
   const r = await s.app.request(path, { headers: s.headers }, s.env);
   expect(r.status).toBe(200);
-  expect(r.headers.get("Cache-Control")).toBe("private, no-store");
+  expect(r.headers.get("Cache-Control")).toBe(previewCacheControl);
   expect(r.headers.get("Content-Type")).toBe("image/jpeg");
   const bytes = await r.arrayBuffer();
   const r2 = await s.app.request(path, { headers: s.headers }, s.env);
   expect(await r2.arrayBuffer()).toEqual(bytes);
+  const etag = r.headers.get("ETag");
+  expect(etag).toBeTruthy();
+  const conditional = { ...s.headers, "If-None-Match": etag ?? "" };
+  const get = s.env.ASSETS.get.bind(s.env.ASSETS);
+  s.env.ASSETS.get = async () => {
+    throw Error("Conditional read must not hit R2");
+  };
+  const unchanged = await s.app.request(path, { headers: conditional }, s.env);
+  expect(unchanged.status).toBe(304);
+  expect((await unchanged.arrayBuffer()).byteLength).toBe(0);
+  s.env.ASSETS.get = get;
   const other = await s.login();
-  expect((await s.app.request(path, { headers: other }, s.env)).status).toBe(
-    404,
-  );
+  expect(
+    (
+      await s.app.request(
+        path,
+        { headers: { ...other, "If-None-Match": etag ?? "" } },
+        s.env,
+      )
+    ).status,
+  ).toBe(404);
   expect((await s.call(`/assets/${id}`, "DELETE")).status).toBe(200);
   expect(
-    (await s.app.request(path, { headers: s.headers }, s.env)).status,
+    (await s.app.request(path, { headers: conditional }, s.env)).status,
   ).toBe(404);
   expect(s.objects.size).toBe(0);
+  expect(
+    (
+      await s.app.request(
+        path,
+        { headers: { "If-None-Match": etag ?? "" } },
+        s.env,
+      )
+    ).status,
+  ).toBe(401);
+});
+
+test("simultaneous filmstrip and display misses share one source decode and prebuild both variants", async () => {
+  const s = await studioFixture();
+  const asset = s.product.assets[0];
+  if (!asset) throw Error("Missing synthetic asset");
+  const source = [...s.objects.keys()][0];
+  const get = s.env.ASSETS.get.bind(s.env.ASSETS);
+  let reads = 0;
+  s.env.ASSETS.get = async (...args) => {
+    if (args[0] === source) reads++;
+    return get(...args);
+  };
+  const paths = [
+    `/api/v1/assets/${asset.id}/preview?size=160`,
+    `/api/v1/assets/${asset.id}/preview`,
+  ];
+  const responses = await Promise.all(
+    paths.map((path) => s.app.request(path, { headers: s.headers }, s.env)),
+  );
+  expect(responses.map((r) => r.status)).toEqual([200, 200]);
+  expect(reads).toBe(1);
+  expect(s.objects.size).toBe(3);
+  expect(
+    s.sqlite.query("SELECT count(*) n FROM storage_cleanup").get(),
+  ).toEqual({ n: 0 });
+});
+
+test("deleting an asset while its preview writes finish cannot leave late derivatives behind", async () => {
+  const s = await studioFixture();
+  const asset = s.product.assets[0];
+  if (!asset) throw Error("Missing synthetic asset");
+  const put = s.env.ASSETS.put.bind(s.env.ASSETS);
+  s.env.ASSETS.put = async (...args) => {
+    const result = await put(...args);
+    if (args[0].includes(".preview-v2-960-"))
+      expect((await s.call(`/assets/${asset.id}`, "DELETE")).status).toBe(200);
+    return result;
+  };
+  const response = await s.app.request(
+    `/api/v1/assets/${asset.id}/preview`,
+    { headers: s.headers },
+    s.env,
+  );
+  expect(response.status).toBe(404);
+  expect(s.objects.size).toBe(0);
+  expect(
+    s.sqlite.query("SELECT count(*) n FROM storage_cleanup").get(),
+  ).toEqual({ n: 0 });
 });

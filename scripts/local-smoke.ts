@@ -86,8 +86,9 @@ try {
     width: 1792,
     height: 2400,
     bytesPreserved: true,
-    previewWidth: 765,
-    previewHeight: 1024,
+    previewCount: 2,
+    previewWidth: 717,
+    previewHeight: 960,
     previewMime: "image/jpeg",
   });
   const started = await request("/__test/workflow", { method: "POST" });

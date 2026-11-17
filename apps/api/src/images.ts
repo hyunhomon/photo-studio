@@ -10,6 +10,11 @@ import JPEG_ENCODE from "@jsquash/jpeg/codec/enc/mozjpeg_enc.wasm";
 import WEBP from "@jsquash/webp/codec/dec/webp_dec.wasm";
 import { inspectImage, maxImageBytes } from "./image-meta";
 import { AppError } from "./errors";
+import {
+  previewSizes,
+  previewQuality,
+  type PreviewSize,
+} from "./preview-policy";
 
 async function wasm(value: WebAssembly.Module) {
   if (value instanceof WebAssembly.Module) return value;
@@ -28,7 +33,12 @@ async function decode(input: Uint8Array, declared: string, generated = false) {
     generated ? "generated" : "upload",
   );
   try {
-    const buffer = new Uint8Array(input).buffer;
+    const buffer =
+      input.buffer instanceof ArrayBuffer &&
+      input.byteOffset === 0 &&
+      input.byteLength === input.buffer.byteLength
+        ? input.buffer
+        : new Uint8Array(input).buffer;
     let decoded: ImageData;
     if (meta.mime === "image/png") {
       pngReady ??= wasm(PNG).then(async (module) => {
@@ -93,13 +103,23 @@ function downscale(decoded: ImageData, maxDimension?: number) {
 export async function preserveGeneratedImage(
   input: Uint8Array,
   declared: string,
+  preparePreviews = false,
 ) {
-  const { meta } = await decode(input, declared, true);
+  const { meta, decoded } = await decode(input, declared, true);
+  let previews: PreparedPreview[] | undefined;
+  if (preparePreviews) {
+    try {
+      previews = await previewSet(decoded);
+    } catch {
+      /* A display derivative cannot invalidate a valid paid image. */
+    }
+  }
   return {
     bytes: input,
     width: meta.width,
     height: meta.height,
     mimeType: meta.mime,
+    previews,
   };
 }
 /** Private display derivatives only; no intermediate full-size PNG re-encode. */
@@ -110,6 +130,9 @@ export async function previewImage(
   generated = false,
 ) {
   const { decoded } = await decode(input, declared, generated);
+  return encodePreview(decoded, size);
+}
+async function encodePreview(decoded: ImageData, size: number) {
   const pixels = downscale(decoded, size);
   let transparent = false;
   for (let i = 3; i < pixels.data.length; i += 4)
@@ -130,7 +153,9 @@ export async function previewImage(
       initJpegEncode(module),
     );
     await jpegEncodeReady;
-    bytes = new Uint8Array(await encodeJpeg(pixels, { quality: 88 }));
+    bytes = new Uint8Array(
+      await encodeJpeg(pixels, { quality: previewQuality }),
+    );
   }
   return {
     bytes,
@@ -138,6 +163,23 @@ export async function previewImage(
     height: pixels.height,
     mimeType: transparent ? "image/png" : "image/jpeg",
   };
+}
+export type PreparedPreview = Awaited<ReturnType<typeof encodePreview>> & {
+  size: PreviewSize;
+};
+async function previewSet(decoded: ImageData): Promise<PreparedPreview[]> {
+  const result: PreparedPreview[] = [];
+  for (const size of previewSizes)
+    result.push({ ...(await encodePreview(decoded, size)), size });
+  return result;
+}
+export async function preparePreviewSet(
+  input: Uint8Array,
+  declared: string,
+  generated = false,
+) {
+  const { decoded } = await decode(input, declared, generated);
+  return previewSet(decoded);
 }
 export async function normalizeImage(
   input: Uint8Array,

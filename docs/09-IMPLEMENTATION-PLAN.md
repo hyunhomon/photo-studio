@@ -448,3 +448,13 @@ production desktop/mobile 전체 Mock E2E **4/4 통과**: 저장된 분석 재�
 - [ ] v15/photo-v9의 실제 이미지 효과.2K 실제1건과 구별하며 추가 호출 없이 미검증으로 남긴다.
 
 최종 source27599e3와 전체check167/167(진단/린트 경고0), local22/22, 공개 HTTPS/CORS/PKCE/반응형 smoke 및 fresh production22/22(wrapper exit0)을 확인했다. 원본 고정/토글 부재·결과 선택·수정/보정·권한 격리·삭제를 포함한다. 앞선2K 릴리스의 관리 API 후검사 실패 후 남은 빈 합성 sentinel을 정리했고 새 전체 실행의 untouched sentinel/canary·실제 계정 인증 원문 불변 및 정리도 통과했다. 마지막 읽기는 합성0·실제 계정1/연결1/세션2, 기존 암호화 secret/Commons 기본/stock 미활성이다. 추가 실제 AI·키 교체·고객 초기화·DB migration은 없다. 비교를 위해 명시적으로 재등록한 private 상품/결과는 같은 실제 owner에게 보존한다.
+
+### 기본 출력·미리보기·상태 조회 최적화 — 2026-11-17 (ADR-043)
+
+- [x] Nano 표준1K/고화질2K snapshot·선택지, 기본 생성 medium 및2K 크기 거부 보호 유지.
+- [x] native 원본 단일 decode·160/960px JPEG82 사전 생성·동시 cold 공유·preview 실패와 유효 결과 분리. workerd1792×2400 검증/두 파생물 준비 통과.
+- [x] 인증 후304·다른 owner/삭제/비로그인 거부·R2 읽기 생략·신구 파생물 삭제 회귀.
+- [x] 동일 pipeline 갱신/조회 연쇄와 중첩 polling 제거. 모달 preview 우선·원본 크기 클릭 시 원본 지연 로드.
+- [ ] 최종 전체 check·local/운영 브라우저·운영 합성 큰 이미지/조건부 캐시·배포/인증 보존 확인.
+
+실제 외부 AI 추론/새 카메라 지시의 품질 효과는 이번 최적화로 검증하지 않는다. 고객 사진 대신 합성 이미지와 Mock만 사용하며 과거 원본·키·세션과 해상도 이력을 보존한다.

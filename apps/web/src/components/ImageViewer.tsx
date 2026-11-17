@@ -8,12 +8,15 @@ import {
 import { X } from "lucide-react";
 export default function ImageViewer({
   src,
+  previewSrc,
   onClose,
 }: {
   src: string | null;
+  previewSrc: string | null;
   onClose: () => void;
 }) {
   const [native, setNative] = useState(false);
+  const [loaded, setLoaded] = useState(false);
   return (
     <Dialog
       open={Boolean(src)}
@@ -36,10 +39,24 @@ export default function ImageViewer({
             <button
               type="button"
               aria-label={native ? "화면에 맞추기" : "원본 크기로 보기"}
+              aria-busy={native && !loaded}
               onClick={() => setNative((v) => !v)}
               className={`image-viewer-canvas ${native ? "native" : ""}`}
             >
-              <img src={src} alt="확대 사진" />
+              <img
+                src={loaded ? src : (previewSrc ?? src)}
+                alt="확대 사진"
+                decoding="async"
+              />
+              {native && !loaded && previewSrc && (
+                <img
+                  src={src}
+                  alt=""
+                  aria-hidden="true"
+                  className="hidden"
+                  onLoad={() => setLoaded(true)}
+                />
+              )}
             </button>
           )}
         </DialogPanel>

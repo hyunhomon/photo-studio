@@ -126,6 +126,100 @@ async function paint(page: Page) {
   );
 }
 
+test("unchanged progress polling does not refetch product/results and slow polls never overlap", async ({
+  page,
+}) => {
+  await page.clock.install();
+  const delayed = gate();
+  let pipelineReads = 0,
+    productReads = 0,
+    resultReads = 0;
+  await mockApi(page, async (route, path) => {
+    if (path === productPath) productReads++;
+    if (path === `${productPath}/results`) resultReads++;
+    if (path !== `${productPath}/pipeline`) return false;
+    pipelineReads++;
+    if (pipelineReads === 2) await delayed.promise;
+    await json(route, {
+      plans: [],
+      jobs: [
+        {
+          id: "synthetic-running",
+          productId: id,
+          kind: "shoot",
+          status: "running",
+          stage: "generation",
+          createdAt: 1,
+          finishedAt: null,
+          errorCode: null,
+          attempts: [],
+        },
+      ],
+    });
+    return true;
+  });
+  await page.goto(`/studio/products/${id}`);
+  await expect(
+    page.getByRole("status", {
+      name: "상품을 분석하고 사진을 생성하고 있습니다",
+      exact: true,
+    }),
+  ).toBeVisible();
+  await page.clock.runFor(2100);
+  await expect.poll(() => pipelineReads).toBe(2);
+  try {
+    await page.clock.runFor(4100);
+    expect(pipelineReads).toBe(2);
+    expect(productReads).toBe(1);
+    expect(resultReads).toBe(1);
+  } finally {
+    delayed.release();
+  }
+  await paint(page);
+  await page.clock.runFor(2100);
+  await expect.poll(() => pipelineReads).toBe(3);
+  expect(productReads).toBe(1);
+  expect(resultReads).toBe(1);
+});
+
+test("fullscreen opens the display preview and loads native pixels only on actual-size zoom", async ({
+  page,
+}) => {
+  const delayed = gate();
+  let nativeReads = 0;
+  await mockApi(page, async (route, path) => {
+    if (path !== "/api/v1/assets/synthetic-original/content") return false;
+    nativeReads++;
+    await delayed.promise;
+    await route.fulfill({
+      contentType: "image/png",
+      body: Buffer.from(syntheticPng(128, 160)),
+    });
+    return true;
+  });
+  await page.goto(`/studio/products/${id}`);
+  await page
+    .getByRole("button", { name: "비교 기준 사진 확대", exact: true })
+    .click();
+  const image = page.getByRole("img", { name: "확대 사진", exact: true });
+  await expect(image).toHaveJSProperty("naturalWidth", 64);
+  expect(nativeReads).toBe(0);
+  await page
+    .getByRole("button", { name: "원본 크기로 보기", exact: true })
+    .click();
+  try {
+    await expect.poll(() => nativeReads).toBe(1);
+    await expect(image).toHaveJSProperty("naturalWidth", 64);
+  } finally {
+    delayed.release();
+  }
+  await expect(image).toHaveJSProperty("naturalWidth", 128);
+  await page
+    .getByRole("button", { name: "화면에 맞추기", exact: true })
+    .click();
+  expect(nativeReads).toBe(1);
+});
+
 test("product read failures leave the loading state and can recover without reconnecting", async ({
   page,
 }) => {
@@ -244,9 +338,16 @@ test("an older pipeline response cannot return a completed workbench to pending"
 }) => {
   const delayed = gate();
   let calls = 0;
+  let productReads = 0;
   await mockApi(page, async (route, path) => {
     if (path === productPath) {
-      await json(route, { ...product, analysis: mockAnalysisFixture });
+      await json(route, {
+        ...product,
+        analysis: {
+          ...mockAnalysisFixture,
+          garmentType: `Synthetic evidence ${++productReads}`,
+        },
+      });
       return true;
     }
     if (path !== `${productPath}/pipeline`) return false;
