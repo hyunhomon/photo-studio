@@ -415,6 +415,12 @@ production desktop/mobile 전체 Mock E2E **4/4 통과**: 저장된 분석 재�
 - [x] 사진 선택은 무호출, ‘촬영 시작’ 한 번으로 서버 upload→analysis→planning→image1건. 선택 참조를 함께 사용하며 자동 외부 검색은 필수에서 제외했다. 상세 기획/수동 실행은 보존했다.
 - [x] 동일 durable shoot job·세 단계별 claim·무재시도·활성 검사, 계획 보존/최종 결과 저장, 중간 실패/취소 뒤 생성 금지와 owner/idempotency/queue 복구 합성 검사를 추가했다.
 - [x] 사용자가 승인한 실제 Nano1회:17,419ms/$0.07072·generation succeeded·추가 AI0회. 기존 owner/참조/용량/사용권 경계 확인 후 기존 운영 Workflow로 실행했고 앱 인증 상태는 불변이다. 기존1152×1536와1K896×1200을 원본 의류와 확대 비교했다. 구조/구도는 대체로 유지, 로고 획/지퍼/피부 미세 디테일 저하가 보여 품질 개선 합격으로 표시하지 않는다.
-- [ ] 최종 format/lint/typecheck/unit/build·local/production Mock 브라우저·배포/인증 보존·합성 자료 정리.
+- [x] 최종 format/lint/typecheck/unit163/163/build·local 핵심20개/FAQ 재검증2개·production Mock22/22·08d5358 배포/인증 보존·합성 자료 정리.
 
 초기 브라우저 검사 local22/22와 변경 중 전체 check162/162를 통과했다. 최종 라벨/진행 문구/queue 실패 회귀를 추가한 뒤 전체 검증을 다시 수행한다. 첫 format 실패는 새 파일2개의 포맷이며 수정했다. 실제 Nano 비교에는 AI 평가나 두 번째 보정을 실행하지 않았고 private 원본/전후/비교 파일은 ignored .tmp에만 있다.
+
+최종 check163/163·format/lint/typecheck/build(진단/린트 경고0), native workerd/OAuth 합성 HTTP가 통과했다. 마지막 local 전체는20/22였으며 두 실패는 새 FAQ에 과거 ‘분석과 생성 별도 실행’ 문구를 기대하던 검사였다. 새 한 번 실행/선택만 무호출 문구로 고친 desktop/mobile FAQ2/2 재검증이 통과했다. 실제 동작의 실패를 문구 변경으로 덮은 것이 아니다. README 끝 빈 줄의 추가 format 실패도 정리한 최종 format 검사가 통과했다.
+
+08d5358 commit/push 및 API/Workflow→웹 배포 후 공개 HTTPS/CORS/PKCE/반응형 smoke와 전체 production desktop/mobile Mock22/22(wrapper exit0)이 통과했다. 새 one-click/reload/세 단계 기록과 기존 수동 기획·생성·비교·보정·다운로드·삭제·타인 격리를 포함한다. 배포 전후 실제 인증/별도 non-empty canary·untouched sentinel 불변과 자기 합성 자료 정리를 확인했다. 마지막 읽기 집계는 합성0·실제 계정1/연결1/세션2, 기본 Commons 설정과 기존 master secret·Shutterstock 미활성 유지다. 초기 촬영에서는 Commons 검색을 필수로 호출하지 않는다.
+
+이번 실제 AI는 사용자 승인 Nano1건뿐이며 추가 보정·AI 평가·기본 생성 실호출은0회다. 새로운 초기 흐름의 실제 생성 품질/속도를 Mock 성공으로 주장하지 않는다. DB migration/고객 초기화/키 교체·유료 결제·stock 발급은 없다. 비교 자료는 비공개 로컬과 원래 owner의 결과 이력에만 남긴다.
