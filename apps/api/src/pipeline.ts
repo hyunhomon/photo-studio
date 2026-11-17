@@ -54,6 +54,7 @@ import {
 
 export type JobRow = typeof jobs.$inferSelect;
 export interface PlanSnapshot {
+  autoGenerate?: boolean;
   analysisSnapshot?: ProductAnalysis;
   sourceIds: string[];
   preset: PresetInput | null;
@@ -163,7 +164,8 @@ function jobWithAttempts(
     errorCode: job.errorCode,
     createdAt: job.createdAt,
     finishedAt: job.finishedAt,
-    ...(job.kind === "plan" && snapshot.useAutomaticReference !== undefined
+    ...(["plan", "shoot"].includes(job.kind) &&
+    snapshot.useAutomaticReference !== undefined
       ? {
           useAutomaticReference:
             snapshot.useAutomaticReference && !snapshot.lookReferenceId,
@@ -698,7 +700,14 @@ export async function runPlanStage(
           job.userId,
         )
         .run();
-      await completeActiveJob(env, job, "completed", "review_plan");
+      if (snapshot.autoGenerate) {
+        await jobActive(env, job);
+        await env.DB.prepare(
+          "UPDATE shoot_plans SET status='approved' WHERE id=? AND user_id=?",
+        )
+          .bind(job.id, job.userId)
+          .run();
+      } else await completeActiveJob(env, job, "completed", "review_plan");
     }
   } catch (e) {
     await finishFailure(env, job.id, e);
@@ -848,6 +857,7 @@ export function pipelineRoutes() {
       preset = presetInputSchema.parse(JSON.parse(row.specJson));
     }
     const snapshot: PlanSnapshot = {
+      ...(input.autoGenerate ? { autoGenerate: true } : {}),
       ...(input.reuseAnalysis
         ? {
             analysisSnapshot: productAnalysisSchema.parse(
@@ -867,13 +877,15 @@ export function pipelineRoutes() {
       analysisModel: c.get("identity").isTest
         ? "mock/analyzer-planner-v1"
         : c.env.OPENROUTER_ANALYSIS_MODEL,
-      imageModel: c.env.OPENROUTER_IMAGE_MODEL,
+      imageModel: c.get("identity").isTest
+        ? "mock/reference-copy-v1"
+        : c.env.OPENROUTER_IMAGE_MODEL,
     };
     const job = await insertJob(
       c.env,
       userId,
       p.id,
-      "plan",
+      input.autoGenerate ? "shoot" : "plan",
       input.idempotencyKey,
       snapshot,
     );

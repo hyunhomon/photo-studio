@@ -80,6 +80,7 @@ export interface AssetDto {
   sourcePinUrl?: string | null;
 }
 export interface ProductDto {
+  startupError?: boolean;
   id: string;
   name: string;
   status: string;
@@ -184,6 +185,7 @@ export const planRequestSchema = z
   .object({
     consent: z.literal(true),
     reuseAnalysis: z.boolean().default(false),
+    autoGenerate: z.boolean().default(false),
     useAutomaticReference: z.boolean().default(true),
     editedAnalysis: productAnalysisSchema.optional(),
     personReferenceId: z.uuid().nullable().default(null),
@@ -194,6 +196,9 @@ export const planRequestSchema = z
     referenceConsent: z.boolean().default(false),
   })
   .strict()
+  .refine((v) => !v.autoGenerate || !v.useAutomaticReference, {
+    message: "Quick shoots use uploaded references only",
+  })
   .refine(
     (value) =>
       !(value.lookReferenceId || value.personReferenceId) ||

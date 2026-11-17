@@ -6,6 +6,7 @@ const params = z
       "scaffold-smoke",
       "reference-search-smoke",
       "plan",
+      "shoot",
       "generate",
     ]),
     jobId: z.uuid().optional(),

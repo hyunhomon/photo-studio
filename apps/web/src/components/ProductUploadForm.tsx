@@ -220,13 +220,17 @@ export default function ProductUploadForm({
   productId,
   remaining = 3,
   onBusy,
+  startShoot = false,
 }: {
   csrf: string;
   onDone: (product: ProductDto) => void;
   productId?: string;
   remaining?: number;
   onBusy?: (busy: boolean) => void;
+  startShoot?: boolean;
 }) {
+  const saved = useRef<ProductDto | null>(null);
+  const executionId = useRef(crypto.randomUUID());
   const [files, setFiles] = useState<File[]>([]),
     [look, setLook] = useState<File[]>([]),
     [person, setPerson] = useState<File[]>([]),
@@ -251,11 +255,30 @@ export default function ProductUploadForm({
       if (look[0]) body.set("lookImage", look[0]);
       if (person[0]) body.set("personImage", person[0]);
       if (hasReference) body.set("rightsConfirmed", "true");
-      const product = await request<ProductDto>(
-        productId ? `/api/v1/products/${productId}/assets` : "/api/v1/products",
-        { method: "POST", body, signal: AbortSignal.timeout(90000) },
-        csrf,
-      );
+      if (startShoot) {
+        body.set("startShoot", "true");
+        body.set("idempotencyKey", executionId.current);
+      }
+      const product =
+        saved.current ??
+        (await request<ProductDto>(
+          productId
+            ? `/api/v1/products/${productId}/assets`
+            : "/api/v1/products",
+          { method: "POST", body, signal: AbortSignal.timeout(90000) },
+          csrf,
+        ));
+      saved.current = product;
+      if (product.startupError) {
+        await request(
+          `/api/v1/products/${product.id}/shoot`,
+          {
+            method: "POST",
+            body: JSON.stringify({ idempotencyKey: executionId.current }),
+          },
+          csrf,
+        );
+      }
       onDone(product);
     } catch (e) {
       setError(errorMessage(e));
@@ -283,7 +306,7 @@ export default function ProductUploadForm({
           files={files}
           onChange={setFiles}
           max={remaining}
-          disabled={busy}
+          disabled={busy || Boolean(saved.current)}
         />
         {!productId && (
           <>
@@ -293,7 +316,7 @@ export default function ProductUploadForm({
                 files={look}
                 onChange={setLook}
                 max={1}
-                disabled={busy}
+                disabled={busy || Boolean(saved.current)}
               />
             </div>
             <PhotoPicker
@@ -301,7 +324,7 @@ export default function ProductUploadForm({
               files={person}
               onChange={setPerson}
               max={1}
-              disabled={busy}
+              disabled={busy || Boolean(saved.current)}
             />
           </>
         )}
@@ -316,7 +339,9 @@ export default function ProductUploadForm({
       )}
       <Button
         type="submit"
-        aria-label={productId ? "사진 추가" : "상품 추가"}
+        aria-label={
+          productId ? "사진 추가" : startShoot ? "촬영 시작" : "상품 추가"
+        }
         className={productId ? "w-full" : "mx-auto min-w-36"}
         disabled={busy || files.length === 0}
       >
@@ -329,7 +354,9 @@ export default function ProductUploadForm({
           ? "사진을 안전하게 저장하고 있어요"
           : productId
             ? "사진 추가"
-            : "추가"}
+            : startShoot
+              ? "촬영 시작"
+              : "추가"}
       </Button>
     </form>
   );

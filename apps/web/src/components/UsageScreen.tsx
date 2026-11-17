@@ -147,9 +147,11 @@ export default function UsageScreen() {
                 >
                   <div className="min-w-36">
                     <p className="text-sm font-semibold">
-                      {job.kind === "plan"
-                        ? "분석·촬영 기획"
-                        : "이미지 생성·검수"}
+                      {job.kind === "shoot"
+                        ? "분석·기획·촬영"
+                        : job.kind === "plan"
+                          ? "분석·촬영 기획"
+                          : "이미지 생성"}
                     </p>
                     <p className="mt-1.5 text-[11px] text-muted">
                       {new Date(job.createdAt).toLocaleString("ko-KR")}

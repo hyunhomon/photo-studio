@@ -55,7 +55,23 @@ test("Mock: automatic photographic reference reaches planning and generation wit
       mimeType: "image/png",
       buffer: Buffer.from(syntheticPng(64, 80)),
     });
-    await form.getByRole("button", { name: "상품 추가", exact: true }).click();
+    // Automatic search remains an opt-in detailed planning path. The initial
+    // one-click flow uses uploaded references and is covered separately.
+    const registered = await page.request.post(`${apiOrigin}/api/v1/products`, {
+      headers: { Origin: appOrigin, "X-CSRF-Token": csrf },
+      multipart: {
+        images: {
+          name: "synthetic-automatic-garment.png",
+          mimeType: "image/png",
+          buffer: Buffer.from(syntheticPng(64, 80)),
+        },
+      },
+    });
+    expect(registered.ok()).toBe(true);
+    const registeredProduct = (
+      (await registered.json()) as { data: ProductDto }
+    ).data;
+    await page.goto(`${appOrigin}/studio/products/${registeredProduct.id}`);
     await expect(page).toHaveURL(/\/studio\/products\//);
     productId = new URL(page.url()).pathname.split("/").at(-1);
     if (!productId) throw new Error("Missing synthetic product");

@@ -110,7 +110,9 @@ export default function GenerationPanel({
   const activeJob = pipeline.jobs.find((j) =>
     ["queued", "running"].includes(j.status),
   );
-  const generationJob = pipeline.jobs.find((j) => j.kind === "generate");
+  const generationJob = pipeline.jobs.find(
+    (j) => j.kind === "generate" || j.kind === "shoot",
+  );
   const result = results.find((r) => r.asset.id === selected) ?? results[0],
     source = inputs.find((a) => a.id === sourceId) ?? inputs[0],
     active = pipeline.jobs.some((j) =>
@@ -356,7 +358,7 @@ export default function GenerationPanel({
             onChange={(v) => setRefinement(v === "nano")}
             options={[
               { value: "standard", label: "기본 모델" },
-              { value: "nano", label: "Nano Banana 2 · 추가 보정" },
+              { value: "nano", label: "Nano Banana 2 · 1K 보정" },
             ]}
           />
           <Select

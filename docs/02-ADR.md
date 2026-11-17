@@ -320,3 +320,12 @@
 - 기본 생성은 기존 gpt-image-2 설정을 따른다. ‘이 컷 개선’의 명시적 모델 선택/실행으로만 google/gemini-3.1-flash-image(Nano Banana 2)를1K로 호출한다. 기존 결과/소유권과 개선 축이 필수이며 원본·참조·이전 결과 순서를 유지한다. 이전 인물/포즈/구도를 보존하며 요청한 축과 원단·국소 조명·접촉 그림자를 수정하도록 지시한다. prompt studio-v13, 기존 capture protocol과 lineage/비용/무재시도 원장을 유지한다. Mock 계정은 계속 Mock만 실행한다.
 - [OpenRouter Images 공식 문서](https://openrouter.ai/docs/guides/overview/multimodal/image-generation)와 공개 모델 목록에서 image input/output·3:4·1K·참조 수를 확인했다. Nano가 지원하지 않는 quality/output_format은 보내지 않고 실제 PNG/JPEG/WebP를 검증·PNG 정규화한다. data_collection deny/no fallback을 설정하며 stock 파생물의 기존 OpenAI 한정 정책은 확대하지 않는다. 사전 capability 확인 외 AI 호출은 실행 클릭에만 발생한다.
 - [Google 공식 설명](https://deepmind.google/models/gemini-image/flash/)의 웹/이미지 검색 기능은 Pinterest 자동 사용의 근거가 아니다. 이번 OpenRouter 참조 픽셀 요청에 검색 도구나 웹 grounding을 연결했다고 주장하지 않는다. 실제 Nano 품질·속도·얼굴 보존은 사용자 실행 비교 전 미검증이다. 검증에는 합성 provider와 Mock만 사용하며 유료 AI·라이선스 발급·결제는 하지 않는다.
+
+## ADR-040: 한 번 실행하는 초기 촬영 흐름 — Accepted (사용자 지정, 2026-11-17)
+
+- 사용자는 첫 등록 후 분석/기획/생성을 따로 실행하는 부담을 제거하도록 요청했다. `/studio`에서 사진 선택 후 ‘촬영 시작’ 한 번으로 업로드→분석→기획→기본 이미지1건을 이어간다. 선택/드롭/change만으로 호출하지 않으며 이 실행 클릭이 세 단계와 선택 참조 처리를 함께 승인한다. ADR-024/028의 반복 확인 제거를 유지하고 완료 후 기획 수정/수동 생성/선택적 보정도 유지한다.
+- 하나의 durable `shoot` job/Workflow에서 analysis→planning→generation을 실행한다. 생성 전에 계획을 이미 ‘완료’로 종결하거나 브라우저 효과에서 다음 유료 호출을 만들지 않는다. 저장된 기획과 분석, 원본/선택 참조/프로토콜을 생성 snapshot에 보존한다. unique(job,stage) 원장·retry0·job/product/user 활성 검사·취소/불확실 결과 차단을 적용한다. 중간 실패는 분석/기획을 보존하고 그 다음 유료 단계를 실행하지 않는다. 이동/새로고침 후에도 같은 작업을 조회한다.
+- 초기 기본값은 업로드한 의류와 선택적 촬영/성인 인물 참조다. 추가 검색을 필수 단계로 넣지 않는다. Commons 검색은 상세 기획의 명시적 선택 경로에 남긴다. 기본 이미지 모델은 기존 설정이며 Nano는 첫 생성 뒤 별도 실행한다. 서비스 결제/배치/자동 품질 채택/새 점수는 추가하지 않는다.
+- queue 실패 뒤 이미 저장한 상품의 identity를 반환하고 `/products/:id/shoot`로 동일 idempotency key를 사용해 재개한다. 파일을 다시 업로드하거나 중복 유료 작업을 만드는 자동 복구는 하지 않는다. 업로드만 하는 기존 API와 원본 추가 API는 별도 실행 플래그가 없으면 AI를 호출하지 않는다.
+- 사용자가 실제 Nano 보정1회를 명시 승인했다. 브라우저 제어는 URL 확인 불가로 자동 검토가 차단하여 종료했다. 대신 문서화된 Cloudflare 관리 API로 기존 owner/원본/참조/직전 결과를 검증한 단일 작업을 기존 운영 Workflow에 제출했다. 앱 세션 생성·키 교체·직접 사용자 키 복호화·추가 결제는 하지 않았다. 별도 private receipt로 동일 instance 재제출을 막고, 사용자별 키는 기존 Worker adapter만 사용했다.
+- 실제1K 보정1건은17,419ms/$0.07072로 성공했다. 비교 표본은 기존1152×1536→896×1200이며 큰 의류 구조/구도는 대체로 유지됐으나 로고 획과 피부/지퍼의 미세 디테일은 더 부드러워졌다. 얼굴/그림자의 뚜렷한 개선 근거가 없으므로 품질 합격이나 일반적 효과로 기록하지 않는다. Nano 선택지에1K를 표시한다. 실제 보정 자동 반복·AI 평가 추가 호출은 없다. 비교 이미지/고객 식별자는 ignored private 파일로만 보관하며 랜딩/Git에 사용하지 않는다.

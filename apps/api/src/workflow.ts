@@ -91,7 +91,7 @@ export class StudioWorkflow extends WorkflowEntrypoint<
             },
           );
         }
-      if (payload.kind === "plan")
+      if (payload.kind === "plan" || payload.kind === "shoot")
         for (const stage of ["analysis", "planning"] as const) {
           await step.do(
             stage,
@@ -102,6 +102,15 @@ export class StudioWorkflow extends WorkflowEntrypoint<
             },
           );
         }
+      if (payload.kind === "shoot")
+        await step.do(
+          "generation",
+          { retries: { limit: 0, delay: "1 second" }, timeout: "4 minutes" },
+          async () => {
+            await runGenerationStage(this.env, id, "generation");
+            return { stored: true };
+          },
+        );
     } catch {
       await step.do(
         "record failure",

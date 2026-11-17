@@ -17,6 +17,7 @@ export default function WorkPending({
             ? [["reference_search", "레퍼런스 검색"]]
             : []),
           ["planning", "촬영 기획"],
+          ...(job.kind === "shoot" ? [["generation", "이미지 생성"]] : []),
         ];
   return (
     <div
@@ -25,7 +26,9 @@ export default function WorkPending({
       aria-label={
         job.kind === "generate"
           ? "이미지를 생성하고 있습니다"
-          : "촬영 기획을 만들고 있습니다"
+          : job.kind === "shoot"
+            ? "상품을 분석하고 사진을 생성하고 있습니다"
+            : "촬영 기획을 만들고 있습니다"
       }
       aria-busy="true"
     >
@@ -39,7 +42,9 @@ export default function WorkPending({
         <h3 className="text-lg font-semibold">
           {job.kind === "generate"
             ? "다음 컷을 촬영하고 있어요"
-            : "옷에 맞는 장면을 찾고 있어요"}
+            : job.kind === "shoot"
+              ? "옷에 맞춰 촬영하고 있어요"
+              : "옷에 맞는 장면을 찾고 있어요"}
         </h3>
         <ol
           className="mt-4 flex flex-wrap items-center justify-center gap-2 text-sm"

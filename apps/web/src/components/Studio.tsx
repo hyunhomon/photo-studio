@@ -19,6 +19,7 @@ export default function Studio() {
             어떤 옷을 촬영할까요?
           </h1>
           <ProductUploadForm
+            startShoot
             csrf={me.csrf}
             onDone={(p) => {
               void navigate(`/studio/products/${p.id}`);

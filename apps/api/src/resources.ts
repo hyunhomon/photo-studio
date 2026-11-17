@@ -280,6 +280,10 @@ export function resourceRoutes(deps: ResourceDeps = {}) {
     await rateLimit(c, `upload:${owner}`, 15);
     const form = await c.req.formData(),
       garmentFiles = filesFrom(form);
+    const startShoot = form.get("startShoot") === "true";
+    const shootKey = startShoot
+      ? z.uuid().parse(form.get("idempotencyKey"))
+      : null;
     const suppliedName = z
       .string()
       .trim()
@@ -365,7 +369,19 @@ export function resourceRoutes(deps: ResourceDeps = {}) {
         "사진을 저장하는 동안 상품이 삭제됐습니다.",
         409,
       );
-    return c.json({ data: await productDto(c.env, completed) }, 201);
+    const dto = await productDto(c.env, completed);
+    if (shootKey) {
+      try {
+        await (
+          await import("./quick-shoot")
+        ).startQuickShoot(c.env, c.get("identity"), dto, shootKey);
+      } catch {
+        // Upload is committed. Return its identity so a retry never re-uploads
+        // or creates a second product after a queue failure.
+        return c.json({ data: { ...dto, startupError: true } }, 201);
+      }
+    }
+    return c.json({ data: dto }, 201);
   });
   api.patch("/products/:id", async (c) => {
     const owner = c.get("identity").userId,
@@ -379,6 +395,30 @@ export function resourceRoutes(deps: ResourceDeps = {}) {
       .set({ name, nameSource: "manual" })
       .where(and(eq(products.id, product.id), eq(products.userId, owner)));
     return c.json({ data: await productDto(c.env, { ...product, name }) });
+  });
+  api.post("/products/:id/shoot", async (c) => {
+    const { idempotencyKey } = z
+      .object({ idempotencyKey: z.uuid() })
+      .strict()
+      .parse(await c.req.json());
+    const product = await ownedProduct(
+      c.env,
+      c.get("identity").userId,
+      c.req.param("id"),
+    );
+    await rateLimit(c, `shoot:${c.get("identity").userId}`, 15);
+    const job = await (
+      await import("./quick-shoot")
+    ).startQuickShoot(
+      c.env,
+      c.get("identity"),
+      await productDto(c.env, product),
+      idempotencyKey,
+    );
+    return c.json(
+      { data: await (await import("./pipeline")).jobDto(c.env, job) },
+      202,
+    );
   });
   api.post("/products/:id/assets", async (c) => {
     const owner = c.get("identity").userId;

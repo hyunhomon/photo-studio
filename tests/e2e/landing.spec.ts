@@ -88,8 +88,11 @@ test("marketing: honest interactive product demo, imagery, FAQ and responsive la
     .filter({ hasText: "사진을 올리면 바로 생성되나요?" });
   await question.click();
   await expect(
-    page.getByText(/아니요. 업로드만으로 AI를 호출하지 않아요/),
+    page.getByText(/사진 선택만으로 AI를 호출하지 않아요/),
   ).toBeVisible();
+  await expect(
+    page.getByText(/사진 선택만으로 AI를 호출하지 않아요/),
+  ).toContainText("상품 분석부터 기획, 이미지 한 장 생성까지");
   for (const link of await page.locator('a[href^="#"]').all()) {
     const target = await link.getAttribute("href");
     if (target) await expect(page.locator(target)).toHaveCount(1);

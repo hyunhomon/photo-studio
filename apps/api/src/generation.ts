@@ -96,7 +96,43 @@ export async function runGenerationStage(
   if (!job) return;
   try {
     await jobActive(env, job);
-    const input = JSON.parse(job.requestJson) as GenerationSnapshot;
+    let input = JSON.parse(job.requestJson) as GenerationSnapshot;
+    if (job.kind === "shoot") {
+      const plan = await db
+        .select()
+        .from(shootPlans)
+        .where(
+          and(
+            eq(shootPlans.id, job.id),
+            eq(shootPlans.userId, job.userId),
+            eq(shootPlans.productId, job.productId),
+          ),
+        )
+        .get();
+      const product = await ownedProduct(env, job.userId, job.productId);
+      if (!plan || !product.analysisJson)
+        throw new ProviderError("ANALYSIS_MISSING");
+      input = {
+        ...input,
+        planId: plan.id,
+        plan: shootPlanSchema.parse(JSON.parse(plan.specJson)),
+        analysisSnapshot: productAnalysisSchema.parse(
+          JSON.parse(product.analysisJson),
+        ),
+        quality: "medium",
+        captureVersion: CAPTURE_PROTOCOL_VERSION,
+        regenerationOf: null,
+        regenerationReason: null,
+        reviewMode: "manual",
+        lookReferenceId: plan.lookReferenceId,
+      };
+      input.plan.mustPreserve = [
+        ...new Set([
+          ...input.plan.mustPreserve,
+          ...(input.analysisSnapshot?.preservationPoints ?? []),
+        ]),
+      ].slice(0, 20);
+    }
     if (input.stockReferenceIds?.length)
       await assertStockReferenceUsage(
         env,
@@ -188,7 +224,11 @@ export async function runGenerationStage(
         }
         await clearObjectQueue(env, key);
         return {
-          value: { assetId: job.id, captureVersion: CAPTURE_PROTOCOL_VERSION },
+          value: {
+            assetId: job.id,
+            captureVersion: CAPTURE_PROTOCOL_VERSION,
+            ...(job.kind === "shoot" ? { generationSnapshot: input } : {}),
+          },
           usage: result.usage,
         };
       });

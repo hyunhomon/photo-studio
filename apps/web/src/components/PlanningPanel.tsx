@@ -531,7 +531,9 @@ export default function PlanningPanel({
     );
   }
   const plan = data.plans[0];
-  const latestPlanningJob = data.jobs.find((job) => job.kind === "plan");
+  const latestPlanningJob = data.jobs.find(
+    (job) => job.kind === "plan" || job.kind === "shoot",
+  );
   const latestReference = data.retrievals?.find(
     (reference) => reference.jobId === latestPlanningJob?.id,
   );

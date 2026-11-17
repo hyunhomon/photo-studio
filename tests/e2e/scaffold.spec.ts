@@ -364,7 +364,29 @@ test("Mock: direct multi-photo upload, reference planning, compare, revise, expo
   await form.screenshot({
     path: `.tmp/product-upload-${test.info().project.name}.png`,
   });
-  await form.getByRole("button", { name: "상품 추가", exact: true }).click();
+  // This scenario keeps the supported upload-only API to exercise manual
+  // planning/editing independently. quick-shoot.spec covers the default CTA.
+  const setupMe = await data<{ csrf: string }>(page, "/me");
+  const registered = await page.request.post(`${apiOrigin}/api/v1/products`, {
+    headers: { Origin: appOrigin, "X-CSRF-Token": setupMe.csrf },
+    multipart: {
+      images: fixture("synthetic-front.png"),
+      lookImage: fixture("synthetic-look.png", 40),
+      rightsConfirmed: "true",
+    },
+  });
+  expect(registered.ok()).toBe(true);
+  const registeredProduct = ((await registered.json()) as { data: ProductDto })
+    .data;
+  const appended = await page.request.post(
+    `${apiOrigin}/api/v1/products/${registeredProduct.id}/assets`,
+    {
+      headers: { Origin: appOrigin, "X-CSRF-Token": setupMe.csrf },
+      multipart: { images: fixture("synthetic-detail.png", 80) },
+    },
+  );
+  expect(appended.ok()).toBe(true);
+  await page.goto(`${appOrigin}/studio/products/${registeredProduct.id}`);
   await expect(page).toHaveURL(/\/studio\/products\//);
   const productUrl = page.url(),
     productId = new URL(productUrl).pathname.split("/").at(-1);
@@ -798,7 +820,7 @@ test("Mock: direct multi-photo upload, reference planning, compare, revise, expo
   await page.getByRole("button", { name: "이 컷 개선", exact: true }).click();
   await page.getByRole("button", { name: "보정 모델", exact: true }).click();
   await page
-    .getByRole("option", { name: "Nano Banana 2 · 추가 보정", exact: true })
+    .getByRole("option", { name: "Nano Banana 2 · 1K 보정", exact: true })
     .click();
   await page.getByRole("button", { name: "개선할 항목", exact: true }).click();
   await page

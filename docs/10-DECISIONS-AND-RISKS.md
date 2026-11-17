@@ -269,3 +269,9 @@ c04225b commit/push 및 API/Workflow→웹 배포를 완료했다. 공개 HTTPS/
 Nano의 모델별1K/참조 capability와 현재 Images routing을 확인했다. 선택·실행한 추가 보정만 한 건이며 자동 두 번째 유료 호출이나 Pinterest 검색은 없다. 역사적 stock 권리 guard는 유지하고 새 production Shutterstock 선택은 거절한다. 실제 AI·stock 발급·결제·고객 자료 초기화·master secret 변경 없이 합성 검증과 배포를 수행하며 실사 품질 개선은 이후 실제 비교까지 미검증이다.
 
 최종 check160/160(진단/린트 경고0), workerd/OAuth 합성 HTTP, local/production desktop/mobile Mock 각각20/20과 공개 smoke가 통과했다. 06d470a를 API/Workflow→웹으로 배포했고 운영3.84MP 합성 파일의 미리보기 cold/warm·전체 PNG 유지·삭제404를 확인했다. 실제 사용자 인증과 non-empty canary/untouched sentinel 원문 불변 및 합성 자료 정리를 검증했다. 마지막 집계는 합성0·실제 계정1/연결1/세션2이며 Commons 기본·Shutterstock 설정 없음·기존 master secret을 유지했다. 실제 Nano 출력 품질/속도나 운영 outage 제거를 이 검증으로 주장하지 않는다.
+
+## 2026-11-17 — 초기 실행 통합과 실제 보정의 한계 (ADR-040)
+
+사용자가 Nano 보정1회의 실제 비교와 초기 단계 축소를 승인했다. 실제1K 표본은17.419초/$0.07072로 완료됐지만 결과 해상도가 기존보다 작고 로고 획/얼굴·지퍼 미세 표현이 부드러워졌다. 질감·그림자·얼굴의 뚜렷한 개선으로 판단하지 않는다. 큰 구조/구도 유지와 글자/세부 보존은 구별하며, 단일 표본을 전체 모델 성능으로 일반화하지 않는다. 선택지에1K를 드러내고 추가 유료 반복은 하지 않았다.
+
+초기 ‘촬영 시작’은 이미지 선택 자체와 구분한 한 번의 실행 동의다. 이후 세 단계는 하나의 durable job에서 실행한다. 초기 경로에 Commons 검색을 강제하지 않고 업로드한 참조만 사용한다. 기존 상세 기획과 수동 재생성은 유지한다. 서버 queue 실패 후 업로드 상품 identity와 같은 idempotency key로 복구하며, 불확실한 provider 호출을 재실행하지 않는다. 실제 초기 자동 촬영의 품질/비용은 이번 Nano 한 건이나 Mock 회귀 성공과 혼동하지 않는다.
