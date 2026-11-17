@@ -302,4 +302,6 @@ runtime66e35b8 배포·check170/170·local26/26·native workerd/OAuth·공개 sm
 
 첨부된 오류 문구는 서버의 형식 검사이며 업로드 이후의 AI 실패가 아니다. 브라우저가 그릴 수 있는 사진도 raw bytes/MIME/고해상도 조건 때문에 서버에서 거절될 수 있다. 합성 MIME 불일치와 JPEG 트레일러로 해당 문구를 재현했다. 고객 파일의 특정 포맷을 확인했다고 주장하지 않는다. 실행 시 로컬에서 실제 픽셀을 JPEG/PNG로 준비하고 방향·크기·메타데이터 문제를 정리하며 업로드 계약을 느슨하게 풀지 않는다. native HEIC 지원 여부는 OS/브라우저에 따르고 명확한 오류를 제공한다. JPEG 재압축/광색역·HDR→표준 canvas 변환에는 미세 색/세부 차이가 있을 수 있다.
 
-초기 WebKit fixture의 빈 파일 관찰은 Playwright multipart inspector의 알려진 제한이었다. 브라우저 FormData 관찰과 별도 native HTTP→실제 Worker 검증을 나눠 둘 다 검사한다. 로컬 WebKit4/4를 확인했고 실제 iPhone/Photos picker 검증을 대신했다고 쓰지 않는다. 운영 wrapper는 WebKit에도 별도 is_test 계정을 만들며 실제 사용자 인증을 보존한다. 최종 검사/배포 결과는 완료 후 기록한다.
+초기 WebKit fixture의 빈 파일 관찰은 Playwright multipart inspector의 알려진 제한이었다. 브라우저 FormData 관찰과 별도 native HTTP→실제 Worker 검증을 나눠 둘 다 검사한다. 로컬 WebKit4/4를 확인했고 실제 iPhone/Photos picker 검증을 대신했다고 쓰지 않는다. 운영 wrapper는 WebKit에도 별도 is_test 계정을 만들며 실제 사용자 인증을 보존한다.
+
+최종 check170/170·로컬 전체38/38·d9f4b4d 웹 단독 배포·공개 smoke를 확인했다. 최초 운영 전체36/38의 두 실패는 앞선 scaffold가 삭제한 합성 계정의 세션을 새 native 검사에서 재사용한 문제였다. 실제 사용자 연결/세션은 원문 불변이었다. 업로드 native 검사별 별도 `upload:<browser>` 계정으로 분리하고 운영 업로드12/12·모든 검사 계정 정리·sentinel/실제 인증 보존 guard exit0을 확인했다. 최초 실행의 기존26개 통과와 보완된 새12개 통과를 구별하며 운영 전체38/38의 fresh run으로 쓰지 않는다. 마지막 합성0·실제 계정1/연결1/세션2·기존 secret/Commons 기본을 확인했다. API/Workflow·DB schema·기존 사진·secret을 바꾸거나 실제 AI를 호출하지 않았다.

@@ -249,7 +249,7 @@ test("Mock: native browser multipart uploads a prepared camera photo to the priv
     api = production || "http://localhost:8787";
   if (production) {
     const sessions = JSON.parse(process.env.PHOTO_STUDIO_TEST_SESSIONS || "{}");
-    const session = sessions[test.info().project.name];
+    const session = sessions[`upload:${test.info().project.name}`];
     if (!session) throw Error("Missing synthetic session");
     await page.context().addCookies([
       {

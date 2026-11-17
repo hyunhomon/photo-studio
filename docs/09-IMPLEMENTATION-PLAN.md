@@ -468,5 +468,9 @@ production desktop/mobile 전체 Mock E2E **4/4 통과**: 저장된 분석 재�
 - [x] 오류 문구를 서버 inspectImage로 추적하고 MIME 불일치/부가 데이터 JPEG로 재현. 실제 고객 원본의 정확한 형식은 스크린샷만으로 단정하지 않는다.
 - [x] 상품/원본 추가/인물·촬영 참조에 실행 시 로컬 canonical JPEG/PNG 변환·비율 유지·픽셀/용량 제한·방향/투명도 보존·오류 복구 적용. 서버 검사/인증/유료 호출 경계 유지.
 - [x] 별도 Safari 엔진 프로젝트·12MP/잘못된 MIME/빈 MIME/JPEG 트레일러/EXIF6/위장 SVG/복구 fixture와 native Mock HTTP 업로드→저장 크기/원본 읽기→삭제. 로컬 WebKit4/4 확인.
-- [ ] 전체 검사·로컬/운영 Chromium/WebKit·배포·인증 보존/합성 정리 결과 기록.
+- [x] 전체 check170/170(진단·린트 경고0)·로컬 전체38/38·d9f4b4d 웹 단독 배포·운영 업로드12/12(wrapper exit0)·공개 smoke·인증 보존/합성 정리 확인. 아래 운영 전체 검사와 보완 실행의 구별을 따른다.
 - [ ] 실제 iPhone Photos 선택기의 동일 사진 재시도. 기기 원본을 받거나 실제 OS 선택기를 조작하지 않았으며 자동 엔진 검사와 구별한다.
+
+운영 첫 전체 실행은36/38이었다. 기존 scaffold가 자신의 합성 계정을 삭제한 뒤 새 native 업로드 검사가 같은 합성 세션을 재사용해 Chromium2개가 인증 확인에서 끝났으며, WebKit의 실제 native 업로드는 통과했다. 실제 사용자 인증 손실이 아니라 검사용 계정 수명의 충돌이다. native 검사에 `upload:<browser>` 전용 is_test 계정을 분리했고 새 운영 업로드 전체12/12(Chromium4/mobile Chromium4/WebKit4)·검사 계정 정리·untouched sentinel/실제 인증 guard exit0을 통과했다. 첫 전체 실행에서 기존26개는 모두 통과했으며 새 전체38/38 재실행이라고 기록하지 않는다. `scripts/production-e2e.ts --upload-only`는 같은 보호/정리를 사용하는 업로드 전용 실행이다.
+
+웹 단독 배포 전후 canary의 연결/세션 원문 불변, 실제 계정1/연결1/세션2 유지·합성 계정0을 확인했다. API/Workflow 재배포·새 migration·secret 교체·고객 사진 재처리·실제 AI 호출은 없다. 이미 저장한 사진을 변경하지 않았다. 검사 엔진의 합성 입력 결과는 실제 iPhone의 원본 HEIC/Photos 선택기까지 확인한 것으로 계산하지 않는다.

@@ -8,6 +8,7 @@ import {
 const root = resolve(import.meta.dir, ".."),
   cli = resolve(root, "apps/api/node_modules/wrangler/bin/wrangler.js"),
   origin = `https://${production.hostname}`;
+const uploadOnly = process.argv.includes("--upload-only");
 const identity = (await Bun.file(
   resolve(root, ".wrangler/production/identity.json"),
 ).json()) as { accountId: string };
@@ -104,6 +105,9 @@ try {
     "desktop-chromium",
     "mobile-chromium",
     "mobile-webkit",
+    "upload:desktop-chromium",
+    "upload:mobile-chromium",
+    "upload:mobile-webkit",
     "auth-sentinel",
   ]) {
     const userId = crypto.randomUUID(),
@@ -168,7 +172,12 @@ try {
   )
     throw new Error("Callback browser binding failed");
   const child = Bun.spawn(
-    ["node", resolve(root, "node_modules/@playwright/test/cli.js"), "test"],
+    [
+      "node",
+      resolve(root, "node_modules/@playwright/test/cli.js"),
+      "test",
+      ...(uploadOnly ? ["tests/e2e/upload-compatibility.spec.ts"] : []),
+    ],
     {
       cwd: root,
       env: {
@@ -270,5 +279,7 @@ try {
 }
 if (failure) throw failure;
 console.info(
-  "PASS: production Mock one-click shoot and detailed planning → image → garment-original comparison → directed revision → export/download → deletion, cross-user isolation and PKCE/browser binding. No paid provider call.",
+  uploadOnly
+    ? "PASS: production upload compatibility fixtures and native private Worker roundtrip in Chromium/mobile Chromium/WebKit, synthetic cleanup, auth preservation and PKCE binding. No paid provider call."
+    : "PASS: production Mock one-click shoot and detailed planning → image → garment-original comparison → directed revision → export/download → deletion, cross-user isolation and PKCE/browser binding. No paid provider call.",
 );
