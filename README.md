@@ -28,8 +28,9 @@ bun run check
 bun run test:local
 bun run test:oauth
 bun run test:photography
-bunx playwright install chromium
+bunx playwright install chromium webkit
 bun run test:e2e
+bun run test:safari
 ```
 
 `check`는 format/lint/typecheck/unit/build를 실행합니다. `test:local`은 격리된 workerd에서 D1/R2/Workflow binding을 확인합니다. `test:oauth`는 실제 workerd native HTTP와 로컬 합성 provider로 초대 없는 OAuth 콜백·키 상태·모델 목록·AI 어댑터·암호화·세션·재사용 거부·redirect 차단을 확인합니다. `test:photography`는 합성 촬영 지시/참조 역할 6종과 버전·해시·근사 심도를 ignored `.tmp/photography-benchmark/manifest.json`으로 생성하며 AI 호출/품질 평가는 하지 않습니다. `test:e2e`는 desktop/mobile에서 의류/인물/촬영감 업로드·사용 선택·분석·생성·의류 원본/결과 비교·개선 지시·다운로드·내보내기·삭제까지 실제 Mock Workflow를 검증합니다. 유료 테스트는 자동 실행하지 않습니다.
@@ -88,3 +89,5 @@ Shutterstock 운영 활성화와 설정 명령은 사용자 요청으로 종료�
 화면은 소유권을 확인한 private R2 미리보기(썸네일160px, 본문960px)를 사용합니다. 불투명 사진은 JPEG82, 투명 사진은 PNG입니다. 생성 결과는 원본 검증과 같은 decode에서 두 미리보기를 준비하며, 동일 Worker isolate의 동시 cold 요청도 한 번만 decode합니다. 조건부 요청은 인증·소유권 확인 후304로 재사용하고 공유 캐시는 금지합니다. 확대 모달도 미리보기로 열리고 ‘원본 크기로 보기’를 실행할 때 전체 파일을 받습니다. 다운로드·AI 근거와 과거 파일은 native 원본을 유지합니다. 진행 조회는 중첩하지 않고 변경된 상태만 반영하며 결과 목록은 생성 종료/asset 변경 때만 읽습니다. 상품/계정/사진 삭제 시 새/이전 버전의 파생 파일도 정리합니다. 미리보기 최적화는 외부 AI 생성 시간을 줄였다는 의미가 아닙니다.
 
 현재 초기 흐름은 사진 선택→‘촬영 시작’ 한 번→서버에서 분석/기획/이미지1건 생성입니다(ADR-040). 선택만으로 AI를 호출하지 않습니다. 업로드한 선택 참조를 기획/생성에 함께 사용하며, 추가 환경 사진 검색을 필수로 요구하지 않습니다. 이동·새로고침 후에도 같은 Workflow를 조회합니다. 결과 이후 오른쪽 패널에서 기획을 수정하거나 수동 생성/추가 보정을 실행할 수 있습니다. Nano의1K 보정 실제 표본은 미세 디테일 개선이 확인되지 않았으며 자동으로 품질 향상이라고 판정하지 않습니다.
+
+사진 선택은 JPEG/PNG/WebP/HEIC·최대30MB이며, 실행 시 브라우저에서 실제 서명/디코딩→EXIF 방향 반영→긴 변2048px·4MP 이하의 JPEG/PNG로 준비합니다(ADR-044). 파일명·보고된 MIME을 실제 포맷으로 신뢰하지 않습니다. PNG/WebP 투명도를 보존하고 JPEG 인코딩 품질0.94를 요청합니다. 준비된 파일만 기존10MB/4MP/private R2 서버 검사를 통과해야 하며 전체 합계는30MB입니다. HEIC는 해당 브라우저의 native decoder가 있어야 변환되며 미지원은 로컬 오류로 끝납니다. 외부 변환 서비스/AI를 호출하지 않습니다. `test:safari`는 iPhone viewport의 Playwright WebKit 검사이며 실제 iPhone Photos 선택기/OS 코덱과 구별합니다.

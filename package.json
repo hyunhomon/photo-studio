@@ -27,6 +27,7 @@
     "test:oauth": "bun run scripts/oauth-local-smoke.ts",
     "test:photography": "bun run scripts/photography-benchmark.ts",
     "test:e2e": "playwright test",
+    "test:safari": "playwright test --config playwright.safari.config.ts",
     "build": "bun run --sequential --filter './apps/*' build",
     "deploy": "bun run check && bun run scripts/deploy-production.ts",
     "deploy:web": "bun run check && bun run scripts/deploy-web-production.ts",

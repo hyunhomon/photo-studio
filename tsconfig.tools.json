@@ -4,7 +4,7 @@
   "include": [
     "scripts",
     "tests",
-    "playwright.config.ts",
+    "playwright*.config.ts",
     "apps/api/src/wasm.d.ts"
   ]
 }

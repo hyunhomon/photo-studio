@@ -11,6 +11,12 @@ import {
 import { Button } from "@photo-studio/ui";
 import type { ProductDto } from "@photo-studio/schemas";
 import { errorMessage, request } from "../lib/api";
+import {
+  isPhotoCandidate,
+  maxSelectedPhotoBytes,
+  photoAccept,
+  prepareUploadPhoto,
+} from "../lib/upload-photo";
 
 export function PhotoPicker({
   label,
@@ -54,10 +60,11 @@ export function PhotoPicker({
     const next = max === 1 ? [] : [...files];
     for (const file of incoming) {
       if (
-        file.size > 10 * 1024 * 1024 ||
-        !["image/jpeg", "image/png", "image/webp"].includes(file.type)
+        !file.size ||
+        file.size > maxSelectedPhotoBytes ||
+        !isPhotoCandidate(file)
       ) {
-        setError("JPEG·PNG·WebP, 사진당 10MB 이하로 선택해 주세요.");
+        setError("JPEG·PNG·WebP·HEIC, 사진당 30MB 이하로 선택해 주세요.");
         return;
       }
       if (
@@ -103,7 +110,7 @@ export function PhotoPicker({
           aria-label={label}
           type="file"
           multiple={max > 1}
-          accept="image/jpeg,image/png,image/webp"
+          accept={photoAccept}
           disabled={disabled}
           className="sr-only"
           tabIndex={-1}
@@ -135,6 +142,7 @@ export function PhotoPicker({
             >
               <img
                 src={preview.url}
+                decoding="async"
                 alt={`${label} 미리보기 ${selected + 1}`}
                 className="absolute inset-0 size-full object-contain p-2"
               />
@@ -243,32 +251,36 @@ export default function ProductUploadForm({
     onBusy?.(true);
     setError("");
     try {
-      if (
-        [...files, ...look, ...person].reduce((n, f) => n + f.size, 0) >
-        30 * 1024 * 1024
-      )
-        throw new Error(
-          "한 번에 등록하는 사진은 합계 30MB 이하로 선택해 주세요.",
-        );
-      const body = new FormData();
-      for (const f of files) body.append("images", f);
-      if (look[0]) body.set("lookImage", look[0]);
-      if (person[0]) body.set("personImage", person[0]);
-      if (hasReference) body.set("rightsConfirmed", "true");
-      if (startShoot) {
-        body.set("startShoot", "true");
-        body.set("idempotencyKey", executionId.current);
-      }
-      const product =
-        saved.current ??
-        (await request<ProductDto>(
+      let product = saved.current;
+      if (!product) {
+        const body = new FormData();
+        let total = 0;
+        async function append(field: string, file: File, label: string) {
+          const prepared = await prepareUploadPhoto(file, label);
+          total += prepared.size;
+          if (total > 30 * 1024 * 1024)
+            throw new Error(
+              "준비한 사진의 합계가 30MB를 넘었어요. 사진 수를 줄여 주세요.",
+            );
+          body.append(field, prepared);
+        }
+        for (const f of files) await append("images", f, "상품 사진");
+        if (look[0]) await append("lookImage", look[0], "레퍼런스 사진");
+        if (person[0]) await append("personImage", person[0], "인물 사진");
+        if (hasReference) body.set("rightsConfirmed", "true");
+        if (startShoot) {
+          body.set("startShoot", "true");
+          body.set("idempotencyKey", executionId.current);
+        }
+        product = await request<ProductDto>(
           productId
             ? `/api/v1/products/${productId}/assets`
             : "/api/v1/products",
           { method: "POST", body, signal: AbortSignal.timeout(90000) },
           csrf,
-        ));
-      saved.current = product;
+        );
+        saved.current = product;
+      }
       if (product.startupError) {
         await request(
           `/api/v1/products/${product.id}/shoot`,
@@ -304,7 +316,10 @@ export default function ProductUploadForm({
         <PhotoPicker
           label="상품 사진"
           files={files}
-          onChange={setFiles}
+          onChange={(value) => {
+            setFiles(value);
+            setError("");
+          }}
           max={remaining}
           disabled={busy || Boolean(saved.current)}
         />
@@ -314,7 +329,10 @@ export default function ProductUploadForm({
               <PhotoPicker
                 label="촬영 레퍼런스 (선택)"
                 files={look}
-                onChange={setLook}
+                onChange={(value) => {
+                  setLook(value);
+                  setError("");
+                }}
                 max={1}
                 disabled={busy || Boolean(saved.current)}
               />
@@ -322,7 +340,10 @@ export default function ProductUploadForm({
             <PhotoPicker
               label="인물 참조 (선택)"
               files={person}
-              onChange={setPerson}
+              onChange={(value) => {
+                setPerson(value);
+                setError("");
+              }}
               max={1}
               disabled={busy || Boolean(saved.current)}
             />

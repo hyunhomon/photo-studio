@@ -462,3 +462,11 @@ production desktop/mobile 전체 Mock E2E **4/4 통과**: 저장된 분석 재�
 운영1792×2400 합성 PNG95,249bytes에서160px742bytes/cold1,399ms(두 크기 준비),960px5,116bytes/첫 warm410ms·다음 warm272ms, 인증 후304는body0bytes/238ms였다. 같은 요청으로 native content/download bytes 일치와 삭제 후 조건부 요청404를 확인했다. 압축이 잘 되는 단일 합성 표본의 왕복 측정이며 실제 사진의 용량/속도 비율이나 AI 추론 단축으로 일반화하지 않는다. 단위 검사에서304의R2 get0회·동일 isolate 동시 miss의source read1회·삭제 경합의파생물0개도 확인했다.
 
 최초 운영25/26의 실패는 썸네일이 보이면 durable job도 완료됐다고 가정한 quick-shoot 검사의 경합이었다. asset 저장 후 미리보기/완료 commit 사이에는 running일 수 있다. job 완료를 기다리도록 보강한 뒤 local 해당2/2와 새 운영 전체26/26·후속 정리/인증 guard exit0을 통과했다(검사 commit698b4ec, 앱 runtime은66e35b8과 동일). 마지막 합성 계정0·실제 계정1/연결1/세션2, 기존 암호화 secret/Commons 기본/stock 미활성을 확인했다. 실제 AI 호출·새 migration·자료 초기화·키 교체는 없다.
+
+### iPhone/Safari 업로드 호환 — 2026-11-17 (ADR-044)
+
+- [x] 오류 문구를 서버 inspectImage로 추적하고 MIME 불일치/부가 데이터 JPEG로 재현. 실제 고객 원본의 정확한 형식은 스크린샷만으로 단정하지 않는다.
+- [x] 상품/원본 추가/인물·촬영 참조에 실행 시 로컬 canonical JPEG/PNG 변환·비율 유지·픽셀/용량 제한·방향/투명도 보존·오류 복구 적용. 서버 검사/인증/유료 호출 경계 유지.
+- [x] 별도 Safari 엔진 프로젝트·12MP/잘못된 MIME/빈 MIME/JPEG 트레일러/EXIF6/위장 SVG/복구 fixture와 native Mock HTTP 업로드→저장 크기/원본 읽기→삭제. 로컬 WebKit4/4 확인.
+- [ ] 전체 검사·로컬/운영 Chromium/WebKit·배포·인증 보존/합성 정리 결과 기록.
+- [ ] 실제 iPhone Photos 선택기의 동일 사진 재시도. 기기 원본을 받거나 실제 OS 선택기를 조작하지 않았으며 자동 엔진 검사와 구별한다.

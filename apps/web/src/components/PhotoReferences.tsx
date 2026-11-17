@@ -8,6 +8,7 @@ import type {
 } from "@photo-studio/schemas";
 import { apiBase, errorMessage, request } from "../lib/api";
 import { PhotoPicker } from "./ProductUploadForm";
+import { prepareUploadPhoto } from "../lib/upload-photo";
 
 const roles = [
   {
@@ -47,7 +48,13 @@ export default function PhotoReferences({
       const body = new FormData();
       body.set("role", role);
       body.set("rightsConfirmed", "true");
-      body.set("image", file);
+      body.set(
+        "image",
+        await prepareUploadPhoto(
+          file,
+          role === "person_reference" ? "인물 사진" : "레퍼런스 사진",
+        ),
+      );
       if (role === "look_reference" && sourcePinUrl.trim())
         body.set("sourcePinUrl", sourcePinUrl.trim());
       await request(
@@ -174,7 +181,10 @@ export default function PhotoReferences({
           <PhotoPicker
             label={`${info?.title} 사진 선택`}
             files={file ? [file] : []}
-            onChange={(files) => setFile(files[0] ?? null)}
+            onChange={(files) => {
+              setFile(files[0] ?? null);
+              setError("");
+            }}
             max={1}
             disabled={busy}
           />

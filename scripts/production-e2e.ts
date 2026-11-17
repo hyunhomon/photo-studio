@@ -100,7 +100,12 @@ let sentinelId: string | undefined;
 let flowHash: string | undefined;
 let failure: unknown;
 try {
-  for (const name of ["desktop-chromium", "mobile-chromium", "auth-sentinel"]) {
+  for (const name of [
+    "desktop-chromium",
+    "mobile-chromium",
+    "mobile-webkit",
+    "auth-sentinel",
+  ]) {
     const userId = crypto.randomUUID(),
       sessionToken = crypto.randomUUID() + crypto.randomUUID(),
       csrf = crypto.randomUUID(),
