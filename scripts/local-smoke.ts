@@ -2,6 +2,7 @@ import { strict as assert } from "node:assert";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { parseConfigFileTextToJson } from "typescript";
+import { syntheticPng } from "../apps/api/test/png";
 
 // Isolated workerd integration test. Creates no remote resources, uses no
 // credentials, writes only synthetic data and deletes its R2 probe object.
@@ -76,6 +77,19 @@ try {
   const response = await request("/__test/bindings", { method: "POST" });
   assert.equal(response.status, 200);
   assert.deepEqual(await response.json(), { d1: true, r2: true });
+  const codec = await request("/__test/generated-codec", {
+    method: "POST",
+    body: new Uint8Array(syntheticPng(1792, 2400)).buffer,
+  });
+  assert.equal(codec.status, 200);
+  assert.deepEqual(await codec.json(), {
+    width: 1792,
+    height: 2400,
+    bytesPreserved: true,
+    previewWidth: 765,
+    previewHeight: 1024,
+    previewMime: "image/jpeg",
+  });
   const started = await request("/__test/workflow", { method: "POST" });
   assert.equal(started.status, 200);
   const { id } = (await started.json()) as { id: string };

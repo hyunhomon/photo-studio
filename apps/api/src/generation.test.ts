@@ -169,6 +169,7 @@ test("explicit second pass snapshots Nano and owned previous image without invok
   expect(JSON.parse(row.request_json)).toMatchObject({
     imageModel: "google/gemini-3.1-flash-image",
     refinement: true,
+    resolution: "2K",
     regenerationOf: result.asset.id,
   });
   expect(
@@ -176,6 +177,47 @@ test("explicit second pass snapshots Nano and owned previous image without invok
       .query("SELECT count(*) AS n FROM generation_attempts WHERE job_id=?")
       .get(second.data.id),
   ).toEqual({ n: 0 });
+});
+
+test("a requested 2K correction never silently upscales undersized provider output and retains its cost without retry", async () => {
+  const s = await ready();
+  const first = (await s.generate()).data;
+  await runGenerationStage(s.env, first.id, "generation");
+  const result = (
+    await s.call<ResultDto[]>(`/products/${s.product.id}/results`)
+  ).data[0];
+  if (!result) throw Error("Missing synthetic result");
+  s.sqlite.run("UPDATE users SET is_test=0");
+  const second = (
+    await s.call<JobDto>(`/products/${s.product.id}/generate`, "POST", {
+      ...s.input,
+      idempotencyKey: crypto.randomUUID(),
+      refinement: true,
+      regenerationOf: result.asset.id,
+      regenerationReason: "other",
+    })
+  ).data;
+  const adapter = mockAdapter();
+  const generate = adapter.generate;
+  let calls = 0;
+  adapter.generate = async (...args) => {
+    calls++;
+    const r = await generate(...args);
+    return { ...r, usage: { ...r.usage, actualCostUsd: 0.0123 } };
+  };
+  await runGenerationStage(s.env, second.id, "generation", {
+    adapter: async () => adapter,
+  });
+  await runGenerationStage(s.env, second.id, "generation", {
+    adapter: async () => adapter,
+  });
+  expect(calls).toBe(1);
+  const job = (await s.call<JobDto>(`/jobs/${second.id}`)).data;
+  expect(job.errorCode).toBe("REFINEMENT_RESOLUTION_TOO_SMALL");
+  expect(job.attempts[0]?.actualCostUsd).toBe(0.0123);
+  expect(
+    (await s.call<ResultDto[]>(`/products/${s.product.id}/results`)).data,
+  ).toHaveLength(1);
 });
 
 test("R2 failure after paid response retains reported cost and never repeats generation", async () => {

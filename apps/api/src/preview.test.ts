@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { studioFixture } from "../test/studio";
-import { previewImage } from "./images";
+import { previewImage, preserveGeneratedImage } from "./images";
 import { syntheticPng } from "../test/png";
 import { inspectImage } from "./image-meta";
 import {
@@ -8,6 +8,27 @@ import {
   validateAutomaticReferenceConfig,
 } from "./automatic-reference";
 import { generateRequestSchema } from "@photo-studio/schemas";
+
+test("2K output keeps native bytes and dimensions; upload bounds stay strict and display previews alone downscale", async () => {
+  const pixels = syntheticPng(1792, 2400);
+  expect(() => inspectImage(pixels, "image/png")).toThrow("400만");
+  const full = await preserveGeneratedImage(pixels, "image/png");
+  expect(full.bytes).toBe(pixels);
+  expect(full).toMatchObject({
+    width: 1792,
+    height: 2400,
+    mimeType: "image/png",
+  });
+  const small = await previewImage(full.bytes, full.mimeType, 1024, true);
+  expect(inspectImage(small.bytes, small.mimeType)).toMatchObject({
+    width: 765,
+    height: 1024,
+    mime: "image/jpeg",
+  });
+  expect(() =>
+    inspectImage(syntheticPng(2048, 3072), "image/png", "generated"),
+  ).toThrow("600만");
+});
 
 test("production cannot enable retired Shutterstock and Nano refinement requires an existing generated source", async () => {
   const s = await studioFixture();

@@ -2,12 +2,26 @@
 // cannot expose these infrastructure probes to app users.
 import { createDb, sql } from "@photo-studio/db";
 import { app } from "../src/app";
+import { preserveGeneratedImage, previewImage } from "../src/images";
 
 export { StudioWorkflow } from "../src/workflow";
 
 export default {
   async fetch(request: Request, env: CloudflareBindings) {
     const path = new URL(request.url).pathname;
+    if (path === "/__test/generated-codec" && request.method === "POST") {
+      const bytes = new Uint8Array(await request.arrayBuffer());
+      const full = await preserveGeneratedImage(bytes, "image/png");
+      const preview = await previewImage(full.bytes, full.mimeType, 1024, true);
+      return Response.json({
+        width: full.width,
+        height: full.height,
+        bytesPreserved: full.bytes === bytes,
+        previewWidth: preview.width,
+        previewHeight: preview.height,
+        previewMime: preview.mimeType,
+      });
+    }
     if (path === "/__test/bindings" && request.method === "POST") {
       const row = await createDb(env.DB).get<{ value: number }>(
         sql`select 1 as value`,

@@ -226,8 +226,12 @@ export default function GenerationPanel({
             <a
               href={`${apiBase}/api/v1/assets/${result.asset.id}/download`}
               data-astro-reload
-              aria-label="PNG 다운로드"
-              title="PNG 다운로드"
+              aria-label={
+                result.asset.mimeType === "image/png"
+                  ? "PNG 다운로드"
+                  : "이미지 다운로드"
+              }
+              title="이미지 다운로드"
               className="grid size-10 place-items-center rounded-lg border border-line text-muted hover:text-ink"
             >
               <ArrowDownToLine size={16} />
@@ -358,7 +362,7 @@ export default function GenerationPanel({
             onChange={(v) => setRefinement(v === "nano")}
             options={[
               { value: "standard", label: "기본 모델" },
-              { value: "nano", label: "Nano Banana 2 · 1K 보정" },
+              { value: "nano", label: "Nano Banana 2 · 2K 보정" },
             ]}
           />
           <Select

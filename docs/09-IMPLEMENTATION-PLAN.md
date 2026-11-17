@@ -424,3 +424,12 @@ production desktop/mobile 전체 Mock E2E **4/4 통과**: 저장된 분석 재�
 08d5358 commit/push 및 API/Workflow→웹 배포 후 공개 HTTPS/CORS/PKCE/반응형 smoke와 전체 production desktop/mobile Mock22/22(wrapper exit0)이 통과했다. 새 one-click/reload/세 단계 기록과 기존 수동 기획·생성·비교·보정·다운로드·삭제·타인 격리를 포함한다. 배포 전후 실제 인증/별도 non-empty canary·untouched sentinel 불변과 자기 합성 자료 정리를 확인했다. 마지막 읽기 집계는 합성0·실제 계정1/연결1/세션2, 기본 Commons 설정과 기존 master secret·Shutterstock 미활성 유지다. 초기 촬영에서는 Commons 검색을 필수로 호출하지 않는다.
 
 이번 실제 AI는 사용자 승인 Nano1건뿐이며 추가 보정·AI 평가·기본 생성 실호출은0회다. 새로운 초기 흐름의 실제 생성 품질/속도를 Mock 성공으로 주장하지 않는다. DB migration/고객 초기화/키 교체·유료 결제·stock 발급은 없다. 비교 자료는 비공개 로컬과 원래 owner의 결과 이력에만 남긴다.
+
+### 동일 기준 이미지의 실제2K 교정 보정 — 2026-11-17 (ADR-041)
+
+- [x] 사용자1회 실행 승인과 교정 목적을 기록. 같은 이전 원본 결과를 사용하며1K 결과의 연쇄 보정을 피한다.
+- [x] 공개 model catalog의 Nano2K 지원, 해상도 snapshot/preflight/요청 일치,1K 이력 호환과 교정 프롬프트 버전14 추가.
+- [x] 업로드4MP 유지·생성 전용6MP/native bytes 저장·미리보기 전용 축소·이전/2K보다 작은 출력 거부·비용 보존/무재시도 회귀. native workerd의1792×2400 합성 decode/보존/1024 JPEG 미리보기 통과.
+- [ ] 최종 전체 검사·운영 배포·인증 보존·실제2K1회와 출력 해상도·원단/로고/지퍼/얼굴/빛의 전후 비교.
+
+실제2K는 테스트가 통과한 저장 경로를 배포한 뒤 기존 owner의 BYOK Workflow로1건만 실행한다. 같은 기준 이미지와 private receipt로 중복 실행을 막고 운영 키/세션을 새로 만들지 않는다. 결과 개선은 실행 후 확대 비교 전까지 미검증이다.

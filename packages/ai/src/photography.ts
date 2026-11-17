@@ -7,6 +7,7 @@ import {
 
 export const CAPTURE_PROTOCOL_VERSION = "photo-v8-licensed-fashion";
 export interface GenerationDirection {
+  resolution?: "1K" | "2K";
   captureVersion?: string;
   reason?: string | null;
   adjustments?: string;

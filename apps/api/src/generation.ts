@@ -39,7 +39,7 @@ import {
   sourceSnapshot,
 } from "./pipeline";
 import { clearObjectQueue, deleteObject, queueObject } from "./storage";
-import { normalizeImage } from "./images";
+import { normalizeImage, preserveGeneratedImage } from "./images";
 import { rateLimit } from "./auth";
 import { referenceSource, type ReferenceSource } from "./reference-source";
 import {
@@ -52,6 +52,7 @@ export interface GenerationSnapshot extends PlanSnapshot {
   plan: ShootPlan;
   quality: "medium" | "high";
   refinement?: boolean;
+  resolution?: "1K" | "2K";
   regenerationOf: string | null;
   regenerationReason: string | null;
   adjustments?: string;
@@ -154,6 +155,7 @@ export async function runGenerationStage(
         Number(Boolean(input.personReferenceId)) +
         Number(Boolean(input.lookReferenceId)) +
         Number(Boolean(input.regenerationOf)),
+      input.resolution,
     );
     const references = await imageData(env, job, [
       ...input.sourceIds,
@@ -181,6 +183,7 @@ export async function runGenerationStage(
             captureVersion: input.captureVersion ?? CAPTURE_PROTOCOL_VERSION,
             reason: input.regenerationReason,
             adjustments: input.adjustments,
+            resolution: input.resolution,
             previousImage,
             garmentAnalysis: input.analysisSnapshot,
             personImage,
@@ -193,11 +196,39 @@ export async function runGenerationStage(
         );
         await recordUsage(env, job, stage, result.usage);
         await jobActive(env, job);
-        const image = await normalizeImage(
-            result.value.bytes,
-            result.value.mimeType,
-          ),
-          key = generatedKey(job);
+        const image =
+          input.resolution === "2K"
+            ? await preserveGeneratedImage(
+                result.value.bytes,
+                result.value.mimeType,
+              )
+            : await normalizeImage(result.value.bytes, result.value.mimeType);
+        if (
+          input.resolution === "2K" &&
+          input.imageModel === "google/gemini-3.1-flash-image" &&
+          Math.max(image.width, image.height) < 2048
+        )
+          throw new ProviderError("REFINEMENT_RESOLUTION_TOO_SMALL");
+        if (input.resolution === "2K" && input.regenerationOf) {
+          const prior = await db
+            .select()
+            .from(assets)
+            .where(
+              and(
+                eq(assets.id, input.regenerationOf),
+                eq(assets.userId, job.userId),
+                eq(assets.productId, job.productId),
+              ),
+            )
+            .get();
+          if (
+            !prior ||
+            image.width < prior.width ||
+            image.height < prior.height
+          )
+            throw new ProviderError("REFINEMENT_RESOLUTION_TOO_SMALL");
+        }
+        const key = generatedKey(job);
         await queueObject(env, key);
         await jobActive(env, job);
         await env.ASSETS.put(key, image.bytes, {
@@ -227,6 +258,13 @@ export async function runGenerationStage(
           value: {
             assetId: job.id,
             captureVersion: CAPTURE_PROTOCOL_VERSION,
+            ...(input.resolution
+              ? {
+                  resolution: input.resolution,
+                  width: image.width,
+                  height: image.height,
+                }
+              : {}),
             ...(job.kind === "shoot" ? { generationSnapshot: input } : {}),
           },
           usage: result.usage,
@@ -436,6 +474,7 @@ export function generationRoutes() {
       plan: generationSpec,
       quality: input.quality,
       refinement: input.refinement,
+      ...(input.refinement ? { resolution: "2K" as const } : {}),
       regenerationOf: input.regenerationOf,
       regenerationReason: input.regenerationReason,
       adjustments: input.adjustments,

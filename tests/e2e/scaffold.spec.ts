@@ -820,7 +820,7 @@ test("Mock: direct multi-photo upload, reference planning, compare, revise, expo
   await page.getByRole("button", { name: "이 컷 개선", exact: true }).click();
   await page.getByRole("button", { name: "보정 모델", exact: true }).click();
   await page
-    .getByRole("option", { name: "Nano Banana 2 · 1K 보정", exact: true })
+    .getByRole("option", { name: "Nano Banana 2 · 2K 보정", exact: true })
     .click();
   await page.getByRole("button", { name: "개선할 항목", exact: true }).click();
   await page

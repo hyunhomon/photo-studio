@@ -528,6 +528,7 @@ export function resourceRoutes(deps: ResourceDeps = {}) {
       new Uint8Array(await original.arrayBuffer()),
       asset.mimeType,
       size,
+      asset.kind === "generated",
     );
     await queueObject(c.env, key);
     await c.env.ASSETS.put(key, image.bytes, {
@@ -570,7 +571,7 @@ export function resourceRoutes(deps: ResourceDeps = {}) {
         headers: {
           "Content-Type": asset.mimeType,
           "Cache-Control": "private, no-store",
-          "Content-Disposition": `${type === "download" ? "attachment" : "inline"}; filename="photo-studio.png"`,
+          "Content-Disposition": `${type === "download" ? "attachment" : "inline"}; filename="photo-studio.${asset.mimeType === "image/jpeg" ? "jpg" : asset.mimeType === "image/webp" ? "webp" : "png"}"`,
           "X-Content-Type-Options": "nosniff",
           "Content-Security-Policy": "default-src 'none'; sandbox",
         },

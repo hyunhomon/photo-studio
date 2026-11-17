@@ -1,15 +1,24 @@
 import { AppError } from "./errors";
 export const maxImageBytes = 10 * 1024 * 1024;
-export function inspectImage(bytes: Uint8Array, declared = "") {
+export const maxGeneratedImageBytes = 15 * 1024 * 1024;
+export function inspectImage(
+  bytes: Uint8Array,
+  declared = "",
+  policy: "upload" | "generated" = "upload",
+) {
+  const generated = policy === "generated";
+  const byteLimit = generated ? maxGeneratedImageBytes : maxImageBytes;
   const invalid = () =>
     new AppError(
       "INVALID_IMAGE",
       "정상적인 JPEG, PNG, WebP 사진을 선택해 주세요.",
     );
-  if (!bytes.length || bytes.length > maxImageBytes)
+  if (!bytes.length || bytes.length > byteLimit)
     throw new AppError(
       "IMAGE_TOO_LARGE",
-      "사진 한 장은 10MB 이하여야 합니다.",
+      generated
+        ? "생성 사진은 15MB 이하여야 합니다."
+        : "사진 한 장은 10MB 이하여야 합니다.",
       413,
     );
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
@@ -83,10 +92,16 @@ export function inspectImage(bytes: Uint8Array, declared = "") {
   }
   if (!mime || !width || !height || (declared && declared !== mime))
     throw invalid();
-  if (width > 4096 || height > 4096 || width * height > 4_000_000)
+  if (
+    width > (generated ? 3072 : 4096) ||
+    height > (generated ? 3072 : 4096) ||
+    width * height > (generated ? 6_000_000 : 4_000_000)
+  )
     throw new AppError(
       "IMAGE_TOO_LARGE",
-      "사진은 400만 픽셀 이하, 긴 변 4096px 이하로 줄여 주세요.",
+      generated
+        ? "생성 사진은 600만 픽셀 이하, 긴 변 3072px 이하여야 합니다."
+        : "사진은 400만 픽셀 이하, 긴 변 4096px 이하로 줄여 주세요.",
       413,
     );
   return { mime, width, height };
