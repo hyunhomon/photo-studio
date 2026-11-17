@@ -60,6 +60,23 @@ test("Mock: select a photo and one execution continues analysis, plan and image 
     await expect(
       page.getByRole("button", { name: "결과 1 선택", exact: true }),
     ).toBeVisible({ timeout: 90000 });
+    // The asset can be readable while its display derivatives and durable
+    // completion are still committing. Seeing a thumbnail is not job completion.
+    await expect
+      .poll(
+        async () => {
+          const snapshot = (
+            await (
+              await page.request.get(
+                `${api}/api/v1/products/${productId}/pipeline`,
+              )
+            ).json()
+          ).data as PipelineDto;
+          return snapshot.jobs[0]?.status;
+        },
+        { timeout: 60000, intervals: [1000, 2000] },
+      )
+      .toBe("needs_review");
     const pipeline = (
       await (
         await page.request.get(`${api}/api/v1/products/${productId}/pipeline`)
